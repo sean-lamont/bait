@@ -1,0 +1,22 @@
+defaults:
+  - premise_selection
+
+data_config:
+  data_options:
+    db: 'mizar40'
+
+epochs: 10
+
+exp_config:
+    name: bag_of_words
+
+model_config:
+  model_type: 'formula-net-edges'
+  model_attributes:
+    vocab_size: 13420
+    embedding_dim: 128
+    gnn_layers: 0
+#    batch_norm: True
+
+logging_config:
+  project: mizar40

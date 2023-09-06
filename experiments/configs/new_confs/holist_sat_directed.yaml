@@ -1,0 +1,51 @@
+defaults:
+  - holist_pretrain
+
+batch_size: 16
+tac_embed_dim: 128
+final_embed_dim: 1024
+#epochs: 3
+
+data_config:
+  data_options:
+    db: 'holist'
+    thms_col: 'train_thm_ls'
+    # use a MongoDB cursor to retrieve expression data
+    dict_in_memory: False
+    filter: ['tokens', 'edge_attr', 'edge_index', 'attention_edge_index', 'depth']
+  attributes:
+    attention_edge: 'directed'
+  batch_size: 16
+
+exp_config:
+  name: SAT Directed Small
+  devices: [0]
+  resume: True
+  directory: 'experiments/runs/holist_pretrain/2023_08_02/SAT Directed Small_17_21_39'
+
+model_config:
+  model_type: 'holist_sat'
+  model_attributes:
+    vocab_size: 1500
+    embedding_dim: 128
+    batch_norm: False
+    global_pool: 'max'
+    num_edge_features: 3
+    dim_feedforward: 256
+    num_heads: 4
+    num_layers: 2
+    in_embed: True
+    se: 'gnn-encoder'
+    abs_pe: False
+    use_edge_attr: True
+    dropout: 0.2
+    gnn_layers: 4
+    small_inner: False
+    abs_pe_dim: 256
+
+logging_config:
+  project: test_hydra
+  id: '7yhqvdxe'
+
+hydra.verbose: True
+

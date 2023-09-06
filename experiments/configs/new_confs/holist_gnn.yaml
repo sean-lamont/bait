@@ -1,0 +1,34 @@
+defaults:
+  - holist_pretrain
+
+tac_embed_dim: 128
+final_embed_dim: 1024
+batch_size: 16
+
+data_config:
+  data_options:
+    db: 'holist'
+    thms_col: 'train_thm_ls'
+    # use a MongoDB cursor to retrieve expression data
+    dict_in_memory: False
+  batch_size: 16
+
+exp_config:
+  name: gnn_small
+  device: [0]
+  resume: True
+  directory: 'experiments/runs/holist_pretrain/2023_08_02/gnn_small_17_19_53'
+
+model_config:
+  model_type: holist_gnn
+  model_attributes:
+    gnn_layers: 12
+    vocab_size: 1500
+    dropout: 0.2
+    embedding_dim: 128
+
+logging_config:
+  project: test_hydra
+  id: 'wxm6gt6t'
+
+hydra.verbose: True

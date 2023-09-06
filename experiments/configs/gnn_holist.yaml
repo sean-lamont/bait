@@ -1,0 +1,39 @@
+epochs: 20
+exp_config:
+  name: "HOList GNN"
+  experiment: "holist_pretrain"
+  directory: "experiments/runs"
+  logging_config:
+    project: "HOList Pretrain"
+    offline: True
+optimiser_config:
+  learning_rate: 1e-4
+model_config:
+  model_type: "holist_gnn"
+  model_attributes:
+    vocab_size: 1500
+    embedding_dim: 128
+    gnn_layers: 12
+    dropout: 0.2
+final_embed_dim: 1024
+num_tactics: 41
+tac_embed_dim: 128
+data_config:
+  type: "graph"
+  source: "mongodb" #directory
+  shuffle: True
+  data_options:
+    split_in_memory: True
+    dict_in_memory: True
+    filter: ['tokens', 'edge_attr', 'edge_index']
+    db: 'holist'
+    expression_col: 'expression_graphs'
+    vocab_col: 'vocab'
+    split_col: 'split_data'
+    thms_col: 'train_thm_ls'
+#  attributes: None
+  batch_size: 16
+#  dir: "data/hol4/graph_attention_data_new"
+limit_val_batches: True
+val_frequency: 4096
+val_size: 40000

@@ -1,0 +1,38 @@
+defaults:
+  - premise_selection
+
+data_config:
+  type: "ensemble"
+  data_options:
+    dict_in_memory: False
+    db: 'holstep'
+    filter: ['tokens', 'edge_attr', 'edge_index', 'polished']#, 'attention_edge_index', 'depth']
+  attributes:
+    max_len: 1024
+
+
+epochs: 10
+
+exp_config:
+  name: ensemble_small
+  device: [0]
+
+model_config:
+  model_type: ensemble
+  model_attributes:
+    embedding_dim: 256
+    vocab_size: 115500
+    gnn_layers: 3
+    batch_norm: True
+    dropout: 0.0
+    num_layers: 4
+    num_heads: 4
+    dim_feedforward: 256
+    max_len: 1024
+
+logging_config:
+  project: holstep
+  offline: False
+
+val_frequency:
+  20000

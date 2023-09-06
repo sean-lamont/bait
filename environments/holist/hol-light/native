@@ -1,0 +1,26 @@
+#!/bin/bash -xe
+
+revised="pa_r.cmx pa_rp.cmx pr_dump.cmx pa_lexer.cmx pa_extend.cmx q_MLast.cmx pa_reloc.cmx pa_macro.cmx"
+
+holsrc='hol_native.ml system.ml lib.ml fusion.ml basics.ml nets.ml printer.ml preterm.ml parser.ml equal.ml bool.ml drule.ml tactics.ml itab.ml simp.ml theorems.ml ind_defs.ml class.ml trivia.ml canon.ml meson.ml metis.ml quot.ml impconv.ml pair.ml nums.ml recursion.ml arith.ml wf.ml calc_num.ml normalizer.ml grobner.ml ind_types.ml lists.ml realax.ml calc_int.ml realarith.ml reals.ml calc_rat.ml ints.ml sets.ml iterate.ml cart.ml define.ml help.ml database.ml'
+
+multivariate="Library/wo.ml Library/binary.ml Library/card.ml Library/permutations.ml Library/products.ml Library/floor.ml Multivariate/misc.ml Library/iter.ml Multivariate/metric.ml Multivariate/vectors.ml Multivariate/determinants.ml Multivariate/topology.ml Multivariate/convex.ml Multivariate/paths.ml Multivariate/polytope.ml Multivariate/degree.ml Multivariate/derivatives.ml Multivariate/clifford.ml Multivariate/integration.ml Multivariate/measure.ml Multivariate/multivariate_database.ml"
+
+hol=/usr/local/google/home/geoffreyi/ocaml/hol-light
+
+if false; then
+  mkcamlp5.opt $revised -o syntax0
+  mkcamlp5.opt -pp $hol/syntax0 $revised pa_j_tweak.ml -I `camlp5 -where` -o syntax1
+  mkcamlp5.opt -pp $hol/syntax1 nums.cmxa $revised pa_j_tweak.cmx system.ml -I `camlp5 -where` -o syntax2
+fi
+
+if false; then
+  ./native-rewrite $holsrc
+  ocamlopt.opt -pp $hol/syntax2 -a quotation.cmx $holsrc -I `camlp5 -where` -o hol.cmxa
+fi
+
+if true; then
+  ./native-rewrite $multivariate
+  ulimit -s unlimited
+  ocamlopt.opt -pp $hol/syntax2 -I Library -I Multivariate nums.cmxa hol.cmxa $multivariate -I `camlp5 -where` -o victory
+fi

@@ -1,0 +1,32 @@
+epochs: 20
+exp_config:
+  name: "DiGAE Edges"
+  experiment: "premise_selection"
+  directory: "experiments/runs"
+  logging_config:
+    project: "hol4_premise_selection"
+optimiser_config:
+  learning_rate: 1e-4
+model_config:
+  model_type: "digae"
+  model_attributes:
+    vocab_size: 2015
+    embedding_dim: 256
+    num_edges: 200
+    iterations: 1
+data_config:
+  type: "graph"
+  source: "mongodb" #directory
+  shuffle: True
+  data_options:
+    split_in_memory: True
+    dict_in_memory: True
+    filter: ['tokens', 'edge_attr', 'edge_index']
+    db: 'hol4'
+    expression_col: 'expression_graphs'
+    vocab_col: 'vocab'
+    split_col: 'split_data'
+#  attributes: None
+  batch_size: 32
+#  dir: "data/hol4/graph_attention_data_new"
+#val_frequency: 128

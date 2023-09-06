@@ -1,0 +1,33 @@
+epochs: 20
+exp_config:
+  device: [0]
+  name: "formula-net"
+  experiment: "premise_selection"
+  directory: "experiments/runs/holstep"
+  logging_config:
+    project: "hol4_premise_selection"
+    offline: True
+optimiser_config:
+  learning_rate: 1e-4
+model_config:
+  model_type: "formula-net-edges"
+  model_attributes:
+    vocab_size: 2015
+    embedding_dim: 256
+    gnn_layers: 3
+    batch_norm: True
+data_config:
+  type: "graph"
+  source: "mongodb"
+  shuffle: True
+  data_options:
+    split_in_memory: True
+    dict_in_memory: True
+    filter: ['tokens', 'edge_attr', 'edge_index']
+    db: 'holstep'
+    expression_col: 'expression_graphs'
+    vocab_col: 'vocab'
+    split_col: 'split_data'
+  batch_size: 32
+#  attributes:
+#    attention_edge: 'full'

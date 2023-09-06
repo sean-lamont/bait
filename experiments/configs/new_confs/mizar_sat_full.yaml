@@ -1,0 +1,37 @@
+defaults:
+  - premise_selection
+
+data_config:
+  data_options:
+    db: 'mizar40'
+    filter: ['tokens', 'edge_attr', 'edge_index']
+  attributes:
+    attention_edge: 'full'
+
+epochs: 10
+
+exp_config:
+      name: sat_full
+
+model_config:
+  model_type: 'sat'
+  model_attributes:
+    vocab_size: 13420
+    embedding_dim: 128
+    batch_norm: False
+    global_pool: 'max'
+    num_edge_features: 100
+    dim_feedforward: 128
+    num_heads: 4
+    num_layers: 2
+    in_embed: True
+    se: 'formula-net'
+    abs_pe: False
+    use_edge_attr: True
+    dropout: 0.
+    gnn_layers: 0
+    small_inner: False
+    abs_pe_dim: 256
+
+logging_config:
+  project: mizar40

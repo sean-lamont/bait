@@ -1,0 +1,45 @@
+defaults:
+  - holist_pretrain
+
+tac_embed_dim: 128
+final_embed_dim: 1024
+
+data_config:
+  data_options:
+    db: 'holist'
+    thms_col: 'train_thm_ls'
+    # use a MongoDB cursor to retrieve expression data
+    dict_in_memory: True
+    filter: ['tokens', 'edge_attr', 'edge_index']#, 'attention_edge_index', 'depth']
+  attributes:
+    attention_edge: 'full'
+
+exp_config:
+  name: SAT Full
+#  device: [1]
+
+model_config:
+  model_type: 'holist_sat'
+  model_attributes:
+    vocab_size: 1500
+    embedding_dim: 128
+    batch_norm: True
+    global_pool: 'mean'
+    num_edge_features: 200
+    dim_feedforward: 256
+    num_heads: 4
+    num_layers: 4
+    in_embed: True
+    se: 'gnn-encoder'
+    abs_pe: False
+    use_edge_attr: True
+    dropout: 0.2
+    gnn_layers: 1
+    small_inner: False
+    abs_pe_dim: 256
+
+logging_config:
+  project: test_hydra
+
+hydra.verbose: True
+

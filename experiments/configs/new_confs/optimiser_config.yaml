@@ -1,0 +1,4 @@
+optimiser_config:
+  optimiser: 'AdamW'
+  learning_rate: 1e-4
+  schedule: None

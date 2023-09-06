@@ -1,0 +1,36 @@
+defaults:
+  - premise_selection
+
+data_config:
+  type: 'ensemble'
+  data_options:
+    dict_in_memory: False
+    db: 'mizar40'
+    filter: ['tokens', 'edge_attr', 'edge_index', 'full_tokens']
+  attributes:
+    max_len: 1024
+
+epochs: 10
+
+exp_config:
+  name: ensemble
+#  resume: True
+#  directory: 'experiments/runs/premise_selection/2023_08_11/ensemble_15_16_28'
+
+model_config:
+  model_type: ensemble
+  model_attributes:
+    batch_norm: True
+    gnn_layers: 2
+    dropout: 0.
+    vocab_size: 13420
+    embedding_dim: 128
+    num_layers: 2
+    num_heads: 2
+    dim_feedforward: 256
+    max_len: 1024
+
+logging_config:
+  project: mizar40
+#  id: 'kex3q0rs'
+

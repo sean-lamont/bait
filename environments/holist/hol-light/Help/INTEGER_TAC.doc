@@ -1,0 +1,39 @@
+\DOC INTEGER_TAC
+
+\TYPE {INTEGER_TAC : tactic}
+
+\SYNOPSIS
+Automated tactic for elementary divisibility properties over the integers.
+
+\DESCRIBE
+The tactic {INTEGER_TAC} is a partly heuristic tactic that can often
+automatically prove elementary ``divisibility'' properties of the integers. The
+precise subset that is dealt with is difficult to describe rigorously, but many
+universally quantified combinations of {divides}, {coprime}, {gcd} and
+congruences {(x == y) (mod n)} can be proved automatically, as well as some
+existentially quantified goals. See the documentation for {INTEGER_RULE} for a
+larger set of representative examples.
+
+\FAILURE
+Fails if the goal is not accessible to the methods used.
+
+\EXAMPLE
+A typical elementary divisibility property is that if two linear congruences
+have a common solution modulo {n}, then {n} divides the resultant of the two
+equations. If we set this as our goal
+{
+  # g `!c2 c1 c0 n x:int.
+        (c0 * x == c1) (mod n) /\ (c1 * x == c2) (mod n)
+        ==> n divides (c1 * c1 - c0 * c2)`;;
+}
+\noindent It can be solved automatically using {INTEGER_TAC}:
+{
+  # e INTEGER_TAC;;
+  ...
+  val it : goalstack = No subgoals
+}
+
+\SEEALSO
+INTEGER_RULE, INT_ARITH_TAC, INT_RING, NUMBER_RULE.
+
+\ENDDOC

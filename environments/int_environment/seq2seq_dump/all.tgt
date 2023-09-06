@@ -1,0 +1,498 @@
+equ_prin | (((a*a)*(1/(a^2)))+((1/(a^2))+(a*a))) in obj, ((a*a)+f) in obj, (((1+(1/(a^2)))+(a*a))+1) in obj
+add_assc | ((0+c)+b) in obj
+mul_cmmt | ((b*c)*(c+0)) in obj
+equ_prin | (a+b) in obj, (b+f) in obj, ((b+a)+b) in obj
+add_simp | (b+(-b)) in obj
+mul_one | (1*1) in obj
+mul_assc | (((((c*(1/c))+(1/c))*((1/c)+1))*(1/c))*c) in obj
+equ_prin | 0 in obj, (a+f) in obj, ((b+(-b))+a) in obj
+equ_prin | ((c+(a*a))*((a*a)+(a*a))) in obj, (a+f) in obj, (((c*(a*(a+a)))+((a*a)*(a*(a+a))))+c) in obj
+mul_one | (1*((b*a)*((b*a)+(a*b)))) in obj
+mul_assc | (((b*c)*c)*b) in obj
+mul_simp | ((a+(a+f))*(1/(a+c))) in obj
+equ_prin | ((((a*c)*c)*a)+c) in obj, (a+f) in obj, ((c+((c*a)*(c*a)))+(c*a)) in obj
+add_cmmt | ((a*a)+(a*c)) in obj
+mul_assc | (((1*b)*a)*b) in obj
+sqr_def | (a^2) in obj
+mul_assc | ((c*b)*c) in obj
+equ_prin | (b*(c*c)) in obj, (b+f) in obj, (((b*c)*c)+c) in obj
+add_mul_l_dist | (((-b)*(c*b))+(b*(c*b))) in obj
+mul_assc | ((1*b)*(b*a)) in obj
+mul_simp | (((((a+b)+a)*(b+a))*((b+a)*(a+(b+a))))*(1/((((a+b)+a)*(b+a))^2))) in obj
+sqr_def | (c^2) in obj
+mul_cmmt | (1*(((((a*1)*(b*c))+b)+b)+(a*b))) in obj
+equ_prin | (b*a) in obj, ((b*a)+f) in obj, ((a*b)+a) in obj
+add_assc | ((a+c)+b) in obj
+mul_one | (1*((a+(a+c))*(c+a))) in obj
+add_mul_l_dist | ((b*(1/((b+b)+a)))+((b+a)*(1/((b+b)+a)))) in obj
+add_assc | (((((b*b)*c)+((b*b)*a))+c)+a) in obj
+equ_prin | (c+b) in obj, (c+f) in obj, ((1*(b+c))+(b+c)) in obj
+add_mul_r_dist | ((a*(c+(c+c)))+(a*c)) in obj
+mul_cmmt | ((c+b)*(c+b)) in obj
+add_assc | ((1+(1/(a^2)))+(a*a)) in obj
+equ_prin | 1 in obj, (a+f) in obj, ((((b+(-b))+(c+a))*(1/((0+c)+a)))+b) in obj
+mul_cmmt | (c*b) in obj
+add_simp | (((((a+a)+b)*(b*c))*(((a+(a+b))*c)*b))+(-((((a+a)+b)*(c*b))^2))) in obj
+equ_prin | ((((c*(1/c))+(1/c))^2)*((1/c)*c)) in obj, (b+f) in obj, ((((((c*(1/c))+(1/c))*((1/c)+1))*(1/c))*c)+a) in obj
+add_mul_l_dist | ((b*0)+((c+b)*0)) in obj
+add_simp | (((a*(1/a))+(1+c))+(-((1+1)+c))) in obj
+equ_prin | c in obj 1, (a+f) in obj, (c+b) in obj
+add_simp | (((a^2)*((1*a)+1))+(-(((a*(1*a))*(1*a))+((a*(1*a))*1)))) in obj
+mul_simp | (((b+f)*((c*((a+(b+f))*a))+b))*(1/(((b+f)*((a+b)*(a*c)))+((b+f)*b)))) in obj
+mul_cmmt | ((0+c)*(b+c)) in obj
+add_mul_r_dist | (((b*a)*c)+((b*a)*a)) in obj
+add_zero | ((a*(a+c))+0) in obj
+sqr_def | ((((a+a)+b)*(c*b))^2) in obj
+add_zero | (0+((((c+(-c))*((-c)*a))*(1/((0*(-c))*a)))*(a+1))) in obj
+mul_one | (1*(c+b)) in obj
+add_mul_r_dist | ((a*a)+(a*b)) in obj
+add_simp | (b+(-b)) in obj
+mul_simp | (((b+(b*c))*(b*c))*(1/((b*(c*b))+((b*c)*(c*b))))) in obj
+add_cmmt | (b+c) in obj 1
+equ_prin | ((c+a)*((1/a)*a)) in obj, (c+f) in obj 1, (((c*1)+(a*1))+b) in obj
+add_simp | (1+(-(((b*c)*(c+0))*(1/((c*b)*c))))) in obj
+equ_mv_tm | (((a*a)*(1/(a^2)))+((1/(a^2))+(a*a))) in obj, ((((1+(1/(a^2)))+(a*a))+1)+(-((a*a)+f))) in obj
+add_zero | ((c*((a+b)+(((a+b)+(b+f))*(1/((b+a)+b)))))+0) in obj
+add_simp | (b+(-(0+b))) in obj
+sqr_def | ((b*c)^2) in obj
+mul_assc | ((0*1)*(1/a)) in obj
+add_zero | (c+0) in obj
+equ_mv_tm | (0*a) in obj, ((0^2)+(-(0*(-a)))) in obj
+mul_assc | ((0*(-c))*a) in obj
+mul_assc | ((((c^2)+((c*c)+b))*b)*(c*c)) in obj
+add_simp | (a+(-a)) in obj
+add_zero | (0+(c*(c*b))) in obj
+mul_cmmt | (c*a) in obj 1
+mul_cmmt | (b*a) in obj
+add_assc | ((b+a)+c) in obj
+add_mul_l_dist | ((a*(b*b))+(b*(b*b))) in obj
+add_assc | ((a+a)+c) in obj
+add_assc | ((a+a)+c) in obj
+add_mul_l_dist | ((a*c)+(b*c)) in obj
+add_cmmt | ((1/c)+1) in obj
+add_assc | ((a+a)+c) in obj
+add_simp | (c+(-c)) in obj
+add_assc | ((c+c)+c) in obj
+mul_cmmt | (1*a) in obj
+mul_one | (1*0) in obj
+add_simp | (b+(-b)) in obj
+add_zero | (((((b*c)*c)*b)+((b*c)*a))+0) in obj
+add_simp | ((a*(a*b))+(-((a*a)*b))) in obj
+add_mul_r_dist | ((b*(b*c))+(b*((a+b)*c))) in obj
+add_simp | (((b+a)+a)+(-((b+(a+a))*1))) in obj
+equ_prin | a in obj 2, (b+f) in obj, (a+c) in obj
+equ_prin | 0 in obj, (c+f) in obj, ((((a^2)*((1*a)+1))+(-(((a*(1*a))*(1*a))+((a*(1*a))*1))))+b) in obj
+add_cmmt | (a+a) in obj
+add_cmmt | ((-((b*1)*1))+((b*1)*(1*1))) in obj
+add_mul_l_dist | ((c*(((b*a)*(b*a))+((b*a)*(b*a))))+((b*a)*(((b*a)*(b*a))+((b*a)*(b*a))))) in obj
+add_zero | (0+(c+b)) in obj
+equ_prin | (a*(((c+c)+c)+c)) in obj, ((c+c)+f) in obj, (((a*(c+(c+c)))+(a*c))+(c+c)) in obj
+mul_assc | (((c*c)*a)*(c*c)) in obj
+add_assc | ((0+b)+b) in obj
+mul_simp | (((b+(-b))+a)*(1/((0+(a+f))+0))) in obj
+add_assc | ((b+a)+0) in obj 1
+add_cmmt | (b+c) in obj
+mul_simp | ((a*a)*(1/(a^2))) in obj
+mul_cmmt | (c*b) in obj
+add_assc | ((b+b)+a) in obj
+mul_simp | (c*(1/c)) in obj 1
+mul_one | (1*1) in obj
+add_cmmt | (c+(a*(a*a))) in obj
+sqr_def | ((((b+a)+0)*0)^2) in obj
+mul_one | (((c+b)*(a+((b+c)+c)))*1) in obj
+mul_one | (1*b) in obj
+add_assc | ((0+a)+0) in obj
+equ_prin | 0 in obj, (a+f) in obj, ((((0+c)*((0+c)^2))+(-((c*(0+c))*(0+c))))+c) in obj
+mul_simp | (((c+(-c))*((-c)*a))*(1/((0*(-c))*a))) in obj
+add_zero | (0+b) in obj
+add_assc | ((a+b)+a) in obj 2
+sqr_def | ((b*a)^2) in obj
+add_cmmt | (f+b) in obj
+mul_cmmt | (a*b) in obj
+add_mul_l_dist | (((c+c)*((b*c)+(b*c)))+(a*((b*c)+(b*c)))) in obj
+sqr_def | (((c*(1/c))+(1/c))^2) in obj
+add_mul_r_dist | (((b+f)*((a+b)*(a*c)))+((b+f)*b)) in obj
+add_mul_l_dist | ((c*0)+(0*0)) in obj
+add_zero | (0+(c+(a+f))) in obj
+mul_cmmt | (b*c) in obj
+mul_assc | (((c+(a+f))*c)*f) in obj
+add_cmmt | ((-(c*b))+(b*c)) in obj
+add_simp | (((((a*(c+b))+0)+(b+c))*b)+(-((((a*b)+(a*c))*b)+((b+c)*b)))) in obj
+mul_cmmt | (c*((a+(b+f))*a)) in obj
+add_mul_r_dist | ((b*b)+(b*a)) in obj
+mul_assc | (((((1*((b+a)+f))+f)*c)*b)*c) in obj
+add_mul_l_dist | ((b*0)+(a*0)) in obj
+add_simp | (1+(-(((b*a)*(1/((a*b)+a)))+(((b*a)+f)*(1/((a*b)+a)))))) in obj
+add_zero | (((b+c)*(b+c))+0) in obj
+mul_one | (1*a) in obj
+add_zero | ((a+(b+f))+0) in obj
+equ_prin | ((((b*(a+b))*(a+b))*(b*b))+((a+b)+(b*b))) in obj, (a+f) in obj, ((((((b*a)+(b*b))*((a*(b*b))+(b*(b*b))))+(a+b))+(b*b))+(b*b)) in obj
+add_assc | ((1+a)+0) in obj
+add_simp | ((((a*(c+a))*1)+(b+b))+(-((((c*a)+(a*a))+b)+b))) in obj
+add_mul_r_dist | ((b*1)+(b*(b+b))) in obj
+add_assc | ((a+a)+b) in obj 2
+add_mul_r_dist | ((0*b)+(0*(-(0+b)))) in obj
+mul_cmmt | ((((c+c)+c)+c)*a) in obj
+mul_assc | (((1+(a+f))*f)*f) in obj
+equ_mv_tm | (a*a) in obj, (((a*(a+c))*1)+(-(a*c))) in obj
+mul_simp | (((b*(c^2))+(b+f))*(1/(((b*c)*c)+c))) in obj
+add_mul_r_dist | ((1*1)+(1*1)) in obj
+add_cmmt | (b+c) in obj
+add_simp | (1+(-((a+(a+f))*(1/(a+c))))) in obj
+add_simp | (((((c*c)+(c*c))+b)*(b*(c*c)))+(-((((c^2)+(b+(c*c)))*b)*(c*c)))) in obj
+add_mul_l_dist | ((c*1)+(a*1)) in obj
+add_zero | (((c*(1/c))*(a*(1/c)))+0) in obj
+add_assc | ((((a+a)*b)+(a+a))+(a*b)) in obj
+add_mul_l_dist | ((a*1)+(c*1)) in obj
+add_zero | ((0+(a+f))+0) in obj
+add_assc | ((1+1)+c) in obj
+mul_simp | (a*(1/a)) in obj
+mul_assc | ((b*c)*b) in obj
+mul_assc | ((0*f)*b) in obj
+equ_prin | b in obj, (c+f) in obj, (b+b) in obj
+mul_cmmt | ((a*c)*a) in obj
+add_mul_r_dist | ((a*1)+(a*(1/a))) in obj
+add_mul_r_dist | (((1/a)*(0+(b+f)))+((1/a)*1)) in obj
+add_cmmt | ((-((a*a)*b))+(a*(a*b))) in obj
+add_cmmt | ((-(b*c))+((b*(c+c))*1)) in obj
+mul_cmmt | ((((0+b)+b)+(0+b))*b) in obj
+add_zero | (1+0) in obj
+equ_mv_tm | (1*b) in obj 2, (((b+b)+(1*b))+(-((1*b)+b))) in obj
+add_zero | (0+((a+f)+c)) in obj
+mul_assc | (((a*c)*c)*a) in obj
+add_zero | (a+0) in obj
+add_mul_r_dist | ((c*(0+0))+(c*((0+0)*(a*(-b))))) in obj
+add_simp | (1+(-((((a*c)*a)+((a*a)+f))*(1/(((a*a)*c)+b))))) in obj
+mul_assc | ((a*a)*c) in obj
+add_mul_l_dist | (((a*b)*b)+((a*(b*a))*b)) in obj
+add_mul_l_dist | ((c*((a*1)*a))+((a*1)*((a*1)*a))) in obj
+mul_cmmt | (a*b) in obj
+add_mul_r_dist | (((b*c)*(c*b))+((b*c)*a)) in obj
+add_simp | (((0+(c*(c*b)))+((c*c)+0))+(-((((c^2)*b)+(c*c))+0))) in obj
+equ_mv_tm | b in obj, ((1*0)+(-(-b))) in obj
+add_assc | ((b+b)+(1*b)) in obj
+mul_one | ((a*(b+b))*1) in obj
+equ_mv_tm | b in obj 3, (((b+a)+c)+(-(a+c))) in obj
+add_cmmt | (b+a) in obj
+mul_one | (1*(((b+a)*(1/(a+b)))*((b+a)+(a+b)))) in obj
+add_mul_r_dist | ((c*a)+(c*a)) in obj
+equ_prin | ((c*a)*((a*c)+((a*c)+(-((c*a)+0))))) in obj, (a+f) in obj, ((((c*a)*(a*c))+((c*a)*0))+0) in obj
+mul_simp | ((b*((b*c)+((a*c)+(c*b))))*(1/((b*(b*c))+(b*((a+b)*c))))) in obj
+mul_cmmt | (b*c) in obj 1
+add_assc | ((a+a)+f) in obj
+equ_prin | (b*(((b+a)+c)+(-(a+c)))) in obj, (c+f) in obj, ((b^2)+b) in obj
+mul_cmmt | ((c+b)*1) in obj
+mul_simp | ((((c+c)+a)*(0+(b*(c+c))))*(1/(((c+c)*((b*c)+(b*c)))+(a*((b*c)+(b*c)))))) in obj
+add_simp | (b+(-b)) in obj
+add_simp | ((b*c)+(-(c*b))) in obj
+add_mul_r_dist | ((c*(a+b))+(c*1)) in obj
+add_mul_r_dist | ((b*a)+(b*b)) in obj
+mul_one | (1*0) in obj
+mul_one | (1*(a*(c+a))) in obj
+add_zero | (0+c) in obj
+add_mul_l_dist | (((b*(c^2))*(1/(((b*c)*c)+c)))+((b+f)*(1/(((b*c)*c)+c)))) in obj
+add_zero | (((b*c)^2)+0) in obj
+mul_assc | ((((a^2)+(a*c))*(a+c))*(a+c)) in obj
+mul_cmmt | (1*c) in obj
+mul_assc | (((a+(a+b))*c)*b) in obj
+mul_one | ((b+(a+a))*1) in obj
+mul_one | (c*1) in obj 1
+mul_assc | (((b+c)*b)*b) in obj
+add_mul_l_dist | ((a*(a+c))+((c+b)*(a+c))) in obj
+sqr_def | (a^2) in obj
+mul_cmmt | (b*c) in obj 1
+add_assc | (((((-(c*b))+(b*c))*((c*b)*b))+a)+(c*b)) in obj
+equ_prin | 0 in obj, ((a*a)+f) in obj, (((a*(a+(0+b)))+(-((a*a)+(b*a))))+(0+b)) in obj
+add_zero | (0+c) in obj 5
+add_simp | ((c+a)+(-((a+c)*1))) in obj
+add_cmmt | (b+1) in obj
+mul_one | (((1*a)*(1/c))*1) in obj
+equ_prin | (0*(b+(-(0+b)))) in obj, ((0*0)+f) in obj, ((0^2)+(0^2)) in obj
+add_simp | (((b+c)+f)+(-(b+b))) in obj
+add_assc | ((0+c)+1) in obj
+sqr_def | (a^2) in obj
+sqr_def | (c^2) in obj
+mul_assc | ((1*f)*1) in obj
+equ_prin | ((b*c)*(1/(c*b))) in obj, (b+f) in obj, ((1*1)+1) in obj
+add_mul_l_dist | ((((a*b)+(a*c))*b)+((b+c)*b)) in obj
+mul_simp | ((((c+(a*a))*((a*a)+(a*a)))+(a+f))*(1/(((c*(a*(a+a)))+((a*a)*(a*(a+a))))+c))) in obj
+add_mul_r_dist | (((1*b)*(0+b))+((1*b)*a)) in obj
+equ_mv_tm | (((1*a)+a)+(1*a)) in obj, ((((a+a)+((1*a)+c))+0)+(-c)) in obj
+add_mul_l_dist | (((c*b)*(1/(((b*c)+a)+c)))+((a+c)*(1/(((b*c)+a)+c)))) in obj
+sqr_def | (0^2) in obj
+add_zero | (b+0) in obj
+add_simp | (((b*1)*(1*1))+(-((b*1)*1))) in obj
+add_mul_r_dist | ((1*(b+a))+(1*(a+b))) in obj
+add_assc | ((0+(-b))+f) in obj
+sqr_def | ((a+(c+b))^2) in obj
+add_assc | ((((c^2)*b)+(c*c))+0) in obj
+add_mul_r_dist | ((a*a)+(a*c)) in obj
+equ_prin | b in obj 3, (a+f) in obj, (b+b) in obj
+equ_prin | ((a+b)*b) in obj, (b+f) in obj, (((b*b)+(b*a))+(b+a)) in obj
+add_cmmt | ((a+f)+c) in obj
+add_mul_l_dist | (((0+0)*((a+(a+c))+(-((a+a)+c))))+(0*((a+(a+c))+(-((a+a)+c))))) in obj
+mul_simp | ((((a*c)*a)+((a*a)+f))*(1/(((a*a)*c)+b))) in obj
+add_simp | ((((a*(b+b))*1)*((a*b)*b))+(-((((a*b)+(a*b))*(a*b))*b))) in obj
+add_zero | (0+b) in obj
+mul_assc | ((c*(0+c))*a) in obj
+sqr_def | (b^2) in obj
+add_mul_l_dist | (((b+b)*c)+(f*c)) in obj
+equ_prin | (b*c) in obj, (c+f) in obj, ((((b*(c+c))*1)+(-(b*c)))+c) in obj
+add_simp | ((c+b)+(-(0+(c+(a+f))))) in obj
+add_cmmt | (c+((c*a)*(c*a))) in obj
+mul_assc | (((b*(a+b))*(a+b))*(b*b)) in obj
+mul_cmmt | (0*1) in obj
+add_mul_l_dist | ((a*b)+(a*b)) in obj
+add_assc | ((c+a)+f) in obj
+add_cmmt | (c+a) in obj
+mul_one | (1*1) in obj
+mul_cmmt | (b*(b+a)) in obj
+mul_one | (((((c*a)+(c*a))+((a+a)+a))*(1/(((c*(a+a))+(a+a))+a)))*1) in obj
+add_cmmt | (c+b) in obj
+mul_cmmt | ((b+a)*(a+(b+a))) in obj
+mul_cmmt | (a*b) in obj
+sqr_def | (b^2) in obj
+equ_prin | 0 in obj, ((-b)+f) in obj, ((b+(-b))+(-b)) in obj
+add_mul_l_dist | (((c*(1/c))*(b+1))+(b*(b+1))) in obj
+add_mul_r_dist | ((c*b)+(c*1)) in obj
+add_zero | (0+a) in obj
+mul_assc | ((b*1)*1) in obj
+add_assc | ((((a*1)*(b*c))+b)+b) in obj
+add_mul_r_dist | ((0*a)+(0*0)) in obj
+add_mul_r_dist | (((c*1)*c)+((c*1)*(c*1))) in obj
+sqr_def | (((c*(1/c))+b)^2) in obj
+mul_simp | ((b*c)*(1/(c*b))) in obj
+mul_cmmt | (a*(0+c)) in obj 2
+mul_one | (1*((b*c)*((b*c)+a))) in obj
+add_mul_r_dist | ((a*b)+(a*b)) in obj
+equ_prin | (a*(a*c)) in obj, ((a*a)+f) in obj, (((a*a)*c)+b) in obj
+mul_one | ((a*(c+a))*1) in obj
+sqr_def | (c^2) in obj
+mul_one | ((((c+b)^2)+(c+b))*1) in obj
+sqr_def | ((c+b)^2) in obj
+add_simp | (b+(-b)) in obj
+equ_mv_tm | c in obj 2, ((0+((a+f)+c))+(-a)) in obj
+mul_assc | ((((a*b)+(a*b))*(a*b))*b) in obj
+add_zero | (0+(b*(c+c))) in obj
+sqr_def | ((c*(b+((a+(c+b))*(1/((a+c)+b)))))^2) in obj
+add_zero | (a+0) in obj
+add_assc | ((((b+c)*(c+b))+c)+b) in obj
+mul_one | ((a*(a+c))*1) in obj
+mul_simp | ((((((c+c)+c)+c)*a)+((c+c)+f))*(1/(((a*(c+(c+c)))+(a*c))+(c+c)))) in obj
+mul_simp | (((c+b)+(c+f))*(1/((1*(b+c))+(b+c)))) in obj
+equ_prin | (((0+0)+0)*(0+0)) in obj, ((0+0)+f) in obj, ((((0+0)*((a+(a+c))+(-((a+a)+c))))+(0*((a+(a+c))+(-((a+a)+c)))))+b) in obj
+mul_cmmt | (b*(a+a)) in obj
+add_zero | (0+0) in obj 1
+equ_mv_tm | (b*c) in obj, (((b*(c+c))*1)+(-(b*c))) in obj
+add_zero | ((a*(b+c))+0) in obj
+equ_prin | 0 in obj, ((a+a)+f) in obj, ((((b+a)+a)+(-((b+(a+a))*1)))+a) in obj
+add_mul_r_dist | ((1*a)+(1*1)) in obj
+add_mul_r_dist | ((a*c)+(a*(((c+a)*(c*f))*((((c+a)+f)*c)*f)))) in obj
+add_assc | ((a+c)+b) in obj
+add_assc | ((((0*1)*(1*b))+c)+c) in obj
+add_simp | (((((a*b)*(c+a))*(1/(((b*a)*c)+((b*a)*a))))*(b*(b*a)))+(-((1*b)*(b*a)))) in obj
+add_zero | ((c*a)+0) in obj
+mul_cmmt | (a*c) in obj
+add_mul_r_dist | ((b*((a+(-a))+(b+b)))+(b*(0+b))) in obj
+add_mul_r_dist | ((((a+c)+b)*0)+(((a+c)+b)*(a+(a+c)))) in obj
+mul_simp | ((b+(b+a))*(1/((b+b)+a))) in obj
+add_assc | (((a*((((a*b)*b)+((a*(b*a))*b))+b))+(b*a))+c) in obj
+sqr_def | (c^2) in obj
+mul_assc | ((0*c)*b) in obj
+mul_simp | ((a+(c+b))*(1/((a+c)+b))) in obj 2
+add_mul_l_dist | (((b^2)*(a+c))+(((b*(((b+a)+c)+(-(a+c))))+(c+f))*(a+c))) in obj
+mul_cmmt | ((1/a)*a) in obj
+mul_assc | (((a*(b+(0+a)))*a)*c) in obj
+mul_one | (1*a) in obj 1
+add_cmmt | (a+b) in obj
+mul_simp | (c*(1/c)) in obj
+mul_simp | (a*(1/a)) in obj
+add_simp | (c+(-c)) in obj
+mul_cmmt | (((c^2)+(c*c))*1) in obj
+add_zero | (((a+a)+((1*a)+c))+0) in obj
+add_zero | (0+(0+(-b))) in obj
+mul_simp | ((((a+b)*b)+(b+f))*(1/(((b*b)+(b*a))+(b+a)))) in obj
+add_mul_r_dist | ((((-((a*a)*b))+(a*(a*b)))*(1*0))+(((-((a*a)*b))+(a*(a*b)))*b)) in obj
+add_cmmt | (1+((b*c)*b)) in obj
+equ_mv_tm | ((a*(a+c))+((c+b)*(a+c))) in obj, (((a+(c+b))^2)+(-((a+(c+b))*b))) in obj
+add_mul_r_dist | ((b*c)+(b*c)) in obj
+add_mul_r_dist | ((b*c)+(b*c)) in obj
+add_mul_r_dist | ((a*b)+(a*a)) in obj
+add_simp | ((a*a)+(-(((a*(a+c))*1)+(-(a*c))))) in obj
+add_assc | ((((a*a)+(a*c))+b)+(a*a)) in obj
+add_mul_r_dist | ((0*a)+(0*(-a))) in obj
+equ_prin | ((c^2)*(a*(c*c))) in obj, (b+f) in obj, ((((c*c)*a)*(c*c))+(c*c)) in obj
+mul_simp | ((((a*a)*a)+c)*(1/(c+(a*(a*a))))) in obj
+add_simp | ((((0+c)+b)*(0+c))+(-((0+c)*(b+c)))) in obj
+mul_simp | (a*(1/(a+0))) in obj
+add_assc | ((((c+(a*a))*((a*a)+(a*a)))+a)+f) in obj
+add_assc | ((0+1)+(b*1)) in obj
+mul_one | (1*(((a*(c*b))+b)+f)) in obj
+mul_one | (a*1) in obj
+sqr_def | (a^2) in obj
+add_simp | (((0+b)*((0+b)+a))+(-(((1*b)*(0+b))+((1*b)*a)))) in obj
+sqr_def | (c^2) in obj 1
+add_assc | ((0+c)+a) in obj
+mul_one | ((((c*(1/c))*(b+1))+(b*(b+1)))*1) in obj
+mul_assc | ((b*c)*c) in obj
+mul_simp | (b*(1/((1*0)+(-(-b))))) in obj
+mul_assc | ((c*(-a))*c) in obj
+add_mul_r_dist | (((((c+a)*((1/a)*a))+(c+f))*c)+((((c+a)*((1/a)*a))+(c+f))*f)) in obj
+mul_simp | (((b+(-b))+(c+a))*(1/((0+c)+a))) in obj
+mul_cmmt | (c*b) in obj
+sqr_def | (((c+a)*(c*f))^2) in obj
+add_cmmt | (b+(c*c)) in obj
+mul_cmmt | ((b+((a+(c+b))*(1/((a+c)+b))))*c) in obj
+add_assc | (((((-b)*(c*b))+(b*(c*b)))+(-b))+b) in obj
+add_zero | (0+0) in obj
+add_mul_r_dist | (((b*b)*c)+((b*b)*a)) in obj
+add_mul_l_dist | (((a^2)*(a+c))+((a*c)*(a+c))) in obj
+mul_one | (b*1) in obj
+sqr_def | ((0+c)^2) in obj
+mul_one | (1*b) in obj
+add_mul_r_dist | (((c+b)*a)+((c+b)*(c+(b+c)))) in obj
+mul_cmmt | (c*b) in obj
+mul_assc | ((c*(0+c))*(0+c)) in obj
+mul_cmmt | ((1/a)*a) in obj
+add_cmmt | ((-b)+b) in obj 1
+add_cmmt | (a+b) in obj
+add_mul_r_dist | ((a*a)+(a*c)) in obj
+equ_mv_tm | (0+(-b)) in obj, (((b+(-b))+(-b))+(-f)) in obj
+mul_one | ((b*(c*b))*1) in obj
+add_cmmt | (c+b) in obj
+mul_cmmt | ((b+c)*(b+(c+f))) in obj
+equ_mv_tm | 0 in obj 1, (((1+(-(a*(1/a))))+0)+(-((-1)+f))) in obj
+add_mul_r_dist | ((a*a)+(a*a)) in obj
+mul_cmmt | ((a*c)*(a*b)) in obj
+equ_prin | a in obj, (a+f) in obj, (a+c) in obj
+mul_one | ((b*(c+c))*1) in obj
+add_simp | ((a+(a+c))+(-((a+a)+c))) in obj
+sqr_def | ((((a+b)+a)*(b+a))^2) in obj
+mul_simp | (((b*c)*(c+0))*(1/((c*b)*c))) in obj
+add_assc | (((a*((a*(1/(a+0)))+(1/a)))+1)+1) in obj
+equ_prin | (((c*(1/c))*(a*(1/c)))+0) in obj, (a+f) in obj, ((((1*a)*(1/c))*1)+1) in obj
+mul_simp | ((b+a)*(1/(a+b))) in obj
+mul_simp | ((((0+c)*(a*(0+c)))*((c*(0+c))*a))*(1/(((0+c)*(a*(0+c)))^2))) in obj
+mul_simp | ((((c+b)*a)+((c+b)*(c+(b+c))))*(1/(((c+b)*(a+((b+c)+c)))*1))) in obj
+equ_prin | ((a*(a+c))+((a+c)*(a+c))) in obj, (c+f) in obj, ((1*(((a+a)+c)*(c+a)))+1) in obj
+equ_prin | (((c+b)*1)*(b*b)) in obj, ((b+c)+f) in obj, ((((b+c)*b)*b)+a) in obj
+add_zero | (1+0) in obj
+equ_mv_tm | ((((a*c)*c)*a)+c) in obj, (((c+((c*a)*(c*a)))+(c*a))+(-(a+f))) in obj
+add_mul_l_dist | (((a*b)*(a*c))+((a*a)*(a*c))) in obj
+mul_simp | (((a*b)*(c+a))*(1/(((b*a)*c)+((b*a)*a)))) in obj
+add_assc | ((b+a)+f) in obj
+add_assc | ((b+a)+a) in obj
+equ_prin | 0 in obj, ((-1)+f) in obj, ((1+(-(a*(1/a))))+0) in obj
+mul_one | (((((b+a)+0)*0)*((b*0)+(a*0)))*1) in obj
+mul_assc | ((a*c)*b) in obj
+add_zero | (0+(a+(a+c))) in obj
+add_simp | (a+(-a)) in obj
+add_assc | (((((b*a)+(b*b))*((a+b)*(b*b)))+(a+b))+(b*b)) in obj
+sqr_def | ((b+c)^2) in obj
+add_simp | ((a*c)+(-((c*a)+0))) in obj
+add_zero | (0+1) in obj
+mul_simp | (((c*b)+(a+c))*(1/(((b*c)+a)+c))) in obj
+mul_simp | (((a+b)+(b+f))*(1/((b+a)+b))) in obj
+add_simp | (b+(-b)) in obj
+mul_assc | ((c*c)*b) in obj
+add_assc | ((((c*a)+(a*a))+b)+b) in obj
+add_assc | (((c*(a+a))+(a+a))+a) in obj
+add_assc | ((c+a)+f) in obj
+mul_assc | ((0*(c*b))*b) in obj
+mul_assc | (((b+(-b))*a)*(-b)) in obj
+mul_assc | ((a*a)*a) in obj
+mul_cmmt | (0*(c+(c+(-c)))) in obj
+mul_simp | ((((c*a)+(c*a))+((a+a)+a))*(1/(((c*(a+a))+(a+a))+a))) in obj
+mul_one | (1*(((a+c)+b)*(0+(a+(a+c))))) in obj
+mul_assc | (((a+(b+f))*a)*c) in obj
+mul_cmmt | (a*0) in obj
+mul_assc | ((((a+(b+f))+0)*(a+c))*1) in obj
+mul_cmmt | ((a+c)*a) in obj
+equ_prin | (((b*(c*b))*1)+1) in obj, (b+f) in obj, ((1+((b*c)*b))+b) in obj
+mul_simp | (((b*a)+((b*a)+f))*(1/((a*b)+a))) in obj
+add_assc | (((c*c)+(c^2))+(c*c)) in obj
+mul_one | (((b*c)*(c*b))*1) in obj
+equ_prin | b in obj, (c+f) in obj, (b+c) in obj 1
+mul_simp | (a*(1/a)) in obj
+add_zero | (0+((c*1)*((c*1)+(c*1)))) in obj
+mul_assc | ((a*a)*b) in obj
+equ_prin | 0 in obj, (b+f) in obj, ((((a*(1/a))+(1+c))+(-((1+1)+c)))+c) in obj
+mul_assc | (((((b*c)*(1/(c*b)))+(b+f))*b)*a) in obj
+mul_one | (1*1) in obj
+add_mul_l_dist | ((c*a)+(a*a)) in obj
+add_assc | ((c+b)+c) in obj
+add_assc | ((b+c)+f) in obj
+add_simp | (c+(-c)) in obj
+mul_cmmt | ((b+a)*1) in obj
+add_cmmt | (0+b) in obj
+add_assc | (((a*(c*b))+b)+f) in obj
+mul_assc | ((a*b)*a) in obj
+add_mul_r_dist | ((a*(((a*b)+((a*b)*a))*b))+(a*b)) in obj
+add_cmmt | ((a*b)+(a+a)) in obj
+add_assc | (((b*c)+a)+c) in obj
+add_simp | (((0+c)*((0+c)^2))+(-((c*(0+c))*(0+c)))) in obj
+add_simp | ((b*(c^2))+(-((b*c)*c))) in obj
+sqr_def | (c^2) in obj
+add_assc | (((((b+(b*c))*(b*c))*(1/((b*(c*b))+((b*c)*(c*b)))))+1)+c) in obj
+add_mul_r_dist | (((c*a)*(a*c))+((c*a)*0)) in obj
+add_cmmt | (((a*b)*a)+(a*b)) in obj
+equ_prin | (a*(c*b)) in obj, (b+f) in obj, (((a*c)*b)+c) in obj
+mul_one | ((a+c)*1) in obj
+add_mul_r_dist | ((a*c)+(a*a)) in obj
+add_zero | ((((a*c)*b)+c)+0) in obj
+mul_simp | (c*(1/c)) in obj 1
+add_mul_l_dist | (((a+c)*((a+a)+c))+(b*((a+a)+c))) in obj
+add_simp | (1+(-(a*(1/a)))) in obj
+mul_one | (1*(b+c)) in obj
+add_assc | (((c*c)+(c*c))+b) in obj
+mul_one | ((a+c)*1) in obj
+mul_assc | ((a*1)*a) in obj
+add_mul_l_dist | ((a*(a+c))+((a+c)*(a+c))) in obj
+add_zero | (0+0) in obj 2
+mul_one | (((((b+c)+f)+(-(b+b)))*(f*b))*1) in obj
+mul_simp | (((((b*(c*b))*1)+1)+(b+f))*(1/((1+((b*c)*b))+b))) in obj
+add_mul_l_dist | (((((a*b)*c)+(b+b))*1)+((a*b)*1)) in obj
+add_mul_r_dist | (((b*a)*(b*a))+((b*a)*(b*a))) in obj
+add_mul_l_dist | ((c*(a*(a+a)))+((a*a)*(a*(a+a)))) in obj
+mul_assc | ((a*b)*c) in obj
+add_mul_r_dist | ((1*(c^2))+(1*((c^2)+(c*c)))) in obj
+add_mul_l_dist | ((((a*a)*a)*(1/(c+(a*(a*a)))))+(c*(1/(c+(a*(a*a)))))) in obj
+equ_mv_tm | ((a*b)+(a*b)) in obj, (((((a+a)*b)+(a+a))+(a*b))+(-((a*b)+(a+a)))) in obj
+mul_assc | ((1*a)*(c+a)) in obj
+mul_one | (1*0) in obj
+mul_cmmt | (a*(c+a)) in obj
+add_zero | (0+(((b^2)*(c+a))+(a+f))) in obj
+mul_one | (1*(b+(a+f))) in obj
+add_simp | ((a*(a+(0+b)))+(-((a*a)+(b*a)))) in obj
+mul_cmmt | ((-a)*0) in obj
+add_cmmt | ((1*b)+b) in obj
+add_mul_l_dist | (((b*a)*(1/((a*b)+a)))+(((b*a)+f)*(1/((a*b)+a)))) in obj
+equ_prin | a in obj, (b+f) in obj 1, (a+b) in obj
+add_mul_r_dist | (((c^2)*(((c^2)*(a*(c*c)))+(f+b)))+((c^2)*(c*c))) in obj
+add_zero | ((((c*0)+(0*0))*(c*a))+0) in obj
+add_assc | ((((1*a)+a)+(1*a))+c) in obj
+add_cmmt | (c+a) in obj
+add_assc | ((b+c)+f) in obj
+equ_prin | c in obj 8, (a+f) in obj, (c+a) in obj 1
+add_mul_r_dist | (((a*(1*a))*(1*a))+((a*(1*a))*1)) in obj
+mul_assc | (((b*c)*c)*b) in obj
+mul_assc | (((0*(c+(c+(-c))))*c)*a) in obj
+add_mul_r_dist | ((a*b)+(a*c)) in obj
+mul_cmmt | (1*(a+c)) in obj
+sqr_def | (((0+c)*(a*(0+c)))^2) in obj
+mul_one | (1*((c^2)+((c^2)+(c*c)))) in obj
+add_simp | (1+(-((b*((b*c)+((a*c)+(c*b))))*(1/((b*(b*c))+(b*((a+b)*c))))))) in obj
+equ_prin | ((b^2)*(c+a)) in obj, (a+f) in obj, ((((b*b)*c)+((b*b)*a))+(c+a)) in obj
+mul_cmmt | ((-b)*((b+(-b))*a)) in obj
+mul_assc | (((c+(-c))*1)*b) in obj
+add_zero | (((((0+b)+b)+(0+b))*b)+0) in obj
+equ_prin | c in obj 1, (a+f) in obj, (c+a) in obj
+add_mul_l_dist | ((b*1)+((a+a)*1)) in obj
+add_mul_r_dist | (((a+(c+b))*(a+c))+((a+(c+b))*b)) in obj
+mul_assc | (((b*(((b*(1/((b+b)+a)))+((b+a)*(1/((b+b)+a))))+(b+b)))*c)*(b+b)) in obj
+add_assc | (((((c*1)*c)+((c*1)*(c*1)))+1)+(c*1)) in obj
+mul_assc | ((1*a)*(1/c)) in obj
+mul_assc | ((b*c)*c) in obj
+mul_cmmt | (c*b) in obj
+sqr_def | (0^2) in obj
+add_mul_l_dist | ((b*(c*b))+((b*c)*(c*b))) in obj

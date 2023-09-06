@@ -1,0 +1,26 @@
+# A DeepHOL LoopConfig example.
+name: 'loop1'
+num_prover_tasks_per_round: 1000
+path_model_directory: 'experiments/holist/checkpoints/'
+
+prover_options: {
+    path_tactics: 'data/holist/hollight_tactics.textpb'
+    path_tactics_replace: 'data/holist/hollight_tactics_replacements.textpb'
+    path_theorem_database: 'data/holist/theorem_database_v1.1.textpb'
+
+    model_architecture: PARAMETERS_CONDITIONED_ON_TAC
+    # theorem_embeddings: 'data/holist/theorem_embeddings'
+
+    # action_generator_options: {asm_meson_only: true}
+
+    prover: 'bfs'
+    bfs_options: {
+      max_top_suggestions: 20
+      max_successful_branches: 5
+      max_explored_nodes: 120
+    }
+    # library_tags: "complex"
+    library_tags: "clifford.ml"
+    splits_to_prove: VALIDATION
+    timeout_seconds: 120.0
+}

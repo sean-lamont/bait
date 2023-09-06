@@ -1,0 +1,31 @@
+defaults:
+  - premise_selection
+
+data_config:
+  type: 'sequence'
+  data_options:
+    db: 'hol4_original_ast'
+    filter: ['full_tokens']
+  attributes:
+    max_len: 1024
+
+
+epochs: 10
+
+exp_config:
+  name: transformer_encoder
+
+model_config:
+  model_type: transformer
+  model_attributes:
+    dropout: 0.
+    vocab_size: 2200
+    embedding_dim: 256
+    num_layers: 2
+    num_heads: 4
+    dim_feedforward: 256
+    max_len: 1024
+
+logging_config:
+  project: hol4_premise_pretrain
+  offline: False

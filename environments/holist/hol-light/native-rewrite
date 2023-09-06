@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+
+import collections
+import os
+import pickle
+import re
+import subprocess
+import sys
+
+
+unused = collections.defaultdict(set,
+                                 pickle.load(open('unused_opens.pkl', 'rb')))
+
+hol = ['Hol_native', 'System', 'Lib', 'Fusion', 'Basics', 'Nets', 'Printer',
+       'Preterm', 'Parser', 'Equal', 'Bool', 'Drule', 'Tactics', 'Itab',
+       'Simp', 'Theorems', 'Ind_defs', 'Class', 'Trivia', 'Canon',
+       'Meson', 'Metis', 'Quot', 'Impconv', 'Pair', 'Nums', 'Recursion',
+       'Arith', 'Wf', 'Calc_num', 'Normalizer', 'Grobner', 'Ind_types',
+       'Lists', 'Realax', 'Calc_int', 'Realarith', 'Reals', 'Calc_rat',
+       'Ints', 'Sets', 'Iterate', 'Cart', 'Define', 'Help', 'Database']
+
+card_files = ['Wo', 'Binary', 'Card']
+card = hol + card_files
+
+multi_files = ['Permutations', 'Products', 'Floor',
+               'Misc', 'Iter', 'Metric', 'Vectors', 'Determinants', 'Topology',
+               'Convex', 'Paths', 'Polytope', 'Degree', 'Derivatives',
+               'Clifford', 'Integration', 'Measure', 'Multivariate_database']
+multivariate = card + multi_files
+
+sos_files = ['Analysis', 'Transc', 'Sos']
+sosa = hol + sos_files
+
+complex_files = ['Binomial', 'Complexes', 'Canal', 'Transcendentals',
+                 'Realanalysis', 'Moretop', 'Cauchy', 'Complex_database']
+complx = multivariate + complex_files
+
+def rewrite(path):
+  if not path.endswith('.ml'):
+    raise ValueError('Expected .ml files only, got %r' % path)
+  name = path[:-3].split('/')[-1].capitalize()
+
+  ordered_files = None
+  for files in [hol, card, sosa, multivariate, complx]:
+    if name in files:
+      ordered_files = files
+      break
+
+  if not ordered_files:
+    raise ValueError('Can\'t find file in list of expected files.')
+  if 'system.ml' in path:
+    raise ValueError('Not implemented.')
+
+  # Slurp in entire file
+  contents = open(path).read()
+  lines = contents.split('\n')
+  contents = re.sub(r'\(\*.*?\*\)', '(* *)', contents)
+
+  # Split into header, middle, footer
+  middle_re = re.compile(
+      r'^(?:needs "[\w/]*?(\w+)\.ml"|open (\w+)|set_jrh_lexer);;')
+  footer_re = re.compile(r'^let\b|^prioritize\b')
+  for i, line in enumerate(lines):
+    if middle_re.match(line):
+      # Make sure header ends with set_jrh_lexer
+      header = lines[:i] + ['set_jrh_lexer;;']
+      j = i + 1
+      while middle_re.match(lines[j]):
+        j += 1
+      middle = lines[i:j]
+      footer = lines[j:]
+      break
+    elif 'system.ml' not in path and footer_re.match(line):
+      header = lines[:i] + ['set_jrh_lexer;;']
+      middle = []
+      footer = [''] + lines[i:]
+      break
+
+  # If needs file will not be replaced with open, throw and error.
+  for i, line in enumerate(middle):
+    m = middle_re.match(line)
+    need = m.group(1)
+    if need and need.capitalize() not in ordered_files:
+      raise ValueError('File \'needs\' un unloaded file: %s' % need)
+    if need and need.capitalize() in unused[name]:
+      raise ValueError('File \'needs\' an unused file: %s' % need)
+
+  # Comment out install_printer lines
+  for i, line in enumerate(footer):
+    if line.startswith('#install_printer'):
+      footer[i] = '(* Disabled for native build: %s *)' % line
+
+  # Set middle to be all previous dependencies, in order
+  index = ordered_files.index(name)
+  middle = ['open %s;;' % s for s in ordered_files[:index]
+            if s not in unused[name]]
+
+  # Rewrite file in place
+  open(path, 'w').write('\n'.join(header + middle + footer))
+
+
+def main():
+  for path in sys.argv[1:]:
+    try:
+      rewrite(path)
+    except:
+      print('failure rewriting %r' % path, file=sys.stderr)
+      raise
+
+
+if __name__ == '__main__':
+  main()

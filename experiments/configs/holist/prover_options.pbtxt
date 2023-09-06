@@ -1,0 +1,29 @@
+path_tactics: 'data/holist/hollight_tactics.textpb'
+path_tactics_replace: 'data/holist/hollight_tactics_replacements.textpb'
+path_theorem_database: 'data/holist/theorem_database_v1.1.textpb'
+
+model_architecture: PARAMETERS_CONDITIONED_ON_TAC
+theorem_embeddings: 'experiments/holist/checkpoints/checkpoint.npy'
+path_model_prefix: 'experiments/holist/checkpoints/checkpoint'
+
+tactic_timeout_ms: 500
+
+action_generator_options: {
+# asm_meson_no_params_only: true
+# asm_meson_only: true
+max_theorem_parameters: 20 # k2
+}
+
+prover: 'bfs'
+
+bfs_options: {
+  max_top_suggestions: 20 # k1
+  max_successful_branches: 14
+  max_explored_nodes: 1000000
+}
+
+library_tags: "complex"
+
+splits_to_prove: VALIDATION
+
+timeout_seconds: 300

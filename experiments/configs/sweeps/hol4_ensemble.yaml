@@ -1,0 +1,30 @@
+program: experiments.premise_selection_wandb
+name: ensemble
+description: Ensemble HOL4 Sweep
+project: hol4_premise_pretrain
+
+method: bayes
+metric:
+  goal: maximize
+  name: acc
+parameters:
+  model_config.model_attributes.gnn_layers:
+    values: [2,1]
+  model_config.model_attributes.batch_norm:
+    values: [True, False]
+  model_config.model_attributes.num_layers:
+    values: [4,2]
+  model_config.model_attributes.num_heads:
+    values: [4,2]
+
+#early_terminate:
+#  type: hyperband
+#  min_iter: 3
+
+command:
+  - ${env}
+  - ${interpreter}
+  - '-m'
+  - ${program}
+  - '--config-name=ensemble_hol4'
+  - ${args_no_hyphens}

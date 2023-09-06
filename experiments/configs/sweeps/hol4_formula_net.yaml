@@ -1,0 +1,24 @@
+program: experiments.premise_selection_wandb
+name: formula_net
+description: FormulaNet HOL4 Pretrain Sweep
+project: hol4_premise_pretrain
+
+method: bayes
+metric:
+  goal: maximize
+  name: acc
+parameters:
+  model_config.model_attributes.gnn_layers:
+    values: [8,4,2,1]
+
+#early_terminate:
+#  type: hyperband
+#  min_iter: 3
+
+command:
+  - ${env}
+  - ${interpreter}
+  - '-m'
+  - ${program}
+  - '--config-name=formula_net_hol4'
+  - ${args_no_hyphens}

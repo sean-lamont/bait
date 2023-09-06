@@ -1,0 +1,45 @@
+(* ========================================================================= *)
+(* Theory of multivariate calculus in Euclidean space.                       *)
+(* ========================================================================= *)
+
+loadt "Library/card.ml";;               (* For countable set theorems.      *)
+loadt "Library/permutations.ml";;       (* For determinants                 *)
+loadt "Library/products.ml";;           (* For determinants and integrals   *)
+loadt "Library/floor.ml";;              (* Useful here and there            *)
+loadt "Multivariate/misc.ml";;          (* Background stuff                 *)
+loadt "Library/iter.ml";;               (* n-fold iteration of function     *)
+loadt "Library/binomial.ml";;           (* For Leibniz deriv formula etc.   *)
+
+(* ------------------------------------------------------------------------- *)
+(* The main core theory.                                                     *)
+(* ------------------------------------------------------------------------- *)
+
+loadt "Multivariate/metric.ml";;        (* General topology, metric spaces  *)
+loadt "Multivariate/vectors.ml";;       (* Basic vectors, linear algebra    *)
+loadt "Multivariate/determinants.ml";;  (* Determinant and trace            *)
+loadt "Multivariate/topology.ml";;      (* Topology of R^n and much else    *)
+loadt "Multivariate/convex.ml";;        (* Convex sets and functions        *)
+loadt "Multivariate/paths.ml";;         (* Paths, simple connectedness etc. *)
+loadt "Multivariate/polytope.ml";;      (* Faces, polytopes, polyhedra etc. *)
+loadt "Multivariate/degree.ml";;        (* Brouwer degree, retracts etc.    *)
+loadt "Multivariate/derivatives.ml";;   (* Derivatives                      *)
+loadt "Multivariate/clifford.ml";;      (* Geometric (Clifford) algebra     *)
+loadt "Multivariate/integration.ml";;   (* Integration, bounded variation   *)
+loadt "Multivariate/measure.ml";;       (* Lebesgue measure                 *)
+
+(* ------------------------------------------------------------------------- *)
+(* Complex numbers (as R^2), complex analysis and some more topology.        *)
+(* ------------------------------------------------------------------------- *)
+
+loadt "Multivariate/complexes.ml";;       (* Complex numbers                *)
+loadt "Multivariate/canal.ml";;           (* Complex analysis               *)
+loadt "Multivariate/transcendentals.ml";; (* Real & complex transcendentals *)
+loadt "Multivariate/realanalysis.ml";;    (* Some analytical stuff on R     *)
+loadt "Multivariate/moretop.ml";;         (* Further topological results    *)
+loadt "Multivariate/cauchy.ml";;          (* Complex line integrals         *)
+
+(* ------------------------------------------------------------------------- *)
+(* Updated database, for convenience where dynamic updating doesn't work.    *)
+(* ------------------------------------------------------------------------- *)
+
+loadt "Multivariate/complex_database.ml";;

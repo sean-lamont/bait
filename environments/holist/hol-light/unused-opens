@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+
+import os
+import pickle
+import re
+import sys
+
+from itertools import tee
+from collections import defaultdict
+
+
+def extract(path):
+  # Slurp in entire file
+  contents = open(path).read()
+  lines = contents.split('\n')
+
+
+  prev_unused = pickle.load(open('unused_opens.pkl', 'rb'))
+  # Go through file two lines at a time; match filename and unused open
+  unused = defaultdict(set, prev_unused)
+  file_re = re.compile(
+      r'File "[\w/]*?(\w+)\.ml", line [0-9]*, characters [0-9\-]*:')
+  unused_re = re.compile(r'^Warning 33: unused open (\w+).$')
+  for l1, l2 in pairwise(lines):
+    unused_match = unused_re.match(l2)
+    if unused_match:
+      file_match = file_re.match(l1)
+      assert(file_match)
+      unused[file_match.group(1).capitalize()].add(unused_match.group(1))
+  pickle.dump(dict(unused), open('unused_opens.pkl', 'wb'))
+  print(dict(unused))
+
+
+# Define iterable for going through file two lines at a time
+def pairwise(iterable):
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
+
+
+def main():
+  for path in sys.argv[1:]:
+    try:
+      extract(path)
+    except:
+      print('failure extracting unused open statements from  %r' % path,
+            file=sys.stderr)
+      raise
+
+
+if __name__ == '__main__':
+  main()

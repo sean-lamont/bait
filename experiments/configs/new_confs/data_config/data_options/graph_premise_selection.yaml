@@ -1,0 +1,7 @@
+split_in_memory: True
+dict_in_memory: True
+filter: ['tokens', 'edge_attr', 'edge_index']
+db: ???
+expression_col: expression_graphs
+vocab_col: vocab
+split_col: split_data

@@ -1,0 +1,50 @@
+exp_config:
+  name: "sat_mizar"
+  experiment: "premise_selection"
+  directory: "experiments/runs"
+  logging_config:
+    project: "mizar40_premise_selection"
+optimiser_config:
+  learning_rate: 1e-4
+model_config:
+  model_type: 'sat'
+  model_attributes:
+    vocab_size: 13420
+    embedding_dim: 256
+    batch_norm: True
+    global_pool: 'mean'
+    num_edge_features: 20
+    dim_feedforward: 256
+    num_heads: 2
+    num_layers: 2
+    in_embed: True
+    se: 'formula-net'
+    abs_pe: False
+    use_edge_attr: True
+    dropout: 0.
+    gnn_layers: 2
+    small_inner: False
+    abs_pe_dim: 256
+data_config:
+  type: "graph"
+  source: "mongodb" # directory
+  shuffle: True
+  data_options:
+    split_in_memory: True
+    dict_in_memory: True
+    filter: ['tokens', 'edge_attr', 'edge_index',]
+    db: 'mizar40' #'hol4_tactic_zero_new'
+    expression_col: 'expression_graphs'
+    vocab_col: 'vocab'
+    split_col: 'split_data'
+  #  attributes: None
+  batch_size: 32
+  attributes:
+    attention_edge: 'full'
+#    pe: 'depth'
+#  type: 'graph'
+#  source: 'directory'
+#  data_options:
+  #  dir: 'data/mizar'
+#  batch_size: 32
+

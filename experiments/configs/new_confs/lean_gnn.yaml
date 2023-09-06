@@ -1,0 +1,27 @@
+defaults:
+  - premise_selection
+
+data_config:
+  data_options:
+    dict_in_memory: False
+    db: 'leanstep_sexpression'
+
+epochs: 10
+
+exp_config:
+  name: bag_of_words
+
+
+model_config:
+  model_type: formula-net-edges
+  model_attributes:
+    vocab_size: 32700
+    embedding_dim: 256
+    gnn_layers: 0
+    batch_norm: True
+
+logging_config:
+  project: leanstep_premise_selection
+
+val_frequency:
+  20000

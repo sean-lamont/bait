@@ -1,0 +1,4 @@
+This repository contains an implementation of the HOList proof assistant API
+based on HOL Light (https://www.cl.cam.ac.uk/~jrh13/hol-light/).
+
+For more information about HOList, see http://deephol.org.
