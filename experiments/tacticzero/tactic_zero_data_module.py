@@ -22,6 +22,7 @@ class RLData(pl.LightningDataModule):
 
     def setup(self, stage: str) -> None:
         source = self.config.source
+
         if source == 'mongodb':
             db = MongoClient()
             db = db[self.config.data_options['db']]
@@ -86,8 +87,10 @@ class RLData(pl.LightningDataModule):
         return transform_batch(batch, self.config)
 
     def gen_fact_pool(self, goal):
+
         allowed_arguments_ids, candidate_args = self.env.gen_fact_pool(goal)
         allowed_fact_batch = self.list_to_data(candidate_args)
+
         return allowed_fact_batch, allowed_arguments_ids, candidate_args
 
     def setup_goal(self, goal):
@@ -98,7 +101,9 @@ class RLData(pl.LightningDataModule):
             os.system(command=f'pkill -TERM -P {self.env.process.pid}')
             self.env = get_env(self.config.data_options['environment'])
             return None
+
         allowed_fact_batch, allowed_arguments_ids, candidate_args = self.gen_fact_pool(goal)
+
         return goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, self.env
 
     def transfer_batch_to_device(self, batch, device, dataloader_idx):

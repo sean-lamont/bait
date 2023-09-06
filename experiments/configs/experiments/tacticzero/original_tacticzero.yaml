@@ -2,7 +2,7 @@
 defaults:
   - tactic_zero
 
-max_steps: 1
+max_steps: 50
 data_config:
   type: 'fixed'
   data_options:

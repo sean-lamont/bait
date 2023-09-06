@@ -21,7 +21,7 @@ class DirectedData(Data):
 
 '''
 Function to generate a "complete_edge_index" given a ptr corresponding to a PyG batch.
- This is used in vanilla Structure Aware Attention (SAT) models with full attention.
+This is used in vanilla Structure Aware Attention (SAT) models with full attention.
 '''
 
 
