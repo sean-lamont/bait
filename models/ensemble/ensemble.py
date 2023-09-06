@@ -3,7 +3,8 @@ import torch.nn as nn
 
 '''
 
-Ensemble model, currently 
+Ensemble model, currently composed of a GNN model and a Transformer model. Combines embeddings from both with a 
+small MLP which projects back to the originial embedding dimension.  
 
 '''
 class EnsembleEmbedder(nn.Module):
@@ -24,7 +25,7 @@ class EnsembleEmbedder(nn.Module):
         outs = self.reduce_proj(outs)
         return outs
 
-        # # alternative ensemble could pool across node representations from both encoders:
+        # # alternative ensemble could pool/attention across node representations from both encoders:
         # if self.global_pool == 'sum':
         #     return torch.sum(outs, dim=0)
         # elif self.global_pool == 'max':

@@ -1,0 +1,24 @@
+# @package _global_
+defaults:
+  - holist_eval
+  - /data_type/gnn@_here_
+
+exp_config:
+  name: bow_asm_only
+
+action_generator_options:
+ asm_meson_only: true
+
+tactic_timeout_ms: 500
+
+bfs_options:
+  max_top_suggestions: 5 # k1
+  max_successful_branches: 5
+  max_explored_nodes: 20
+
+model_config:
+  model_type: holist_gnn
+  model_attributes:
+    gnn_layers: 0 # change to 0 for BoW
+    dropout: 0.2
+    embedding_dim: 128

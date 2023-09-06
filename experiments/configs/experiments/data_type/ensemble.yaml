@@ -1,0 +1,9 @@
+data_config:
+  type: 'ensemble'
+  data_options:
+    filter: ['tokens', 'edge_attr', 'edge_index', 'sequence']
+  attributes:
+    max_len: 1024
+model_config:
+  model_attributes:
+    max_len: 1024

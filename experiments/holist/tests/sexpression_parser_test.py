@@ -9,7 +9,7 @@ from absl.testing import parameterized
 # import tensorflow as tf
 
 import unittest
-from experiments.holist.utilities import sexpression_parser
+from data.holist.utils import sexpression_parser
 
 
 class SexpressionParserTest(parameterized.TestCase):

@@ -21,11 +21,12 @@ meta structure LeanStepDatapoint : Type :=
 
 notation `to_tactic_json` := has_to_tactic_json.to_tactic_json
 
+-- Original LeanStep Pretty Printed format, replace sexpression function below to change back.
 /- TODO(): optionally use `with_verbose` -/
 -- meta instance : has_to_tactic_json expr :=
 -- ⟨λ e, (json.of_string ∘ format.to_string ∘ format.flatten) <$> tactic.pp e⟩
 
--- sexpresion format
+-- S-Expression Format
 meta instance : has_to_tactic_json expr :=
 ⟨λ e, (json.of_string ∘ format.to_string ∘ format.flatten) <$> TO_EXPR e⟩
 

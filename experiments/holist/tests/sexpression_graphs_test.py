@@ -9,7 +9,7 @@ from absl.testing import parameterized
 # import tensorflow as tf
 
 import unittest
-from experiments.holist.utilities import sexpression_graphs
+from data.holist.utils import sexpression_graphs
 from environments.holist import proof_assistant_pb2
 
 

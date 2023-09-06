@@ -1,5 +1,5 @@
 import glob
-from data.hol4.mongo_to_torch import get_depth_from_graph, get_directed_edge_index
+from data.utils.graph_data_utils import get_depth_from_graph, get_directed_edge_index
 import torch
 from pymongo import MongoClient
 import random
@@ -10,7 +10,7 @@ from tqdm import tqdm
 if __name__ == '__main__':
     source = 'mongo'
     add_attention = False
-    file_dir = 'nnhpdata'
+    file_dir = 'raw_data'
 
     files = glob.glob(file_dir + '/*')
 
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     idx = 0
     for i, k in enumerate(expression_dict.keys()):
         polished_goal = [c for c in k.split(" ") if c != '' and c != '\n']
-        expression_dict[k]['full_tokens'] = polished_goal
+        expression_dict[k]['sequence'] = polished_goal
         for tok in polished_goal:
             if tok not in vocab:
                 # reserve 0 for padding idx
@@ -107,7 +107,7 @@ if __name__ == '__main__':
                     expression_col.insert_one({'_id': k, 'data': {'tokens': v['tokens'],
                                                                   'edge_index': v['edge_index'],
                                                                   'edge_attr': v['edge_attr'],
-                                                                  'full_tokens': v['full_tokens'],
+                                                                  'sequence': v['sequence'],
                                                                   'attention_edge_index': attention_edge_index,
                                                                   'depth': depth
                                                                   }})

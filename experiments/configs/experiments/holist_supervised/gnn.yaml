@@ -1,0 +1,16 @@
+# @package _global_
+defaults:
+  - holist_supervised
+  - /data_type/gnn@_here_
+
+exp_config:
+  name: gnn_small
+#  resume: True
+#  directory: 'experiments/runs/holist_pretrain/2023_08_02/gnn_small_17_19_53'
+
+model_config:
+  model_type: holist_gnn
+  model_attributes:
+    gnn_layers: 12
+    dropout: 0.2
+    embedding_dim: 128

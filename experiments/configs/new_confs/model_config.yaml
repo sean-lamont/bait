@@ -1,6 +1,0 @@
-model_type: formula-net-edges
-model_attributes:
-vocab_size: 2015
-embedding_dim: 256
-gnn_layers: 1
-batch_norm: False

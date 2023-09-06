@@ -1,0 +1,16 @@
+# @package _global_
+defaults:
+  - mizar
+  - /data_type/gnn@_here_
+
+exp_config:
+    name: test_gnn
+
+model_config:
+  model_type: 'formula-net-edges'
+  model_attributes:
+    embedding_dim: 128
+    gnn_layers: 4
+
+#test_on_finish: True
+#test_checkpoint: True

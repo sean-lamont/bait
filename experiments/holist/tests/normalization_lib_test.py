@@ -6,7 +6,7 @@ from __future__ import print_function
 
 from absl.testing import parameterized
 # import tensorflow as tf
-from experiments.holist.utilities import normalization_lib
+from data.holist.utils import normalization_lib
 from environments.holist import proof_assistant_pb2
 
 import unittest

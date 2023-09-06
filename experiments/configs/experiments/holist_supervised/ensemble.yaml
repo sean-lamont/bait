@@ -1,0 +1,18 @@
+# @package _global_
+defaults:
+  - holist_supervised
+  - /data_type/ensemble@_here_
+
+exp_config:
+  name: ensemble_holist_supervised
+
+model_config:
+  model_type: ensemble
+  model_attributes:
+    embedding_dim: 128
+    gnn_layers: 12
+    batch_norm: False
+    dropout: 0.2
+    num_layers: 4
+    num_heads: 4
+    dim_feedforward: 256

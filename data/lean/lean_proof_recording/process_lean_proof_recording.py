@@ -4,8 +4,8 @@ import torch
 from torch_geometric.data import Data
 
 from data.utils.pyg_plot import plot_pyg_graph_with_graphviz
-from experiments.holist.utilities.lean_sexpression_to_graph import sexpression_to_graph
-from experiments.holist.utilities.sexpression_graphs import SExpressionGraph
+from data.lean.lean_sexpression_to_graph import sexpression_to_graph
+from data.holist.utils.sexpression_graphs import SExpressionGraph
 
 if __name__ == '__main__':
     with open('sexp_data_dir/cleaned_training_data/train.src') as f:

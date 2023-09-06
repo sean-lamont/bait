@@ -12,9 +12,5 @@ import os
 
 
 def test_src_dir_path(relative_path):
-
-  # return os.path.join(os.environ['TEST_SRCDIR'],
-  #                     'deepmath/deepmath/', relative_path)
-
-    root_dir = '/home/sean/Documents/phd'
-    return os.path.join(root_dir, '/deepmath-light/deepmath/', relative_path)
+  return os.path.join(os.environ['TEST_SRCDIR'],
+                      'deepmath/deepmath/', relative_path)

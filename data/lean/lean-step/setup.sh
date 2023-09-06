@@ -1,15 +1,15 @@
-#leanpkg configure
-#leanproject get-mathlib-cache
-#bash ./_target/deps/mathlib/scripts/mk_all.sh
-#leanpkg build  # needs to build everything, takes 20-30m
+cd "$(dirname "${BASH_SOURCE[0]}")"
+leanpkg configure
+leanproject get-mathlib-cache
+bash ./_target/deps/mathlib/scripts/mk_all.sh
+leanpkg build  # needs to build everything, takes 20-30m
 
 # skip tests from original repo
+mkdir ./data
 
-#mkdir ./data
+lean --run src/tools/all_decls.lean
 
-#lean --run src/tools/all_decls.lean
-
-#python3 python/dhash.py ./data/mathlib_decls.log ./data/
+python3 python/dhash.py ./data/mathlib_decls.log ./data/
 
 RAW_DATA_DIR="./raw_data"
 N_WORKERS=5
@@ -19,5 +19,4 @@ WEIGHT_LIMIT=2000 # conservative value: 1500
 DECLS_PER_SHARD=100
 
 python3 ./python/parallel_gen_data.py ./data/train_decls.log $RAW_DATA_DIR $N_WORKERS $REC_LIMIT $DEPTH_LIMIT $WEIGHT_LIMIT $DECLS_PER_SHARD
-
-
+python3 ./python/lean_step_mongo.py $RAW_DATA_DIR

@@ -1,0 +1,10 @@
+data_config:
+  type: "sequence"
+  data_options:
+    filter: ['sequence']
+  attributes:
+    max_len: 1024
+
+model_config:
+  model_attributes:
+    max_len: 1024

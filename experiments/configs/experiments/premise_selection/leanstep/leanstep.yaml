@@ -1,0 +1,17 @@
+defaults:
+  - /premise_selection/premise_selection@_here_
+
+data_config:
+  data_options:
+    dict_in_memory: False
+    db: 'leanstep_premise_selection'
+
+logging_config:
+  project: leanstep_premise_selection
+
+model_config:
+  model_attributes:
+    vocab_size: 32700
+
+val_frequency:
+  20000

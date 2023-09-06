@@ -4,7 +4,6 @@ from torch_geometric.data import Data
 import torch
 import networkx as nx
 import matplotlib.pyplot as plt
-from data.hol4.mongo_to_torch import get_depth_from_graph, get_directed_edge_index
 
 class AST:
     def __init__(self, node, children=[], parent=None):
@@ -338,8 +337,6 @@ def nodes_list(g, result=[]):
 
 
 
-# with open("/home/sean/Documents/phd/aitp/data/hol4/graph_token_encoder.pk", "rb") as f:
-#     token_enc = pickle.load(f)
 
 def sp_to_torch(sparse):
     coo = sparse.tocoo()
@@ -430,18 +427,6 @@ def graph_to_dict(g):
     # node_features = list(map(t_f, node_list))
 
     return {'tokens': labels, 'edge_index': [senders, receivers], 'edge_attr': edge_labels}
-
-    # attention_edge = get_directed_edge_index(len(labels), torch.LongTensor([senders, receivers]))
-    # depth = get_depth_from_graph(len(labels), torch.LongTensor([senders, receivers]))
-    #
-    # return {'tokens': labels,
-    #         'edge_index': [senders, receivers],
-    #         'edge_attr': edge_labels,
-    #         'attention_edge_index': attention_edge,
-    #         'depth': depth
-    #         }
-
-    # return Data(x=nodes, edge_index=edges, edge_attr=torch.LongTensor(edge_labels), labels=labels)
 
 
 

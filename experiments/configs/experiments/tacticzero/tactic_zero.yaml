@@ -1,0 +1,52 @@
+defaults:
+  - /base/data_config@_here_
+  - /base/optimiser_config@_here_
+  - /base/logging_config@_here_
+  - /base/exp_config@_here_
+
+optimiser_config:
+  learning_rate: 5e-5
+
+
+exp_config:
+  experiment: tactic_zero
+
+epochs: 1000
+
+logging_config:
+  project: hol4_tacticzero
+  offline: True
+  id: False # add Wandb id when resuming run
+  notes: ""
+
+data_config:
+  type: ???
+  data_options:
+    db: 'hol4'
+    split_col: 'paper_goals'
+    environment: 'HOL4'
+
+model_config:
+  model_type: ??
+  model_attributes:
+    vocab_size: 2200
+
+tactic_config:
+  thms_tactic: [ "simp", "fs", "metis_tac", "rw" ] #["simp", "fs", "metis_tac"]
+  thm_tactic: [ "irule", "drule" ] #["irule"]
+  term_tactic: [ "Induct_on" ]
+  no_arg_tactic: [ "strip_tac", "EQ_TAC" ] # ["strip_tac"]
+  tactic_pool: [ "simp", "fs", "metis_tac", "rw", "irule", "drule","Induct_on","strip_tac", "EQ_TAC" ]
+
+
+# Whether to use pretrained encoders
+pretrain: False
+pretrain_ckpt: ""
+
+max_steps: 50
+
+gamma: 0.99
+arg_len: 5
+val_freq: 5
+# database and collection for recording proof logs
+proof_db: [ 'hol4', 'proof_logs' ]

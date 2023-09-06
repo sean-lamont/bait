@@ -10,9 +10,9 @@ import unittest
 
 import logging
 
-from experiments.holist import action_generator
-from experiments.holist import proof_search_tree
-from experiments.holist import prover_util
+from experiments.holist.prover import proof_search_tree
+from experiments.holist.prover import prover_util
+from experiments.holist.agent import action_generator
 from environments.holist import proof_assistant_pb2
 
 PER_TACTIC_TIMEOUT_MS = 5000

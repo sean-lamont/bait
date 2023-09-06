@@ -1,0 +1,13 @@
+defaults:
+  - /premise_selection/premise_selection@_here_
+
+data_config:
+  data_options:
+    db: 'mizar40'
+
+logging_config:
+  project: mizar40
+
+model_config:
+  model_attributes:
+    vocab_size: 13420

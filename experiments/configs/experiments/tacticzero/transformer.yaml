@@ -1,0 +1,20 @@
+# @package _global_
+defaults:
+  - tactic_zero
+  - /data_type/sequence@_here_
+
+exp_config:
+  name: tacticzero_transformer
+
+model_config:
+  model_type: transformer
+  model_attributes:
+    dropout: 0.
+    embedding_dim: 256
+    num_layers: 2
+    num_heads: 4
+    dim_feedforward: 256
+
+# load pretrained encoder after running on HOL4 premise selection task
+#pretrain: True
+#pretrain_ckpt: ""

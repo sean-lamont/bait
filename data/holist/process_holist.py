@@ -8,12 +8,10 @@ from pymongo import MongoClient
 from tqdm import tqdm
 
 from data.utils.graph_data_utils import get_directed_edge_index, get_depth_from_graph
-from experiments.holist import io_util, deephol_pb2
-from experiments.holist.deephol_loop import options_pb2
-from experiments.holist.utilities import prooflog_to_examples
-from experiments.holist.utilities.sexpression_graphs import SExpressionGraph
-from experiments.holist.utilities.sexpression_to_graph import sexpression_to_graph, sexpression_to_polish
-
+from experiments.holist import deephol_pb2
+from experiments.holist.distributed_loop import options_pb2
+from data.holist.utils import prooflog_to_examples, io_util
+from data.holist.utils.sexpression_to_graph import sexpression_to_graph, sexpression_to_polish
 
 def tokenize_string(string):
     pattern = r'(\(|\)|\s)'
@@ -21,30 +19,6 @@ def tokenize_string(string):
     tokens = [token for token in tokens if token.strip()]  # Remove empty tokens
     return tokens
 
-
-# def sexpression_to_polish(sexpression_text):
-#     sexpression = SExpressionGraph()
-#     sexpression.add_sexp(sexpression_text)
-#     out = []
-#
-#     def process_node(node):
-#         if len(sexpression.get_children(node)) == 0:
-#             out.append(node)
-#
-#
-#         for i, child in enumerate(sexpression.get_children(node)):
-#             if i == 0:
-#                 # out.append('@') for i in range(sexpression.get_children(node) - 1)
-#                 out.append(sexpression.to_text(child))
-#                 continue
-#             # todo add special char when adding child? e.g. out.append('@') for i in range(sexpression.get_children(node) - 1)
-#             process_node(sexpression.to_text(child))
-#
-#     process_node(sexpression.to_text(sexpression.roots()[0]))
-#     return out
-#
-#
-# gen vocab dictionary from file
 def gen_vocab_dict(vocab_file):
     with open(vocab_file) as f:
         x = f.readlines()
@@ -52,10 +26,6 @@ def gen_vocab_dict(vocab_file):
     for a, b in enumerate(x):
         vocab[b.replace("\n", "")] = a
     return vocab
-
-
-# todo unified prooflog format?
-# todo prooflogs to mongo, then process live?
 
 def prepare_data(config):
     tac_dir = config['tac_dir']
@@ -77,8 +47,9 @@ def prepare_data(config):
     human_train_logs = io_util.read_protos(human_train_logs, deephol_pb2.ProofLog)
     synthetic_train_logs = io_util.read_protos(synthetic_train_logs, deephol_pb2.ProofLog)
     val_logs = io_util.read_protos(val_logs, deephol_pb2.ProofLog)
-    #
+
     options = options_pb2.ConvertorOptions(tactics_path=tac_dir, scrub_parameters=scrub_parameters)
+
     converter = prooflog_to_examples.create_processor(options=options, theorem_database=theorem_db)
     #
     logging.info('Loading human proof logs..')
@@ -124,19 +95,19 @@ def prepare_data(config):
 
     expr_dict = {expr: sexpression_to_graph(expr) for expr in tqdm(all_exprs)}
 
-    human_processed_logs = list(set([{'goal': a['goal'], 'thms': a['thms'], 'tac_id': a['tac_id'],
+    human_processed_logs = list([{'goal': a['goal'], 'thms': a['thms'], 'tac_id': a['tac_id'],
                                       'thms_hard_negatives': a['thms_hard_negatives'], 'split': 'train',
                                       'source': 'human'} for a in
-                                     human_processed_logs]))
+                                     human_processed_logs])
 
-    synthetic_processed_logs = list(set([{'goal': a['goal'], 'thms': a['thms'], 'tac_id': a['tac_id'],
+    synthetic_processed_logs = list([{'goal': a['goal'], 'thms': a['thms'], 'tac_id': a['tac_id'],
                                           'thms_hard_negatives': a['thms_hard_negatives'], 'split': 'train',
                                           'source': 'synthetic'} for a in
-                                         synthetic_processed_logs]))
+                                         synthetic_processed_logs])
 
-    val_processed_logs = list(set([{'goal': a['goal'], 'thms': a['thms'], 'tac_id': a['tac_id'],
+    val_processed_logs = list([{'goal': a['goal'], 'thms': a['thms'], 'tac_id': a['tac_id'],
                                     'thms_hard_negatives': a['thms_hard_negatives'], 'split': 'val', 'source': 'human'}
-                                   for a in val_processed_logs]))
+                                   for a in val_processed_logs])
 
     if vocab_file:
         logging.info(f'Generating vocab from file {vocab_file}..')
@@ -156,12 +127,6 @@ def prepare_data(config):
         vocab["UNK"] = len(vocab)
         vocab["("] = len(vocab)
         vocab[")"] = len(vocab)
-
-    # add NO_PARAM token for selecting tactics without any parameters e.g. ASM_MESON []
-    # expr_dict["NO_PARAM"] = {'tokens': ["NO_PARAM"], "full_tokens": ["NO_PARAM"],
-    #                          "polished": ["NO_PARAM"], "edge_index": [[], []],
-    #                          "edge_attr": [], "attention_edge_index": [[], []],
-    #                          "depth": []}
 
     if source == 'mongodb':
         logging.info("Adding data to MongoDB")
@@ -205,9 +170,6 @@ def prepare_data(config):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    # save_dir = '/home/sean/Documents/phd/deepmath-light/deepmath/combined_train_data'
-    # vocab_file = '/home/sean/Documents/phd/hol-light/holist/hollightdata/final/proofs/human/vocab_ls.txt'
-
     human_train_logs = 'data/holist/raw_data/hollightdata/final/proofs/human/train/prooflogs*'
     human_val_logs = 'data/holist/raw_data/hollightdata/final/proofs/human/valid/prooflogs*'
 
@@ -217,17 +179,17 @@ if __name__ == '__main__':
     all_val_logs = human_val_logs
 
     config = {
-        'tac_dir': 'data/holist/hollight_tactics.textpb',
+        'tac_dir': 'experiments/configs/holist/hollight_tactics.textpb',
         'theorem_dir': 'data/holist/theorem_database_v1.1.textpb',
         'human_train_logs': human_train_logs,
         'val_logs': human_val_logs,
         'synthetic_train_logs': synthetic_train_logs,
         'vocab_file': None,
         'source': 'mongodb',
-        'data_options': {'db': 'holist'},
+        'data_options': {'db': 'holist_'},
     }
 
-    # prepare_data(config)
+    prepare_data(config)
 
     source = config['source']
     data_options = config['data_options']
@@ -236,43 +198,44 @@ if __name__ == '__main__':
     db = client[data_options['db']]
     expr_col = db['expression_graphs']
 
-    max_seq_len = 10000
+    max_seq_len = 1024
 
 
-    def add_additional_data(item):
-        # todo check if attribute exists
-        try:
-            expr_col.update_many({"_id": item["_id"]},
-                                 {"$set":
-                                     {
-                                         "data.attention_edge_index":
-                                             get_directed_edge_index(len(item['tokens']),
-                                                                     torch.LongTensor(
-                                                                         item['edge_index'])).tolist(),
-                                         "data.depth":
-                                             get_depth_from_graph(len(item['tokens']),
-                                                                  torch.LongTensor(
-                                                                      item['edge_index'])).tolist(),
-
-                                         'data.full_tokens': tokenize_string(item["_id"])[:max_seq_len],
-                                         'data.polished': sexpression_to_polish(item["_id"])[:max_seq_len]
-                                     }})
-        except Exception as e:
-            print(f"error {e}")
-            pass
+    # uncomment below to add data for Directed SAT
 
 
-    logging.info("Adding additional properties to expression database..")
-    items = []
-
-    # can run the below to retry failed field insertions
-    for item in tqdm(expr_col.find({'data.attention_edge_index': {'$exists': False}})):
-        items.append({'_id': item['_id'], 'tokens': item['data']['tokens'], 'edge_index': item['data']['edge_index']})
-
+    # def add_additional_data(item):
+    #     try:
+    #         expr_col.update_many({"_id": item["_id"]},
+    #                              {"$set":
+    #                                  {
+    #                                      "data.attention_edge_index":
+    #                                          get_directed_edge_index(len(item['tokens']),
+    #                                                                  torch.LongTensor(
+    #                                                                      item['edge_index'])).tolist(),
+    #                                      "data.depth":
+    #                                          get_depth_from_graph(len(item['tokens']),
+    #                                                               torch.LongTensor(
+    #                                                                   item['edge_index'])).tolist(),
+    #
+    #                                      'data.sequence': sexpression_to_polish(item["_id"])[:max_seq_len]
+    #                                  }})
+    #     except Exception as e:
+    #         print(f"error {e}")
+    #         pass
+    #
+    #
+    # logging.info("Adding additional properties to expression database..")
+    # items = []
+    #
+    # # can run the below to retry failed field insertions
+    # # for item in tqdm(expr_col.find({'data.attention_edge_index': {'$exists': False}})):
+    # #     items.append({'_id': item['_id'], 'tokens': item['data']['tokens'], 'edge_index': item['data']['edge_index']})
+    #
     # for item in tqdm(expr_col.find({})):
     #     items.append({'_id': item['_id'], 'tokens': item['data']['tokens'], 'edge_index': item['data']['edge_index']})
-    print(f"num_items {len(items)}")
-
-    pool = Pool(processes=8)
-    for _ in tqdm(pool.imap_unordered(add_additional_data, items), total=len(items)):
-        pass
+    # print(f"num_items {len(items)}")
+    #
+    # pool = Pool(processes=os.cpu_count() // 2)
+    # for _ in tqdm(pool.imap_unordered(add_additional_data, items), total=len(items)):
+    #     pass

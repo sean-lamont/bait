@@ -1,0 +1,19 @@
+# @package _global_
+defaults:
+  - hol4
+  - /data_type/ensemble@_here_
+
+exp_config:
+  name: ensemble
+
+model_config:
+  model_type: ensemble
+  model_attributes:
+    embedding_dim: 256
+    vocab_size: 2200
+    gnn_layers: 1
+    batch_norm: False
+    dropout: 0.
+    num_layers: 2
+    num_heads: 4
+    dim_feedforward: 256

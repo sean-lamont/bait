@@ -9,7 +9,7 @@ import unittest
 # import tensorflow as tf
 from google.protobuf import text_format
 from experiments.holist import deephol_pb2
-from experiments.holist.utilities import proof_checker_lib
+from data.holist.utils import proof_checker_lib
 from environments.holist import proof_assistant_pb2
 
 

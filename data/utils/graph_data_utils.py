@@ -1,5 +1,5 @@
 """
-Utilities for graph data with Pytorch Geometric
+Data Transforms and utilities
 """
 import torch.nn
 from torch_geometric.data import Data, Batch
@@ -114,7 +114,7 @@ def get_depth_from_graph(num_nodes, edge_index):
     return depths
 
 
-def list_to_sequence(data_list, max_len=1024):
+def to_sequence_batch(data_list, max_len=1024):
     if data_list == []:
         data_list = torch.LongTensor([[0]])
 
@@ -141,16 +141,16 @@ def list_to_relation(data_list, max_len):
 
 
 # return list of tuples, with graph and sequence data in first/second positions (currently only (Graph, Sequence) ensembles)
-def list_to_ensemble(data_list, attributes):
+def to_ensemble_batch(data_list, attributes):
     data_list_0 = [a[0] for a in data_list]
     data_list_1 = [a[1] for a in data_list]
-    data_list_0 = list_to_graph(data_list_0, attributes)
-    data_list_1 = list_to_sequence(data_list_1, attributes['max_len'])
+    data_list_0 = to_graph_batch(data_list_0, attributes)
+    data_list_1 = to_sequence_batch(data_list_1, attributes['max_len'])
     data_list_1 = (data_list_1[0], data_list_1[1])
     return (data_list_0, data_list_1)
 
 
-def list_to_graph(data_list, attributes):
+def to_graph_batch(data_list, attributes):
     data_list = Batch.from_data_list(data_list)
     if 'attention_edge' in attributes and attributes['attention_edge'] == 'full':
         data_list.attention_edge_index = ptr_to_complete_edge_index(data_list.ptr)
@@ -158,7 +158,7 @@ def list_to_graph(data_list, attributes):
 
 
 # todo rename/refactor to 'Transforms'
-def to_data(expr, data_type, vocab, config=None):
+def transform_expr(expr, data_type, vocab, config=None):
     if data_type == 'graph':
         data = DirectedData(x=torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['tokens']]),
                             edge_index=torch.LongTensor(expr['edge_index']),
@@ -173,7 +173,10 @@ def to_data(expr, data_type, vocab, config=None):
         return data
 
     elif data_type == 'sequence':
-        return torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['full_tokens']])
+        return torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['sequence']])
+
+    elif data_type == 'ensemble':
+        return (transform_expr(expr, 'graph', vocab, config), transform_expr(expr, 'sequence', vocab, config))
 
     elif data_type == 'fixed':
         return expr
@@ -186,12 +189,7 @@ def to_data(expr, data_type, vocab, config=None):
         xj = torch.LongTensor([x[i] for i in edge_index[1]])
         return (xi, xj, edge_attr)
 
-    elif data_type == 'sequence_polished':
-        return torch.LongTensor([vocab[a] if a in vocab else vocab['UNK'] for a in expr['polished']])
 
-    elif data_type == 'ensemble':
-        return (to_data(expr, 'graph', vocab, config), to_data(expr, 'sequence_polished', vocab, config))
-        # return (to_data(expr, 'graph', vocab, config), to_data(expr, 'sequence', vocab, config))
 
     # add other transforms here, map from stored expression data to preprocessed format.
     # Could include e.g. RegEx transforms to tokenise on the fly and avoid storing in memory
@@ -200,14 +198,14 @@ def to_data(expr, data_type, vocab, config=None):
     # as well as add any additional processing for converting a list of elements into a batch for the model
 
 
-def list_to_data(batch, config):
+def transform_batch(batch, config):
     if config.type == 'graph':
-        return list_to_graph(batch, config.attributes)
-    elif config.type == 'sequence' or config.type == 'sequence_polished':
-        return list_to_sequence(batch, config.attributes['max_len'])
+        return to_graph_batch(batch, config.attributes)
+    elif config.type == 'sequence':
+        return to_sequence_batch(batch, config.attributes['max_len'])
     elif config.type == 'relation':
         return list_to_relation(batch, config.attributes['max_len'])
     elif config.type == 'fixed':
         return batch
     elif config.type == 'ensemble':
-        return list_to_ensemble(batch, config.attributes)
+        return to_ensemble_batch(batch, config.attributes)

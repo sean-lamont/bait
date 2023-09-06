@@ -1,0 +1,18 @@
+# @package _global_
+defaults:
+  - tactic_zero
+
+max_steps: 1
+data_config:
+  type: 'fixed'
+  data_options:
+    filter: []
+
+exp_config:
+  name: tacticzero_original
+
+model_config:
+  model_type: 'fixed_autoencoder'
+  model_attributes:
+    checkpoint_path: 'experiments/tacticzero/model_checkpoints/tacticzero_autoencoder'
+    embedding_dim: 256

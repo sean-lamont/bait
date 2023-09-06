@@ -7,7 +7,7 @@ from __future__ import print_function
 import unittest
 
 from experiments.holist import deephol_pb2
-from experiments.holist import io_util
+from data.holist.utils import io_util
 
 
 class IOUtilTest(unittest.TestCase):

@@ -10,9 +10,7 @@ import unittest
 from typing import List
 
 from experiments.holist import deephol_pb2
-from experiments.holist import theorem_fingerprint
-from experiments.holist.utilities import deephol_stat_pb2
-from experiments.holist.utilities import stats
+from data.holist.utils import deephol_stat_pb2, stats, theorem_fingerprint
 from environments.holist import proof_assistant_pb2
 
 

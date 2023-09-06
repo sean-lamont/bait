@@ -10,10 +10,9 @@ from absl import flags
 from absl.testing import parameterized
 import numpy as np
 
-from experiments.holist import embedding_store
-from experiments.holist import io_util
+from experiments.holist.agent import embedding_store
 from experiments.holist.tests import test_util, mock_predictions_lib
-from experiments.holist.utilities import normalization_lib
+from data.holist.utils import normalization_lib, io_util
 from environments.holist import proof_assistant_pb2
 
 TEST_THEOREM_DB_PATH = 'deephol/data/mini_theorem_database.textpb'

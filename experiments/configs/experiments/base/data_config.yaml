@@ -1,0 +1,14 @@
+data_config:
+  type: ???
+  source: mongodb
+  shuffle: True
+  attributes: {}
+  batch_size: 32
+  data_options:
+    split_in_memory: True # load train/val/test split data in memory
+    dict_in_memory: True # load dictionary mapping from expressions to processed sequence and/or graph
+    filter: ?? # What fields to take from the database
+    db: ?? # MongoDB database source
+    expression_col: expression_graphs # MongoDB collection to use for expression data
+    vocab_col: vocab # collection for vocab
+    split_col: split_data # collection for train/val/test split

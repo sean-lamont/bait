@@ -1,0 +1,17 @@
+# @package _global_
+defaults:
+  - mizar
+  - /data_type/sequence@_here_
+
+exp_config:
+    name: transformer
+
+model_config:
+  model_type: transformer
+  model_attributes:
+    dropout: 0.
+    embedding_dim: 256
+    num_layers: 2
+    num_heads: 2
+    dim_feedforward: 256
+    max_len: 1024

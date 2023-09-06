@@ -7,47 +7,10 @@ from torch.utils.data.dataloader import DataLoader
 from tqdm import tqdm
 
 from data.stream_dataset import MongoStreamDataset
-from data.utils.graph_data_utils import to_data, list_to_data
-from experiments.pyrallis_configs_old import DataConfig
-
-'''
-
-@todo:
-
-25/7
-
-Experiment plan
-
-INT 
- 
-lean
-    mongo, loaded with vocab
-    
-lean
-    sexpression parser (HOList recycle?), return local variables
-    leanenv tactics
-    model (pretrain only)
-            
-save wandb run in directory so not required in config 
-    
-standardise experiments
-    add resume to pretrain and holist experiments
-    logging/files/directories all the same
-
-NO_PARAM hack for holist
-
-unified proof log format? for HOL4, lean, HOList etc. record proof_state, tactic/args, outcome
-    
-multiple data loader workers
-
-multi GPU
-    
-    
-'''
-
+from data.utils.graph_data_utils import transform_expr, transform_batch
 
 class PremiseDataModule(LightningDataModule):
-    def __init__(self, config: DataConfig):
+    def __init__(self, config):
 
         super().__init__()
         self.config = config
@@ -137,10 +100,10 @@ class PremiseDataModule(LightningDataModule):
         else:
             batch = [self.expr_dict[d] for d in data_list]
 
-        return list_to_data(batch, config=self.config)
+        return transform_batch(batch, config=self.config)
 
     def to_data(self, expr):
-        return to_data(expr, self.config.type, self.vocab, self.config)
+        return transform_expr(expr, self.config.type, self.vocab, self.config)
 
     def collate_data(self, batch):
         y = torch.LongTensor([b['y'] for b in batch])

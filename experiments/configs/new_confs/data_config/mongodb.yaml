@@ -1,5 +1,0 @@
-type: graph
-source: mongodb #directory
-shuffle: True
-attributes: {}
-batch_size: 32

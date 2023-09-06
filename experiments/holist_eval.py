@@ -5,14 +5,13 @@ from __future__ import print_function
 import logging
 import os
 
-import lightning.pytorch as pl
-
 import hydra
 import wandb
 from omegaconf import OmegaConf
 
-from experiments.holist.process_config import get_prover_options, process_prover_flags
-from experiments.holist_pretrain_hydra import config_to_dict
+from experiments.holist.utils.process_config import get_prover_options, process_prover_flags
+from experiments.holist_supervised import config_to_dict
+import experiments.holist.simple_prover_runner as prover_runner
 
 """"
 
@@ -20,10 +19,8 @@ DeepHOL non-distributed prover.
 
 """
 
-from experiments.holist import prover_runner
 
-
-@hydra.main(config_path="configs/new_confs", config_name="holist_eval")
+@hydra.main(config_path="configs/experiments")#, config_name="experiments/holist_eval")
 def holist_eval(config):
     OmegaConf.resolve(config)
 
@@ -36,14 +33,15 @@ def holist_eval(config):
                    dir=config.exp_config.directory,
                    resume='must',
                    id=config.logging_config.id,
+                   mode='offline' if config.logging_config.offline else 'online'
                    )
     else:
         wandb.init(project=config.logging_config.project,
                    name=config.exp_config.name,
                    config=config_to_dict(config),
                    dir=config.exp_config.directory,
+                   mode='offline' if config.logging_config.offline else 'online'
                    )
-
 
     prover_options = get_prover_options(config)
 

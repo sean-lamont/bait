@@ -5,13 +5,12 @@ import re
 from pymongo import MongoClient
 from tqdm import tqdm
 
-from experiments.holist.utilities.lean_sexpression_to_graph import sexpression_to_graph, sexpression_to_polish
-from experiments.holist.utilities.sexpression_graphs import SExpressionGraph
+from data.lean.utils.lean_sexpression_to_graph import sexpression_to_graph, sexpression_to_polish
 
 if __name__ == '__main__':
-
     client = MongoClient()
-    db = client['leanstep_sexpression']
+    # db = client['leanstep_sexpression']
+    db = client['leanstep']
     premise_classification = db['premise_classification']
 
     all_exprs = []
@@ -41,7 +40,6 @@ if __name__ == '__main__':
     len(all_exprs)
 
     # add train_val_test data
-
     split = db['split_data']
 
     random.shuffle(data)
@@ -85,12 +83,11 @@ if __name__ == '__main__':
                 'tokens': g['tokens'],
                 'edge_index': g['edge_index'],
                 'edge_attr': g['edge_attr'],
-                'full_tokens': sexpression_to_polish(expr)
+                'sequence': sexpression_to_polish(expr)
             }
         })
 
     # compute vocab
-
     tok_set = set()
 
     for g in tqdm(expr_col.find()):
@@ -102,8 +99,6 @@ if __name__ == '__main__':
     for tok in tok_set:
         vocab[tok] = i
         i += 1
-
-    # len(vocab)
 
     db['vocab'].insert_many([{'_id': k, 'index': v} for k, v in vocab.items()])
 

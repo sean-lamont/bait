@@ -1,0 +1,18 @@
+# @package _global_
+defaults:
+  - holstep
+  - /data_type/ensemble@_here_
+
+exp_config:
+  name: ensemble_small
+
+model_config:
+  model_type: ensemble
+  model_attributes:
+    embedding_dim: 256
+    gnn_layers: 3
+    batch_norm: True
+    dropout: 0.0
+    num_layers: 4
+    num_heads: 4
+    dim_feedforward: 256

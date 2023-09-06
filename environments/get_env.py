@@ -1,4 +1,4 @@
-from environments.hol4.new_env import *
+from environments.hol4.env_wrapper import *
 
 def get_env(config):
     if config == 'HOL4':

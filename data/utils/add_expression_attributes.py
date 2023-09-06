@@ -1,3 +1,4 @@
+import os
 from multiprocessing import Pool
 
 import torch
@@ -32,7 +33,7 @@ if __name__ == '__main__':
     for item in tqdm(expr_collection.find({})):
         items.append(item)
 
-    pool = Pool(processes=8)
+    pool = Pool(processes=os.cpu_count() // 2)
     for _ in tqdm(pool.imap_unordered(update_attention_func, items), total=len(items)):
         pass
 

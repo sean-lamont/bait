@@ -7,8 +7,7 @@ from __future__ import print_function
 import unittest
 
 # import tensorflow as tf
-from experiments.holist.utilities import proof_analysis
-from experiments.holist.utilities import proof_test_util
+from data.holist.utils import proof_analysis, proof_test_util
 
 
 class ProofAnalysisTest(unittest.TestCase):

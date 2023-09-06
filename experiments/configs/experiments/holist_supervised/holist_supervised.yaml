@@ -1,0 +1,39 @@
+defaults:
+  - /base/data_config@_here_
+  - /base/optimiser_config@_here_
+  - /base/logging_config@_here_
+  - /base/exp_config@_here_
+
+epochs: 20
+
+model_config:
+  model_type: ???
+  model_attributes:
+    vocab_size: 1500
+
+logging_config:
+  project: holist_supervised
+
+batch_size: 16
+
+exp_config:
+  experiment: holist_supervised
+
+data_config:
+  batch_size: 16
+  data_options:
+    # Collection for theorems to randomly sample negative premises
+    thms_col: 'train_thm_ls'
+    # Keep expressions out of memory, as this is a large dataset
+    dict_in_memory: False
+    db: 'holist'
+
+
+num_tactics: 41
+tac_embed_dim: 128
+final_embed_dim: 1024
+
+limit_val_batches: True
+val_size: 40000
+
+val_frequency: 2048

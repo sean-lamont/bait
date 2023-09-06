@@ -1,0 +1,6 @@
+data_config:
+  type: 'graph'
+  data_options:
+    filter: ['tokens', 'edge_attr', 'edge_index']
+  attributes:
+    attention_edge: 'full'

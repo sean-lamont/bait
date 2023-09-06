@@ -1,0 +1,16 @@
+# @package _global_
+defaults:
+  - leanstep
+  - /data_type/sequence@_here_
+
+exp_config:
+  name: transformer
+
+model_config:
+  model_type: transformer
+  model_attributes:
+    dropout: 0.
+    embedding_dim: 256
+    num_layers: 4
+    num_heads: 4
+    dim_feedforward: 256

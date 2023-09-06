@@ -13,7 +13,7 @@ from absl import flags
 import numpy as np
 # import tensorflow as tf
 import unittest
-from experiments.holist import holparam_predictor
+from experiments.holist.agent import holparam_predictor
 from experiments.holist.tests import predictions_abstract_base_test
 from experiments.holist.tests import test_util
 

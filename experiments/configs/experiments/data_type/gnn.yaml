@@ -1,0 +1,4 @@
+data_config:
+  type: 'graph' # sequence, all
+  data_options:
+    filter: ['tokens', 'edge_index', 'edge_attr']

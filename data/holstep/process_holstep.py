@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from data.holstep.data_util import data_loader
 from data.holstep.data_util.generate_hol_dataset import generate_dataset, graph_from_hol_stmt, tree_from_hol_stmt
+from data.holstep.data_util.holstep_parser import parse_formula, sexpression_from_formula
 
 if __name__ == '__main__':
     sys.setrecursionlimit(10000)
@@ -90,16 +91,21 @@ if __name__ == '__main__':
         logging.info("Adding vocab Dictionary to MongoDB..")
         loader = data_loader.DataLoader("data/holstep/raw_data/train", "data/holstep/raw_data/hol_train_dict")
         # add dictionary to mongodb
+
         vocab = {}
+
         for k, v in loader.dict.items():
-            vocab[k] = v
+            vocab[k] = v + 1
             vocab_col.insert_one({"_id": k, "index": v})
 
         for k, v in train_expr.items():
             d = {"_id": k, "data": v}
-            d['data']['full_tokens'] = TOKEN_RE.findall(k)
 
-            for tok in d['data']['full_tokens']:
+            sexp = parse_formula(k, '')[1]
+            seq = sexpression_from_formula(sexp)
+            d['data']['sequence'] = seq
+
+            for tok in d['data']['sequence']:
                 if d not in vocab:
                     new_ind = len(vocab)
                     vocab[tok] = new_ind
@@ -108,8 +114,12 @@ if __name__ == '__main__':
             expr_col.insert_one({'_id': d, 'data': d['data']})
 
 
+        vocab_col.insert_one({"_id": 'UNK', "index": len(vocab) + 1})
+
+
 
     logging.info("Adding training split data to MongoDB..")
+
     for i, data in enumerate(train_split):
         for flag, conj, stmt in data:
             split_col.insert_one({'conj': conj, 'stmt': stmt, 'split': 'train', 'y': flag})
@@ -167,5 +177,3 @@ if __name__ == '__main__':
                     'wb') as f:
                 print('Saving to file {}/{}'.format(i + 1, partition))
                 pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-
-

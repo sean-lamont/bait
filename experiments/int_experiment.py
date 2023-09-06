@@ -324,7 +324,7 @@ class INTLoop(pl.LightningModule):
             print(f"Error in backward: {e}")
 
 
-@hydra.main(config_path="configs/new_confs", config_name="int_base")
+@hydra.main(config_path="configs/experiments", config_name="int_base")
 def int_experiment(config):
     os.makedirs(config.exp_config.checkpoint_dir, exist_ok=True)
     os.makedirs(os.path.join(config.dump, str(config.timestamp)))

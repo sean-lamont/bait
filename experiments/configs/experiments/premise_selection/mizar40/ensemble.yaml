@@ -1,0 +1,27 @@
+# @package _global_
+defaults:
+  - mizar
+  - /data_type/ensemble@_here_
+
+
+exp_config:
+  name: ensemble
+#  resume: True
+#  directory: 'experiments/runs/premise_selection/2023_08_11/ensemble_15_16_28'
+
+model_config:
+  model_type: ensemble
+  model_attributes:
+    batch_norm: True
+    gnn_layers: 2
+    dropout: 0.
+    embedding_dim: 128
+    num_layers: 2
+    num_heads: 2
+    dim_feedforward: 256
+    max_len: 1024
+
+#logging_config:
+#  project: mizar40
+#  id: 'kex3q0rs'
+

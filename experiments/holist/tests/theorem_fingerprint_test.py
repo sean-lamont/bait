@@ -1,7 +1,7 @@
 """Tests for deepmath.prover.hol_light.theorem_fingerprint."""
 
 # import tensorflow as tf
-from experiments.holist import theorem_fingerprint
+from data.holist.utils import theorem_fingerprint
 from environments.holist import proof_assistant_pb2
 
 import unittest

@@ -9,14 +9,12 @@ from absl.testing import parameterized
 # import tensorflow as tf
 from typing import List
 from google.protobuf import text_format
-from experiments.holist import action_generator
 from experiments.holist import deephol_pb2
-from experiments.holist import embedding_store
-from experiments.holist import holparam_predictor
-from experiments.holist import proof_search_tree
-from experiments.holist import prover_util
+from experiments.holist.prover import proof_search_tree
+from experiments.holist.prover import prover_util
+from experiments.holist.agent import holparam_predictor, action_generator, embedding_store
 from experiments.holist.tests import test_util
-from experiments.holist import theorem_fingerprint
+from data.holist.utils import theorem_fingerprint
 from environments.holist import proof_assistant_pb2
 import unittest
 import logging
