@@ -1,3 +1,4 @@
+import itertools
 import json
 import logging
 
@@ -148,10 +149,6 @@ class GoalNode:
                     goal._print_with_scores(depth + 1)
 
 
-
-
-
-
 # Return set of all unique nodes in a graph
 def nodes_list(g, result=[]):
     result.append(g)
@@ -191,31 +188,14 @@ class HolEnv:
             self.process.sendline("open {};".format(i).encode("utf-8"))
             sleep(5)
 
-        # remove built-in simp lemmas
-        # logging.debug("Removing simp lemmas...")
-        # # self.process.sendline("delsimps [\"HD\", \"EL_restricted\", \"EL_simp_restricted\"];")
-        # self.process.sendline("delsimps {};".format(dels))
-        # self.process.sendline("delsimps {};".format(dels2))
-        # # self.process.sendline("delsimps {};".format(dels3))
-        # sleep(1)
-
-        # load utils
-        # logging.debug("Loading modules...")
         self.process.sendline("use \"helper.sml\";")
-        # self.process.sendline("val _ = load \"Timeout\";")
         sleep(5)
-        # logging.debug("Configuration done.")
         self.process.expect('\r\n>')
-        # self.process.readline()
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
-
         # consumes hol4 head
         self.process.expect('\r\n>')
-
         self.goal = goal
-
         self.polished_goal = self.get_polish(self.goal)[0]
-
         self.graph = GoalNode(self.polished_goal)
         self.current_goals = nodes_list(self.graph, result=[])
 
@@ -223,16 +203,35 @@ class HolEnv:
         # as when combined with the action can fully reconstruct proof
 
         self.history = [[g.goal for g in self.current_goals]]
-        # self.history = [[(g.goal, None) for g in self.current_goals]]
-        # action should just be goal_node and tactic. Then history can just be goal_node.goal and tactic
 
         self.action_history = []  # list of tuples (id, id, tactic)
 
         self.subproofs = {}
         logging.debug("Initialization done. Main goal is:\n{}.".format(self.goal))
 
+    # return list of candidate fringes, where each fringe is a list of goals needed to be proven
+    def get_all_fringes(self, node):
+        if node.children == {}:
+            return [[node]]
 
+        else:
+            candidate_fringes = [[node]]
 
+            for tac, siblings in node.children.items():
+                sib_goals = []
+                for sibling in siblings:
+                    # all possible ways to prove sibling
+                    sib_candidates = self.get_all_fringes(sibling)
+
+                    sib_goals.append(sib_candidates)
+
+                # take all combinations of every sibling, to give all possible ways of proving this path
+                sib_goals = [list(a) for a in itertools.product(*sib_goals)]
+
+                candidate_fringes.append(sib_goals)
+
+            # return max(fringe_scores), candidate_fringes[fringe_scores.index(max(fringe_scores))]
+            return candidate_fringes
 
     def get_best_goal(self, scores, node):
         node_score = scores[self.current_goals.index(node)]
@@ -241,8 +240,8 @@ class HolEnv:
             return node_score, [node]
 
         else:
-            goal_scores = [node_score]
-            candidate_paths = [node]
+            fringe_scores = [node_score]
+            candidate_fringes = [node]
             for tac, siblings in node.children.items():
 
                 sib_goals = []
@@ -253,16 +252,14 @@ class HolEnv:
                     sib_scores.append(sibling_score)
                     sib_goals.extend(sib)
 
-
-                # aggregate scores from siblings (sum of logits (i.e. product of probabilities))
+                # aggregate scores from siblings as sum of logits (i.e. product of probabilities)
                 tac_score = sum([p for p in sib_scores])
 
-                goal_scores.append(tac_score)
-                candidate_paths.append(sib_goals)
+                fringe_scores.append(tac_score)
+                candidate_fringes.append(sib_goals)
 
-            return max(goal_scores), candidate_paths[goal_scores.index(max(goal_scores))]
-
-
+            # return max(fringe_scores), candidate_fringes[fringe_scores.index(max(fringe_scores))]
+            return fringe_scores, candidate_fringes
 
     def toggle_simpset(self, mode, theory):
         if mode == "diminish":
@@ -767,7 +764,7 @@ def construct_map(history):
         # dependency_table[(revert_assumptions(parent_goal), parent_fringe_id, parent_goal_id)] = (tactic, [(p, current_fringe_id, content.index(p)) for p in content if p not in parent_fringe["content"]])
         new_content = content[len(parent_fringe["content"]) - 1:]
         dependency_table[(revert_assumptions(parent_goal), parent_goal["origin_fringe"])] = (
-        remove_duplicates(tactic), new_content)
+            remove_duplicates(tactic), new_content)
 
         if parent_fringe_id == 0:
             break
@@ -1406,14 +1403,14 @@ with open("data/hol4/data/paper_goals.pk", "rb") as f:
     goals = pickle.load(f)
 
 env = HolEnv(goals[0][1])
-print (env)
-print (env.query(env.graph.goal['plain']['goal'], 'strip_tac'))
-print (len(env.current_goals))
-print (env.current_goals)
+print(env)
+print(env.query(env.graph.goal['plain']['goal'], 'strip_tac'))
+print(len(env.current_goals))
+print(env.current_goals)
 # env.step((0, 'Induct_on `s1`'))
 env.step((env.current_goals[0], 'strip_tac'))
 env.step((env.current_goals[1], 'strip_tac'))
-env.get_best_goal([0.1,0.2,0.3], env.current_goals[0])
+env.get_best_goal([0.1, 0.2, 0.3], env.current_goals[0])
 
 # print (len(env.current_goals))
 # print (env.current_goals)

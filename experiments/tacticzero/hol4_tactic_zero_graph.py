@@ -492,32 +492,58 @@ class HOL4TacticZero(TacticZeroLoop):
 
         representations = torch.unsqueeze(self.encoder_goal(batch), 1)
 
-        context_scores = self.goal_net(representations)
+        goal_scores = self.goal_net(representations)
 
-        # todo logic for processing scores...
-        # e.g. env.get_goal(scores)
+        def get_best_goal(scores, node):
+            node_score = scores[env.current_goals.index(node)]
 
-        contexts_by_fringe, scores_by_fringe = split_by_fringe(contexts, context_scores, fringe_sizes)
-        fringe_scores = []
+            if node.children == {}:
+                return node_score, [node]
 
-        for s in scores_by_fringe:
-            fringe_score = torch.sum(s)
-            fringe_scores.append(fringe_score)
+            else:
+                fringe_scores = [node_score]
+                candidate_fringes = [node]
 
-        fringe_scores = torch.stack(fringe_scores)
-        fringe_probs = F.softmax(fringe_scores, dim=0)
-        fringe_m = Categorical(fringe_probs)
+                for tac, siblings in node.children.items():
+                    sib_goals = []
+                    sib_scores = []
 
-        if replay_fringe is not None:
-            fringe = replay_fringe
-        else:
-            fringe = fringe_m.sample()
+                    for sibling in siblings:
+                        sibling_score, sib = get_best_goal(scores, sibling)
+                        sib_scores.append(sibling_score)
+                        sib_goals.extend(sib)
 
-        fringe_prob = fringe_m.log_prob(fringe)
-        # take the first context in the chosen fringe
+                    sib_scores = torch.stack(sib_scores)
 
-        target_context = contexts_by_fringe[fringe][0]
-        target_goal = target_context["polished"]["goal"]
-        target_representation = representations[contexts.index(target_context)]
+                    # aggregate scores from siblings as sum of logits (i.e. product of probabilities)
+                    # tac_score = sum([p for p in sib_scores])
+                    tac_score = torch.sum(sib_scores)
+
+                    fringe_scores.append(tac_score)
+                    candidate_fringes.append(sib_goals)
+
+                return max(fringe_scores), candidate_fringes[fringe_scores.index(max(fringe_scores))]
+                # return fringe_scores, candidate_fringes
+
+        # fringe_scores, candidate_fringes = get_best_goal(goal_scores, env.graph)
+        fringe_score, candidate_fringe = get_best_goal(goal_scores, env.graph)
+
+        # fringe_scores = torch.stack(fringe_scores)
+        # fringe_probs = F.softmax(fringe_scores, dim=0)
+        # fringe_m = Categorical(fringe_probs)
+        #
+        # if replay_fringe is not None:
+        #     fringe = replay_fringe
+        # else:
+        #     fringe = fringe_m.sample()
+        #
+        # fringe_prob = fringe_m.log_prob(fringe)
+        # take the first goal in the chosen fringe
+
+        # target_goal = candidate_fringes[fringe][0]
+
+        target_goal = candidate_fringe[0]
+
+        target_representation = representations[env.current_goals.index(target_goal)]
 
         return target_representation, target_goal, fringe, fringe_prob
