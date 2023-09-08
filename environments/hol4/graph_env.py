@@ -105,27 +105,55 @@ class GoalNode:
         # children in format {tac : [subgoals]}
         self.children = {}
 
+        # list of other nodes required to prove original goal (only the parent goal of candidate paths, which will contain all possible ways to prove that goal)
+        self.context = []
+
+        # keep track of all candidate paths for proving this node
+        # self.fringes = [self]
+
+        # adding subgoals:
+        # if multiple, add each sibling to each others context
+        # add the parent context as well
+        # add goals to parent fringes and propagate upwards (O log(n) as only need to propagate up parents)
+
+
+    # def update_fringes(self):
+    #     self.fringes = [[self]] + [child.fringes for subgoals in self.children.values() for child in subgoals]
+    #     if self.parent:
+    #         self.parent.update_fringes()
+
     def prop_proved(self):
         # remove self from parent
         if self.parent != None:
             self.parent.update_child(self)
 
     def update_child(self, proven_child):
-        # print (proven_child, proven_child.from_tac, self.children)
-        # print (self.parent)
         prove_tac = proven_child.from_tac
+
         # remove proven child from children
         self.children[prove_tac].remove(proven_child)
 
         # if no goals left from same tactic, then this goal is proved
         if self.children[prove_tac] == []:
-            # if root, then done
-            if self.parent == None:
-                self.children = {}
-                return
-            else:
+            self.children.pop(prove_tac)
+            # self.update_fringes()
+            if self.parent:
                 self.parent.update_child(self)
+        else:
+            # once a goal is fully propagated, update the fringes to remove the proven paths, and update the context of
+            # remaining sibling branches
+            # self.update_fringes()
+            # update context for other siblings of same tac
+            for child in self.children[prove_tac]:
+                child.remove_context(proven_child)
         return
+
+    def remove_context(self, proven_context):
+        self.context.remove(proven_context)
+
+        for tac, subgoals in self.children.items():
+            for subgoal in subgoals:
+                subgoal.remove_context(proven_context)
 
     def _print(self, depth=1):
         print(depth * "--- " + self.goal["plain"]["goal"])
@@ -135,19 +163,6 @@ class GoalNode:
             for child in self.children.keys():
                 for goal in self.children[child]:
                     goal._print(depth + 1)
-
-    def _print_with_scores(self, depth=1):
-        print(depth * "--- " + self.goal["plain"]["goal"])
-        if self.from_tac:
-            print(f"Tac: " + self.from_tac + " Parent: " + self.parent.goal["plain"][
-                "goal"] + f" scores {self.raw_score, self.agg_score, self.context_score}")
-        else:
-            print(f"scores: {self.raw_score, self.agg_score, self.context_score}")
-        if len(self.children.keys()) > 0:
-            for child in self.children.keys():
-                for goal in self.children[child]:
-                    goal._print_with_scores(depth + 1)
-
 
 # Return set of all unique nodes in a graph
 def nodes_list(g, result=[]):
@@ -233,33 +248,33 @@ class HolEnv:
             # return max(fringe_scores), candidate_fringes[fringe_scores.index(max(fringe_scores))]
             return candidate_fringes
 
-    def get_best_goal(self, scores, node):
-        node_score = scores[self.current_goals.index(node)]
-
-        if node.children == {}:
-            return node_score, [node]
-
-        else:
-            fringe_scores = [node_score]
-            candidate_fringes = [node]
-            for tac, siblings in node.children.items():
-
-                sib_goals = []
-                sib_scores = []
-
-                for sibling in siblings:
-                    sibling_score, sib = self.get_best_goal(scores, sibling)
-                    sib_scores.append(sibling_score)
-                    sib_goals.extend(sib)
-
-                # aggregate scores from siblings as sum of logits (i.e. product of probabilities)
-                tac_score = sum([p for p in sib_scores])
-
-                fringe_scores.append(tac_score)
-                candidate_fringes.append(sib_goals)
-
-            # return max(fringe_scores), candidate_fringes[fringe_scores.index(max(fringe_scores))]
-            return fringe_scores, candidate_fringes
+    # def get_best_goal(self, scores, node):
+    #     node_score = scores[self.current_goals.index(node)]
+    #
+    #     if node.children == {}:
+    #         return node_score, [node]
+    #
+    #     else:
+    #         fringe_scores = [node_score]
+    #         candidate_fringes = [node]
+    #         for tac, siblings in node.children.items():
+    #
+    #             sib_goals = []
+    #             sib_scores = []
+    #
+    #             for sibling in siblings:
+    #                 sibling_score, sib = self.get_best_goal(scores, sibling)
+    #                 sib_scores.append(sibling_score)
+    #                 sib_goals.extend(sib)
+    #
+    #             # aggregate scores from siblings as sum of logits (i.e. product of probabilities)
+    #             tac_score = sum([p for p in sib_scores])
+    #
+    #             fringe_scores.append(tac_score)
+    #             candidate_fringes.append(sib_goals)
+    #
+    #         # return max(fringe_scores), candidate_fringes[fringe_scores.index(max(fringe_scores))]
+    #         return fringe_scores, candidate_fringes
 
     def toggle_simpset(self, mode, theory):
         if mode == "diminish":
@@ -272,17 +287,10 @@ class HolEnv:
             cmd = re.sub("'", "\"", cmd)
             logging.debug("Adding simp lemmas from {}".format(theory))
 
-        # self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
-        # # sleep(0.5)
-        # self.process.sendline(cmd.encode("utf-8"))
-        # self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
-        # self.process.expect('\r\n>')
-
         reset_cmd = "BasicProvers.recreate_sset_at_parentage (parents \"{}\");".format(theory)
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         self.process.sendline(reset_cmd.encode("utf-8"))
-        # sleep(0.5)
-        # self.process.sendline(cmd.encode("utf-8"))
+
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         self.process.expect('\r\n>')
 
@@ -514,7 +522,6 @@ class HolEnv:
 
     # Returns reward, done
     def step(self, action):
-
         goal_node, tactic = action
 
         if (goal_node.goal, tactic) in self.action_history:
@@ -582,7 +589,6 @@ class HolEnv:
                     # self.history.append([(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals])
 
                 else:
-
                     # same tactic
                     if tactic in goal_node.children.keys():
                         # print ("tac duplicate")
@@ -623,48 +629,43 @@ class HolEnv:
 
                     # print (f"Adding subgoals {[d_['plain'] for d_ in d]}")
 
-                    for i, goal in enumerate(d):
-                        new_node = GoalNode(goal)
+                    #todo add context to siblings
+                    for i, subgoal in enumerate(d):
+                        new_node = GoalNode(subgoal)
                         new_node.parent = goal_node
                         new_node.from_tac = tactic
+
+
+                        # add context from parent (i.e. what else needs to be proven)
+                        new_node.context = self.context
 
                         if tactic in goal_node.children.keys():
                             goal_node.children[tactic].append(new_node)
                         else:
-                            # child dict has {tac : (score, [children])}
                             goal_node.children[tactic] = [new_node]
+
+                    # add sibling to context of other siblings
+                    for subgoal in goal_node.children[tactic]:
+                        subgoal.context = subgoal.context + [child for child in goal_node.children[tactic] if child != subgoal]
+
 
                     self.current_goals = nodes_list(self.graph, result=[])
                     self.history.append([g.goal for g in self.current_goals])
-
-                    # self.history.append([(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals])
-
-                    # print (f"Subgoals {[d_['plain'] for d_ in d]}")
-                    # print (f"History {self.history}")
-                    # self.history = [(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals]
-
             else:
                 # nothing changed
                 reward = -0.1
-                # self.action_history.append(action)
                 self.action_history.append((action[0].goal, action[1]))
                 self.history.append([g.goal for g in self.current_goals])
-                # self.history.append([(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals])
-                # self.history = [(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals]
         else:
             if d == "timeout":
                 reward = -0.1
                 # self.action_history.append(action)
                 self.action_history.append((action[0].goal, action[1]))
                 self.history.append([g.goal for g in self.current_goals])
-                # self.history.append([(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals])
-                # self.history = [(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals]
             else:
                 reward = -0.1
                 self.action_history.append((action[0].goal, action[1]))
                 self.history.append([g.goal for g in self.current_goals])
-                # self.history.append([(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals])
-                # self.history = [(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals]
 
         return reward, False
 
