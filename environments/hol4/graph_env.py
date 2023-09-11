@@ -108,20 +108,6 @@ class GoalNode:
         # list of other nodes required to prove original goal (only the parent goal of candidate paths, which will contain all possible ways to prove that goal)
         self.context = []
 
-        # keep track of all candidate paths for proving this node
-        # self.fringes = [self]
-
-        # adding subgoals:
-        # if multiple, add each sibling to each others context
-        # add the parent context as well
-        # add goals to parent fringes and propagate upwards (O log(n) as only need to propagate up parents)
-
-
-    # def update_fringes(self):
-    #     self.fringes = [[self]] + [child.fringes for subgoals in self.children.values() for child in subgoals]
-    #     if self.parent:
-    #         self.parent.update_fringes()
-
     def prop_proved(self):
         # remove self from parent
         if self.parent != None:
@@ -136,13 +122,9 @@ class GoalNode:
         # if no goals left from same tactic, then this goal is proved
         if self.children[prove_tac] == []:
             self.children.pop(prove_tac)
-            # self.update_fringes()
             if self.parent:
                 self.parent.update_child(self)
         else:
-            # once a goal is fully propagated, update the fringes to remove the proven paths, and update the context of
-            # remaining sibling branches
-            # self.update_fringes()
             # update context for other siblings of same tac
             for child in self.children[prove_tac]:
                 child.remove_context(proven_child)
@@ -164,6 +146,7 @@ class GoalNode:
                 for goal in self.children[child]:
                     goal._print(depth + 1)
 
+
 # Return set of all unique nodes in a graph
 def nodes_list(g, result=[]):
     result.append(g)
@@ -173,6 +156,28 @@ def nodes_list(g, result=[]):
             nodes_list(sibling, result)
 
     return list(set(result))
+
+
+def get_all_fringes(node):
+    if node.children == {}:
+        return [[node]]
+
+    else:
+        candidate_fringes = [[node]]
+
+        for tac, siblings in node.children.items():
+            sib_goals = []
+            for sibling in siblings:
+                # all possible ways to prove sibling
+                sib_candidates = get_all_fringes(sibling)
+                sib_goals.append(sib_candidates)
+
+            # take all combinations of every sibling, to give all possible ways of proving this path
+            sib_goals = [sum(list(a), []) for a in itertools.product(*sib_goals)]
+
+            candidate_fringes.extend(sib_goals)
+
+        return candidate_fringes
 
 
 class HolEnv:
@@ -225,29 +230,6 @@ class HolEnv:
         logging.debug("Initialization done. Main goal is:\n{}.".format(self.goal))
 
     # return list of candidate fringes, where each fringe is a list of goals needed to be proven
-    def get_all_fringes(self, node):
-        if node.children == {}:
-            return [[node]]
-
-        else:
-            candidate_fringes = [[node]]
-
-            for tac, siblings in node.children.items():
-                sib_goals = []
-                for sibling in siblings:
-                    # all possible ways to prove sibling
-                    sib_candidates = self.get_all_fringes(sibling)
-
-                    sib_goals.append(sib_candidates)
-
-                # take all combinations of every sibling, to give all possible ways of proving this path
-                sib_goals = [list(a) for a in itertools.product(*sib_goals)]
-
-                candidate_fringes.append(sib_goals)
-
-            # return max(fringe_scores), candidate_fringes[fringe_scores.index(max(fringe_scores))]
-            return candidate_fringes
-
     # def get_best_goal(self, scores, node):
     #     node_score = scores[self.current_goals.index(node)]
     #
@@ -627,17 +609,13 @@ class HolEnv:
 
                     reward = 0.1
 
-                    # print (f"Adding subgoals {[d_['plain'] for d_ in d]}")
-
-                    #todo add context to siblings
                     for i, subgoal in enumerate(d):
                         new_node = GoalNode(subgoal)
                         new_node.parent = goal_node
                         new_node.from_tac = tactic
 
-
                         # add context from parent (i.e. what else needs to be proven)
-                        new_node.context = self.context
+                        new_node.context = goal_node.context
 
                         if tactic in goal_node.children.keys():
                             goal_node.children[tactic].append(new_node)
@@ -646,8 +624,8 @@ class HolEnv:
 
                     # add sibling to context of other siblings
                     for subgoal in goal_node.children[tactic]:
-                        subgoal.context = subgoal.context + [child for child in goal_node.children[tactic] if child != subgoal]
-
+                        subgoal.context = subgoal.context + [child for child in goal_node.children[tactic] if
+                                                             child != subgoal]
 
                     self.current_goals = nodes_list(self.graph, result=[])
                     self.history.append([g.goal for g in self.current_goals])
@@ -1400,18 +1378,13 @@ def find_best_proof(goal, map):
 import pickle
 
 with open("data/hol4/data/paper_goals.pk", "rb") as f:
-    # print (f"Stepping with {goal_node.goal['plain']}, {tactic}")
     goals = pickle.load(f)
 
 env = HolEnv(goals[0][1])
-print(env)
-print(env.query(env.graph.goal['plain']['goal'], 'strip_tac'))
-print(len(env.current_goals))
-print(env.current_goals)
-# env.step((0, 'Induct_on `s1`'))
+
 env.step((env.current_goals[0], 'strip_tac'))
 env.step((env.current_goals[1], 'strip_tac'))
-env.get_best_goal([0.1, 0.2, 0.3], env.current_goals[0])
+
 
 # print (len(env.current_goals))
 # print (env.current_goals)
