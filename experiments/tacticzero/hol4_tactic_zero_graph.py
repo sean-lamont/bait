@@ -1,3 +1,6 @@
+import traceback
+import copy
+
 import einops
 import torch.nn.functional as F
 import torch.optim
@@ -5,7 +8,7 @@ from torch.distributions import Categorical
 from torch_geometric.data import Batch
 
 from data.hol4.utils import ast_def
-from environments.hol4.env_wrapper import *
+from environments.hol4.graph_env import *
 from experiments.tacticzero.tactic_zero_module import TacticZeroLoop
 
 '''
@@ -56,10 +59,6 @@ class HOL4TacticZero(TacticZeroLoop):
 
         self.setup_replays()
 
-    # def save_proof_attempt(self, goal, proof, probs):
-    #     self.proof_logs.append({"goal": goal[0], "proof": proof, 'log_type': 'fringe',
-    #                             "probs": probs})
-
     def setup_replays(self):
         if os.path.exists(self.dir + '/replays.pt'):
             self.replays = torch.load(self.replay_dir)
@@ -68,30 +67,9 @@ class HOL4TacticZero(TacticZeroLoop):
             logging.debug(f"Creating new replay dir {self.replay_dir}")
             self.replays = {}
 
-    def get_tac(self, tac_input):
-        tac_probs = self.tac_net(tac_input)
-        tac_m = Categorical(tac_probs)
-        tac = tac_m.sample()
-        tac_prob = tac_m.log_prob(tac)
-        tac_tensor = tac.to(self.device)
-        return tac_tensor, tac_prob
-
-    # goal selection assuming fringes
-    def get_goal(self, env, replay_fringe=None):
-        history = env.history
-
-        fringe_sizes = []
-        contexts = []
-        reverted = []
-
-        for i in history:
-            c = i["content"]
-            contexts.extend(c)
-            fringe_sizes.append(len(c))
-
-        for e in contexts:
-            g = revert_with_polish(e)
-            reverted.append(g)
+    # goal selection assuming proof tree
+    def get_goal(self, current_goals, candidate_fringes, replay_fringe=None):
+        reverted = [revert_with_polish(g) for g in current_goals]
 
         batch = self.converter(reverted)
 
@@ -104,13 +82,14 @@ class HOL4TacticZero(TacticZeroLoop):
 
         representations = torch.unsqueeze(self.encoder_goal(batch), 1)
 
-        context_scores = self.goal_net(representations)
+        goal_scores = self.goal_net(representations)
 
-        contexts_by_fringe, scores_by_fringe = split_by_fringe(contexts, context_scores, fringe_sizes)
         fringe_scores = []
 
-        for s in scores_by_fringe:
-            fringe_score = torch.sum(s)
+        for fringe in candidate_fringes:
+            inds = torch.LongTensor([current_goals.index(goal) for goal in fringe]).to(self.device)
+            fringe_score = torch.index_select(goal_scores, 0, inds)
+            fringe_score = torch.sum(fringe_score)
             fringe_scores.append(fringe_score)
 
         fringe_scores = torch.stack(fringe_scores)
@@ -122,13 +101,25 @@ class HOL4TacticZero(TacticZeroLoop):
         else:
             fringe = fringe_m.sample()
 
+        try:
+            target_goal = candidate_fringes[fringe][0]
+        except Exception as e:
+            print ("error")
+
+        target_representation = representations[current_goals.index(target_goal)]
+
         fringe_prob = fringe_m.log_prob(fringe)
-        # take the first context in the chosen fringe
-        target_context = contexts_by_fringe[fringe][0]
-        target_goal = target_context["polished"]["goal"]
-        target_representation = representations[contexts.index(target_context)]
+
+        target_goal = target_goal['polished']['goal']
 
         return target_representation, target_goal, fringe, fringe_prob
+    def get_tac(self, tac_input):
+        tac_probs = self.tac_net(tac_input)
+        tac_m = Categorical(tac_probs)
+        tac = tac_m.sample()
+        tac_prob = tac_m.log_prob(tac)
+        tac_tensor = tac.to(self.device)
+        return tac_tensor, tac_prob
 
     # determine term for induction based on data type (graph, fixed, sequence)
     def get_term_tac(self, target_goal, target_representation, tac, replay_term=None):
@@ -317,8 +308,14 @@ class HOL4TacticZero(TacticZeroLoop):
         max_steps = self.config.max_steps
 
         for t in range(max_steps):
+            env.update_fringes()
 
-            target_representation, target_goal, selected_goal, goal_prob = self.get_goal(env)
+            current_goals = [g.goal for g in env.current_goals]
+            candidate_fringes = [[g.goal for g in fringe] for fringe in env.fringes]
+
+            target_representation, target_goal, selected_goal, goal_prob = self.get_goal(
+                current_goals=current_goals,
+                candidate_fringes=candidate_fringes)
 
             goal_pool.append(goal_prob)
 
@@ -344,13 +341,15 @@ class HOL4TacticZero(TacticZeroLoop):
                                                      env=env)
 
             arg_pool.append(arg_probs)
-            action = (selected_goal.detach(), 0, tactic)
+            action = (selected_goal.detach(), tactic)
 
             try:
                 reward, done = env.step(action)
-                # logging.debug(f"Step taken: {action, reward, done}")
+                # print (reward)
+                logging.debug(f"Step taken: {action, reward, done}")
             except Exception:
                 logging.warning(f"Step exception: {action, goal}")
+                # traceback.print_exc()
                 return ("Step error", action)
 
             steps += 1
@@ -359,22 +358,17 @@ class HOL4TacticZero(TacticZeroLoop):
                 reward_pool.append(reward)
                 if not train_mode:
                     break
-                #
-                # probs = {'arg': [[a.item() for a in l] for l in arg_pool],
-                #          'goal': [g.item() for g in goal_pool],
-                #          'tac': [t.item() for t in tac_pool]}
-                #
-                # self.save_proof_attempt(goal, env.history, probs)
 
+                # print (env.history, reward_pool)
                 self.proven.append([goal, t + 1])
 
                 if goal in self.replays.keys():
                     if steps < self.replays[goal][0]:
-                        self.replays[goal] = (steps, env.history)
+                        self.replays[goal] = copy.deepcopy((steps, (env.history, env.action_history, reward_pool)))
                 else:
                     self.cumulative_proven.append([goal])
                     if env.history is not None:
-                        self.replays[goal] = (steps, env.history)
+                        self.replays[goal] = copy.deepcopy((steps, (env.history, env.action_history, reward_pool)))
                     else:
                         logging.warning(f"History is none. {env.history}")
                 break
@@ -384,12 +378,6 @@ class HOL4TacticZero(TacticZeroLoop):
                     break
                 reward = -5
                 reward_pool.append(reward)
-
-                # probs = {'arg': [[a.item() for a in l] for l in arg_pool],
-                #          'goal': [g.item() for g in goal_pool],
-                #          'tac': [t.item() for t in tac_pool]}
-                #
-                # self.save_proof_attempt(goal, env.history, probs)
 
                 if goal in self.replays:
                     return self.run_replay(allowed_arguments_ids, candidate_args, env, encoded_fact_pool, goal)
@@ -426,21 +414,28 @@ class HOL4TacticZero(TacticZeroLoop):
         tac_pool = []
         steps = 0
 
-        known_history = self.replays[goal][1]
+        goal_history, action_history, reward_history = self.replays[goal][1]
 
-        for t in range(len(known_history) - 1):
-            true_resulting_fringe = known_history[t + 1]
-            true_fringe = torch.tensor([true_resulting_fringe["parent"]], device=self.device)  # .to(self.device)
+        # history_graphs = graph_from_history(goal_history, action_history)
+
+        for t in range(len(goal_history) - 1):
+            fringe_idx, tactic = action_history[t]
+
+            goals, candidate_fringes = goal_history[t + 1]
+            # candidate_fringes = goal_history[fringe_idx][1]
+
+            true_fringe = torch.tensor([fringe_idx], device=self.device)  # .to(self.device)
 
             target_representation, target_goal, fringe, goal_prob = self.get_goal(
-                history=known_history[:t + 1],
+                current_goals=goals,
+                candidate_fringes=candidate_fringes,
                 replay_fringe=true_fringe)
 
             goal_pool.append(goal_prob)
             tac_probs = self.tac_net(target_representation)
             tac_m = Categorical(tac_probs)
 
-            true_tactic_text = true_resulting_fringe["by_tactic"]
+            true_tactic_text = tactic
             true_tac_text, true_args_text = self.get_replay_tac(true_tactic_text)
 
             true_tac = torch.tensor([self.tactic_pool.index(true_tac_text)], device=self.device)  # .to(self.device)
@@ -468,7 +463,7 @@ class HOL4TacticZero(TacticZeroLoop):
 
             arg_pool.append(arg_probs)
 
-            reward = true_resulting_fringe["reward"]
+            reward = reward_history[t]
             reward_pool.append(reward)
             steps += 1
 
@@ -476,74 +471,3 @@ class HOL4TacticZero(TacticZeroLoop):
 
     def save_replays(self):
         torch.save(self.replays, self.replay_dir)
-
-    # goal selection assuming proof tree
-    def get_goal(self, env, replay_fringe=None):
-        reverted = [revert_with_polish(g) for g in env.current_goals]
-
-        batch = self.converter(reverted)
-
-        if self.config.data_config.type == 'graph':
-            batch = batch.to(self.device)
-
-        # sequence case, where batch is (data, attention_mask)
-        elif self.config.data_config.type == 'sequence':
-            batch = (batch[0].to(self.device), batch[1].to(self.device))
-
-        representations = torch.unsqueeze(self.encoder_goal(batch), 1)
-
-        goal_scores = self.goal_net(representations)
-
-        def get_best_goal(scores, node):
-            node_score = scores[env.current_goals.index(node)]
-
-            if node.children == {}:
-                return node_score, [node]
-
-            else:
-                fringe_scores = [node_score]
-                candidate_fringes = [node]
-
-                for tac, siblings in node.children.items():
-                    sib_goals = []
-                    sib_scores = []
-
-                    for sibling in siblings:
-                        sibling_score, sib = get_best_goal(scores, sibling)
-                        sib_scores.append(sibling_score)
-                        sib_goals.extend(sib)
-
-                    sib_scores = torch.stack(sib_scores)
-
-                    # aggregate scores from siblings as sum of logits (i.e. product of probabilities)
-                    # tac_score = sum([p for p in sib_scores])
-                    tac_score = torch.sum(sib_scores)
-
-                    fringe_scores.append(tac_score)
-                    candidate_fringes.append(sib_goals)
-
-                return max(fringe_scores), candidate_fringes[fringe_scores.index(max(fringe_scores))]
-                # return fringe_scores, candidate_fringes
-
-        # fringe_scores, candidate_fringes = get_best_goal(goal_scores, env.graph)
-        fringe_score, candidate_fringe = get_best_goal(goal_scores, env.graph)
-
-        # fringe_scores = torch.stack(fringe_scores)
-        # fringe_probs = F.softmax(fringe_scores, dim=0)
-        # fringe_m = Categorical(fringe_probs)
-        #
-        # if replay_fringe is not None:
-        #     fringe = replay_fringe
-        # else:
-        #     fringe = fringe_m.sample()
-        #
-        # fringe_prob = fringe_m.log_prob(fringe)
-        # take the first goal in the chosen fringe
-
-        # target_goal = candidate_fringes[fringe][0]
-
-        target_goal = candidate_fringe[0]
-
-        target_representation = representations[env.current_goals.index(target_goal)]
-
-        return target_representation, target_goal, fringe, fringe_prob

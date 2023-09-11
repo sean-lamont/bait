@@ -1,19 +1,17 @@
 import itertools
 import json
 import logging
-
-import plotly.graph_objects as go
-from igraph import Graph
-import pexpect
-import torch
-import torch.nn as nn
-from itertools import count
-from sys import exit
-from time import sleep
-import signal
 import os
-from copy import deepcopy
 import re
+import signal
+from copy import deepcopy
+from itertools import count
+from time import sleep
+
+import pexpect
+import plotly.graph_objects as go
+import torch
+from igraph import Graph
 
 # Updated environment for HOL4 based on graph goal structure (as opposed to fringes in original approach)
 
@@ -105,7 +103,8 @@ class GoalNode:
         # children in format {tac : [subgoals]}
         self.children = {}
 
-        # list of other nodes required to prove original goal (only the parent goal of candidate paths, which will contain all possible ways to prove that goal)
+        # list of other nodes required to prove original goal
+        # (only point to the parent node, which will contain all possible paths to prove that goal)
         self.context = []
 
     def prop_proved(self):
@@ -215,48 +214,23 @@ class HolEnv:
         # consumes hol4 head
         self.process.expect('\r\n>')
         self.goal = goal
+
         self.polished_goal = self.get_polish(self.goal)[0]
         self.graph = GoalNode(self.polished_goal)
         self.current_goals = nodes_list(self.graph, result=[])
 
-        # environment history only needs to be list of current goals per step and their parent goals,
-        # as when combined with the action can fully reconstruct proof
+        self.fringes = [[self.graph]]
 
-        self.history = [[g.goal for g in self.current_goals]]
+
+        self.history = [([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes])]
 
         self.action_history = []  # list of tuples (id, id, tactic)
 
         self.subproofs = {}
         logging.debug("Initialization done. Main goal is:\n{}.".format(self.goal))
 
-    # return list of candidate fringes, where each fringe is a list of goals needed to be proven
-    # def get_best_goal(self, scores, node):
-    #     node_score = scores[self.current_goals.index(node)]
-    #
-    #     if node.children == {}:
-    #         return node_score, [node]
-    #
-    #     else:
-    #         fringe_scores = [node_score]
-    #         candidate_fringes = [node]
-    #         for tac, siblings in node.children.items():
-    #
-    #             sib_goals = []
-    #             sib_scores = []
-    #
-    #             for sibling in siblings:
-    #                 sibling_score, sib = self.get_best_goal(scores, sibling)
-    #                 sib_scores.append(sibling_score)
-    #                 sib_goals.extend(sib)
-    #
-    #             # aggregate scores from siblings as sum of logits (i.e. product of probabilities)
-    #             tac_score = sum([p for p in sib_scores])
-    #
-    #             fringe_scores.append(tac_score)
-    #             candidate_fringes.append(sib_goals)
-    #
-    #         # return max(fringe_scores), candidate_fringes[fringe_scores.index(max(fringe_scores))]
-    #         return fringe_scores, candidate_fringes
+    def update_fringes(self):
+        self.fringes = get_all_fringes(self.graph)
 
     def toggle_simpset(self, mode, theory):
         if mode == "diminish":
@@ -322,10 +296,16 @@ class HolEnv:
         self.polished_goal = self.get_polish(self.goal)[0]
 
         self.graph = GoalNode(self.polished_goal)
+        self.fringes = [[self.graph]]
+
         self.current_goals = nodes_list(self.graph, result=[])
 
         # self.history = [[(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals]]
-        self.history = [[g.goal for g in self.current_goals]]
+        # self.history = [[g.goal for g in self.current_goals]]
+
+        self.history = [([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes])]
+
+
         # self.history = [[(g.goal, None) for g in self.current_goals]]
         self.action_history = []
         self.subproofs = {}
@@ -405,19 +385,12 @@ class HolEnv:
             i = self.process.expect(
                 ["metis: proof translation error", "Initial goal proved", ": proof", ":\r\n +proof", "Exception",
                  "error"])
-
         except:
-            # print("Exception: {} to {} to be debugged".format(tac, raw_goal))
             i = -1
 
         if i == -1:
             data = "unexpected"
             return data
-        # print("i is {}".format(i))
-
-        # bug3 = self.process.before.decode("utf-8")
-        # print("bug3: {}".format(bug3))
-        # exit()
 
         # workaround
         while i == 0:
@@ -426,29 +399,19 @@ class HolEnv:
                 ["metis: proof translation error", "Initial goal proved", ": proof", ":\r\n +proof", "Exception",
                  "error"])
 
-            # print("i is {}".format(i))
-
         if i == 2 or i == 3:
-            # bug4 = self.process.before.decode("utf-8")
-            # print("bug4: {}".format(bug4))
-
             self.process.expect("\r\n>")
             self.process.sendline("top_goals();".encode("utf-8"))
-            # bug4 = self.process.before.decode("utf-8")
-            # print("bug4: {}".format(bug4))
 
             try:
                 self.process.expect("val it =")
             except:
                 logging.debug("Exception: {} to {} returned no goals".format(tac, raw_goal))
                 return "exception"
-                # exit()
 
-            # this (:\r\n) doesn't seem robust
             self.process.expect([": goal list", ":\r\n +goal list"])
             raw = self.process.before.decode("utf-8")
 
-            # print("sub: {}".format(raw))
             subgoals = re.sub("“|”", "\"", raw)
             subgoals = re.sub("\r\n +", " ", subgoals)
 
@@ -460,12 +423,8 @@ class HolEnv:
             self.process.expect("val it =")
             self.process.expect([": goal list", ":\r\n +goal list"])
             polished_raw = self.process.before.decode("utf-8")
-            # print("sub: {}".format(raw))
             polished_subgoals = re.sub("“|”", "\"", polished_raw)
             polished_subgoals = re.sub("\r\n +", " ", polished_subgoals)
-
-            # print("content:{}".format(subgoals))
-            # exit()
             # escape colored characters
             polished_subgoals = ansi_escape.sub('', polished_subgoals)
             subgoals = ansi_escape.sub('', subgoals)
@@ -486,11 +445,8 @@ class HolEnv:
             if j == 0:
                 data = "timeout"
             else:
-                # print("pexpect timeout")
                 data = "exception"
         else:
-            # if PRINT_EXCEPTION:
-            #     print("Exception: {} to {}.".format(tac, raw_goal))
             data = "exception"
 
         # clear stack and consume the remaining stdout
@@ -504,13 +460,25 @@ class HolEnv:
 
     # Returns reward, done
     def step(self, action):
-        goal_node, tactic = action
+        goal_idx, tactic = action
 
-        if (goal_node.goal, tactic) in self.action_history:
-            self.action_history.append((action[0].goal, action[1]))
-            self.history.append([g.goal for g in self.current_goals])
-            reward = -1
-            return reward, False  # TODO: make this reward zero?
+
+        # if directly selecting goal
+        # goal_node = self.current_goals[goal_idx]
+        # self.history.append(copy.deepcopy(self.graph))
+
+        # else fringes
+        goal_node = self.fringes[goal_idx][0]
+
+        # add current goals and fringes to history
+        self.history.append(
+            ([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes]))
+
+        # if action in self.action_history:
+        #     reward = -1
+        #     return reward, False  # TODO: make this reward zero?
+
+        self.action_history.append(action)
 
         target = goal_node.goal["plain"]
 
@@ -524,86 +492,46 @@ class HolEnv:
             d = self.query(goal, tactic)
 
         if d == "unexpected":
-            self.action_history.append((action[0].goal, action[1]))
-            self.history.append([g.goal for g in self.current_goals])
-            # self.history.append([(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals])
             reward = UNEXPECTED_REWARD
 
         elif d != "exception" and d != "timeout":
-
             # progress has been made
             if [goal_node.goal] != d:
-
-                self.action_history.append((action[0].goal, action[1]))
-                # self.action_history.append(action)
-
                 if d == []:
-
                     if goal_node == self.graph:
-                        # print ("Goal proved")
-                        self.history.append([[]])  # goal_node.parent.goal if goal_node.parent is not None else None))
                         return 5, True
 
                     reward = 0.2
 
-                    # print (f"subgoal proved {goal_node.goal['plain']}")
-
-                    # print ("before prop")
-                    # self.graph._print()
                     goal_node.prop_proved()
-                    # print ("after prop")
-                    # self.graph._print()
 
                     self.current_goals = nodes_list(self.graph, result=[])
 
-                    # if original goal proved in prop_proved, then all children set to {}, so check for this then return if parent proved
-                    # print (self.current_goals, len(self.current_goals))
                     if len(self.current_goals) == 1:
-                        # print ("subgoal proved, proving original")
-                        self.history.append([[]])  # goal_node.parent.goal if goal_node.parent is not None else None))
-                        # self.history.append([([], goal_node.parent.goal if goal_node.parent is not None else None)])
-
                         return 5, True
-
-                    hist = [g.goal for g in self.current_goals]
-                    hist.append([])
-                    self.history.append(hist)
-                    # self.history.append([(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals])
-
                 else:
                     # same tactic
                     if tactic in goal_node.children.keys():
                         # print ("tac duplicate")
-                        # self.action_history.append(action self.action_history.append((action[0].goal, action[1]))
-                        self.history.append([g.goal for g in self.current_goals])
                         reward = -0.1
                         return reward, False
 
                     # same subgoal(s) as previous tactic for same node
                     subgoal_list = []
                     for val in goal_node.children.values():
-                        goals = set(((g.goal['plain']['goal'], tuple(g.goal['plain']['assumptions'])) for g in val[1]))
+                        goals = set(((g.goal['plain']['goal'], tuple(g.goal['plain']['assumptions'])) for g in val))
                         subgoal_list.append(goals)
 
                     if set(((d_['plain']['goal'], tuple(d_['plain']['assumptions'])) for d_ in d)) in subgoal_list:
                         # print ("subgoal duplicate")
-                        # print (f"{[d_['plain'] for d_ in d]}")
-                        # self.action_history.append(action)
-                        # self.action_history.append((action[0].goal, action[1]))
-                        self.history.append([g.goal for g in self.current_goals])
-                        # self.history.append([(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals])
                         reward = -0.1
                         return reward, False
 
                     # bug? where multiple copies of identical subgoal are added.
-
                     strd = [str(d_) for d_ in d]
 
                     if len(list(set(strd))) < len(strd):
                         # print ("HOL duplicate subgoal?")
-                        # print (f"{[d_['plain'] for d_ in d]}")
-                        self.history.append([g.goal for g in self.current_goals])
-                        # self.history.append([(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals])
                         reward = -0.1
                         return reward, False
 
@@ -628,22 +556,14 @@ class HolEnv:
                                                              child != subgoal]
 
                     self.current_goals = nodes_list(self.graph, result=[])
-                    self.history.append([g.goal for g in self.current_goals])
             else:
                 # nothing changed
                 reward = -0.1
-                self.action_history.append((action[0].goal, action[1]))
-                self.history.append([g.goal for g in self.current_goals])
         else:
             if d == "timeout":
                 reward = -0.1
-                # self.action_history.append(action)
-                self.action_history.append((action[0].goal, action[1]))
-                self.history.append([g.goal for g in self.current_goals])
             else:
                 reward = -0.1
-                self.action_history.append((action[0].goal, action[1]))
-                self.history.append([g.goal for g in self.current_goals])
 
         return reward, False
 
@@ -652,8 +572,6 @@ class HolEnv:
         goal_theory = self.database[goal[0]][0]
 
         polished_goal = goal[0]
-
-        # polished_goal = self.fringe["content"][0]["polished"]["goal"]
 
         try:
             allowed_arguments_ids = []
@@ -1232,19 +1150,13 @@ def graph_from_history(history, action_history):
 
         chosen_goal, tactic = action_history[i - 1]
 
-        # print (f"Chosen: {chosen_goal}")
         current_goals = nodes_list(next_graph, result=[])
-
-        # print (f"Current goals {[g.goal for g in current_goals]}")
-
-        # goal_idx = current_goals.index(chosen_goal)
 
         goal_idx = [g.goal for g in current_goals].index(chosen_goal)
 
         chosen_node = current_goals[goal_idx]
 
         # edge case when two goals proven in immediate succession
-
         if [] in history[i] and [] in history[i - 1]:
             # proven goal/subgoal
             chosen_node.prop_proved()
@@ -1268,6 +1180,7 @@ def graph_from_history(history, action_history):
         first_child = GoalNode(new_goals[0])
         first_child.parent = chosen_node
         first_child.from_tac = tactic
+        first_child.context = chosen_node.context
 
         chosen_node.children[tactic] = [first_child]
 
@@ -1276,6 +1189,11 @@ def graph_from_history(history, action_history):
             next_node.parent = chosen_node
             next_node.from_tac = tactic
             chosen_node.children[tactic].append(next_node)
+
+        # add sibling to context of other siblings
+        for subgoal in chosen_node.children[tactic]:
+            subgoal.context = subgoal.context + [child for child in subgoal.children[tactic] if
+                                                 child != subgoal]
 
         graphs.append(next_graph)
 
@@ -1374,17 +1292,16 @@ def find_best_proof(goal, map):
 
     return (best_val, found_proofs[best_idx][1])
 
-
-import pickle
-
-with open("data/hol4/data/paper_goals.pk", "rb") as f:
-    goals = pickle.load(f)
-
-env = HolEnv(goals[0][1])
-
-env.step((env.current_goals[0], 'strip_tac'))
-env.step((env.current_goals[1], 'strip_tac'))
-
+# import pickle
+#
+# with open("data/hol4/data/paper_goals.pk", "rb") as f:
+#     goals = pickle.load(f)
+#
+# env = HolEnv(goals[0][1])
+#
+# env.step((env.current_goals[0], 'strip_tac'))
+# env.step((env.current_goals[1], 'strip_tac'))
+#
 
 # print (len(env.current_goals))
 # print (env.current_goals)

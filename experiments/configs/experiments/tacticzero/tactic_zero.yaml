@@ -15,7 +15,6 @@ epochs: 1000
 
 logging_config:
   project: hol4_tacticzero
-  offline: True
   id: False # add Wandb id when resuming run
   notes: ""
 

@@ -2,7 +2,10 @@
 defaults:
   - tactic_zero
 
-max_steps: 50
+logging_config:
+  offline: True
+
+max_steps: 5
 data_config:
   type: 'fixed'
   data_options:
