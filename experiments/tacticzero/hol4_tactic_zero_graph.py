@@ -1,4 +1,3 @@
-import traceback
 import copy
 
 import einops
@@ -67,7 +66,10 @@ class HOL4TacticZero(TacticZeroLoop):
             logging.debug(f"Creating new replay dir {self.replay_dir}")
             self.replays = {}
 
-    # goal selection assuming proof tree
+
+
+
+    # goal selection over all fringes, assuming proof tree environment state
     def get_goal(self, current_goals, candidate_fringes, replay_fringe=None):
         reverted = [revert_with_polish(g) for g in current_goals]
 
@@ -83,6 +85,7 @@ class HOL4TacticZero(TacticZeroLoop):
         representations = torch.unsqueeze(self.encoder_goal(batch), 1)
 
         goal_scores = self.goal_net(representations)
+
 
         fringe_scores = []
 
@@ -471,3 +474,59 @@ class HOL4TacticZero(TacticZeroLoop):
 
     def save_replays(self):
         torch.save(self.replays, self.replay_dir)
+
+
+class UpDown(torch.nn.Module):
+    # todo updown: give goal scores and env.graph to updown module to run and compute scores for each goal
+
+    def forward(self, goal_nodes, root):
+        reverted = [revert_with_polish(g.goal) for g in goal_nodes]
+
+        batch = self.converter(reverted)
+
+        if self.config.data_config.type == 'graph':
+            batch = batch.to(self.device)
+
+        # sequence case, where batch is (data, attention_mask)
+        elif self.config.data_config.type == 'sequence':
+            batch = (batch[0].to(self.device), batch[1].to(self.device))
+
+        representations = torch.unsqueeze(self.encoder_goal(batch), 1)
+
+        goal_scores = self.goal_net(representations)
+
+        # Up Step
+        # set the score of each node as the maximum of itself and all children (i.e. most promising path)
+
+        # recursive, start from root, use dictionary to score each node as max of itself and children
+        # ...
+        up_scores = {}
+        node_idx = goal_nodes.index(root)
+
+        if root.children == {}:
+            up_scores[node_idx] = goal_scores[node_idx]
+        else:
+            tac_scores = []
+            for tac, subgoals in root.children:
+                sib_scores = []
+                for subgoal in subgoals:
+                    if goal_nodes.index(subgoal) not in up_scores:
+                        # get_up_score(subgoal)
+                    assert goal_nodes.index(subgoal) in up_scores
+                    sib_scores.append(up_scores[goal_nodes.index(subgoal)])
+
+                tac_score = torch.sum(torch.tensor(sib_scores).to(self.device))
+                tac_scores.append(tac_score)
+            up_scores[node_idx] = max(tac_scores)
+
+
+
+
+
+
+
+
+
+
+
+
