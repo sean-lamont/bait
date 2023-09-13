@@ -3,16 +3,20 @@ defaults:
   - tactic_zero
 
 logging_config:
-  offline: False
+  offline: True
 
 max_steps: 50
 data_config:
   type: 'fixed'
   data_options:
     filter: []
+#    environment: 'HOL4UpDown'
+    environment: 'HOL4GraphFringe'
 
 exp_config:
-  name: vanilla_full_fringe_50
+  name: updown_vanilla
+#  directory: experiments/runs/tactic_zero/vanilla_full_fringe_50_2023_09_13/14_54_33
+#  resume: True
 
 model_config:
   model_type: 'fixed_autoencoder'

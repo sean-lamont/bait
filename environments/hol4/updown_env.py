@@ -4,7 +4,7 @@ import logging
 import os
 import re
 import signal
-from copy import deepcopy
+from copy import deepcopy, copy
 from itertools import count
 from time import sleep
 
@@ -202,6 +202,7 @@ class HolEnv:
 
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         self.process.sendline("val _ = set_trace \"types\" 1;".encode("utf-8"))
+
         for i in self.import_theories:
             self.process.sendline("load \"{}\";".format(i).encode("utf-8"))
             self.process.sendline("open {};".format(i).encode("utf-8"))
@@ -216,13 +217,14 @@ class HolEnv:
         self.goal = goal
 
         self.polished_goal = self.get_polish(self.goal)[0]
+
         self.graph = GoalNode(self.polished_goal)
+
         self.current_goals = nodes_list(self.graph, result=[])
 
-        self.fringes = [[self.graph]]
+        # self.fringes = [[self.graph]]
 
-
-        self.history = [([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes])]
+        self.history = [[]]
 
         self.action_history = []  # list of tuples (id, id, tactic)
 
@@ -258,8 +260,8 @@ class HolEnv:
             theory_name = self.database[e][0]
             full_name = theory_name + "Theory." + theorem_name
             # hack for when apostrophe is in lemma name
-            # if '\'' in full_name:
-            #     full_name = re.sub("\'", "<TMP>", full_name)
+            if '\'' in full_name:
+                full_name = re.sub("\'", "<TMP>", full_name)
             names.append(full_name)
         return names
 
@@ -267,15 +269,14 @@ class HolEnv:
         # args is a list of strings
         if tac in thms_tactic:
             names = self.get_names(args)
-            action = tac + re.sub("'", "", str(names))
+            # action = tac + re.sub("'", "", str(names))
             # remove apostrophes and reinsert if they were there originally
-            # action = tac + re.sub("<TMP>", "\'", re.sub("'", "", str(names)))
+            action = tac + re.sub("<TMP>", "\'", re.sub("'", "", str(names)))
 
         elif tac in thm_tactic:
             names = self.get_names(args)
             if names:
-                # action = tac + " " + re.sub("<TMP>", "\'", names[0])
-                action = tac + " " +  names[0]
+                action = tac + " " + re.sub("<TMP>", "\'", names[0])
             else:
                 # this will raise an error in HOL4
                 action = tac
@@ -303,14 +304,11 @@ class HolEnv:
         self.polished_goal = self.get_polish(self.goal)[0]
 
         self.graph = GoalNode(self.polished_goal)
-        self.fringes = [[self.graph]]
+        # self.fringes = [[self.graph]]
 
         self.current_goals = nodes_list(self.graph, result=[])
 
-        # self.history = [[(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals]]
-        # self.history = [[g.goal for g in self.current_goals]]
-
-        self.history = [([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes])]
+        self.history = [[]]
 
 
         # self.history = [[(g.goal, None) for g in self.current_goals]]
@@ -471,15 +469,18 @@ class HolEnv:
 
 
         # if directly selecting goal
-        # goal_node = self.current_goals[goal_idx]
-        # self.history.append(copy.deepcopy(self.graph))
+        goal_node = self.current_goals[goal_idx]
+
+        self.history.append((deepcopy(self.current_goals), deepcopy(self.graph)))
+        # self.history.append(([g.goal for g in self.current_goals], deepcopy(self.graph)))
+
 
         # else fringes
-        goal_node = self.fringes[goal_idx][0]
-
+        # goal_node = self.fringes[goal_idx][0]
         # add current goals and fringes to history
-        self.history.append(
-            ([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes]))
+        # self.history.append(
+        #     ([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes]))
+
 
         # if action in self.action_history:
         #     reward = -1

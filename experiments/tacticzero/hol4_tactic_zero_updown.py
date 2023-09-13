@@ -1,4 +1,5 @@
 import copy
+import traceback
 
 import einops
 import torch.nn.functional as F
@@ -7,7 +8,7 @@ from torch.distributions import Categorical
 from torch_geometric.data import Batch
 
 from data.hol4.utils import ast_def
-from environments.hol4.graph_env import *
+from environments.hol4.updown_env import *
 from experiments.tacticzero.tactic_zero_module import TacticZeroLoop
 
 '''
@@ -65,56 +66,6 @@ class HOL4TacticZero(TacticZeroLoop):
         else:
             logging.debug(f"Creating new replay dir {self.replay_dir}")
             self.replays = {}
-
-    # goal selection over all fringes, assuming proof tree environment state
-    def get_goal(self, current_goals, candidate_fringes, replay_fringe=None):
-        reverted = [revert_with_polish(g) for g in current_goals]
-
-        batch = self.converter(reverted)
-
-        if self.config.data_config.type == 'graph':
-            batch = batch.to(self.device)
-
-        # sequence case, where batch is (data, attention_mask)
-        elif self.config.data_config.type == 'sequence':
-            batch = (batch[0].to(self.device), batch[1].to(self.device))
-
-        representations = torch.unsqueeze(self.encoder_goal(batch), 1)
-
-        goal_scores = self.goal_net(representations)
-
-        fringe_scores = []
-
-        for fringe in candidate_fringes:
-            inds = torch.LongTensor([current_goals.index(goal) for goal in fringe]).to(self.device)
-            fringe_score = torch.index_select(goal_scores, 0, inds)
-            fringe_score = torch.sum(fringe_score)
-            fringe_scores.append(fringe_score)
-
-        fringe_scores = torch.stack(fringe_scores)
-        fringe_probs = F.softmax(fringe_scores, dim=0)
-        fringe_m = Categorical(fringe_probs)
-
-        if replay_fringe is not None:
-            fringe = replay_fringe
-        else:
-            fringe = fringe_m.sample()
-
-        try:
-            target_goal = candidate_fringes[fringe][0]
-        except Exception as e:
-            print("error")
-
-        target_representation = representations[current_goals.index(target_goal)]
-
-        fringe_prob = fringe_m.log_prob(fringe)
-
-
-
-
-        target_goal = target_goal['polished']['goal']
-
-        return target_representation, target_goal, fringe, fringe_prob
 
     def get_tac(self, tac_input):
         tac_probs = self.tac_net(tac_input)
@@ -296,14 +247,9 @@ class HOL4TacticZero(TacticZeroLoop):
         max_steps = self.config.max_steps
 
         for t in range(max_steps):
-            env.update_fringes()
-
-            current_goals = [g.goal for g in env.current_goals]
-            candidate_fringes = [[g.goal for g in fringe] for fringe in env.fringes]
-
             target_representation, target_goal, selected_goal, goal_prob = self.get_goal(
-                current_goals=current_goals,
-                candidate_fringes=candidate_fringes)
+                goal_nodes=env.current_goals,
+                root=env.graph)
 
             goal_pool.append(goal_prob)
 
@@ -333,11 +279,10 @@ class HOL4TacticZero(TacticZeroLoop):
 
             try:
                 reward, done = env.step(action)
-                # print (reward)
                 logging.debug(f"Step taken: {action, reward, done}")
             except Exception:
                 logging.warning(f"Step exception: {action, goal}")
-                # traceback.print_exc()
+                traceback.print_exc()
                 return ("Step error", action)
 
             steps += 1
@@ -352,11 +297,11 @@ class HOL4TacticZero(TacticZeroLoop):
 
                 if goal in self.replays.keys():
                     if steps < self.replays[goal][0]:
-                        self.replays[goal] = copy.deepcopy((steps, (env.history, env.action_history, reward_pool)))
+                        self.replays[goal] = deepcopy((steps, (env.history, env.action_history, reward_pool)))
                 else:
                     self.cumulative_proven.append([goal])
                     if env.history is not None:
-                        self.replays[goal] = copy.deepcopy((steps, (env.history, env.action_history, reward_pool)))
+                        self.replays[goal] = deepcopy((steps, (env.history, env.action_history, reward_pool)))
                     else:
                         logging.warning(f"History is none. {env.history}")
                 break
@@ -394,7 +339,6 @@ class HOL4TacticZero(TacticZeroLoop):
                 true_args_text = tac_arg[0][1]
             else:
                 true_tac_text = true_tactic_text
-        # todo fix bug with replay args having extra apostrophe
         return true_tac_text, true_args_text
 
     def run_replay(self, allowed_arguments_ids, candidate_args, env, encoded_fact_pool, goal):
@@ -409,17 +353,16 @@ class HOL4TacticZero(TacticZeroLoop):
         # history_graphs = graph_from_history(goal_history, action_history)
 
         for t in range(len(goal_history) - 1):
-            fringe_idx, tactic = action_history[t]
+            goal_idx, tactic = action_history[t]
 
-            goals, candidate_fringes = goal_history[t + 1]
-            # candidate_fringes = goal_history[fringe_idx][1]
+            goal_nodes, root = goal_history[t + 1]
 
-            true_fringe = torch.tensor([fringe_idx], device=self.device)  # .to(self.device)
+            true_fringe = torch.tensor([goal_idx], device=self.device)  # .to(self.device)
 
             target_representation, target_goal, fringe, goal_prob = self.get_goal(
-                current_goals=goals,
-                candidate_fringes=candidate_fringes,
-                replay_fringe=true_fringe)
+                goal_nodes=goal_nodes,
+                root=root,
+                replay_goal=true_fringe)
 
             goal_pool.append(goal_prob)
             tac_probs = self.tac_net(target_representation)
@@ -463,7 +406,8 @@ class HOL4TacticZero(TacticZeroLoop):
     def save_replays(self):
         torch.save(self.replays, self.replay_dir)
 
-    def get_goal_updown(self, goal_nodes, root, replay_goal=None):
+    def get_goal(self, goal_nodes, root, replay_goal=None):
+
         current_goals = [g.goal for g in goal_nodes]
 
         reverted = [revert_with_polish(g) for g in current_goals]
@@ -521,7 +465,7 @@ def up_down(goal_scores, goal_nodes, root):
         else:
             tac_scores = [goal_scores[node_idx]]
 
-            for tac, subgoals in node.children:
+            for tac, subgoals in node.children.items():
                 sib_scores = []
 
                 for subgoal in subgoals:
