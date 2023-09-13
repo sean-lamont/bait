@@ -295,17 +295,14 @@ class HOL4TacticZero(TacticZeroLoop):
             current_goals = [g.goal for g in env.current_goals]
             candidate_fringes = [[g.goal for g in fringe] for fringe in env.fringes]
 
-            if len(env.fringes) > 10:
-                pass
-
             target_representation, target_goal, selected_goal, goal_prob = self.get_goal(
                 current_goals=current_goals,
                 candidate_fringes=candidate_fringes)
 
-            if train_mode and len(env.fringes) > 10:
-                g = make_dot(goal_prob)
-                g.view()
-                sleep(10)
+            # if train_mode and len(env.fringes) > 10:
+            #     g = make_dot(goal_prob)
+            #     g.view()
+            #     sleep(10)
 
             goal_pool.append(goal_prob)
 
