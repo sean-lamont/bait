@@ -257,6 +257,9 @@ class HolEnv:
             theorem_name = self.database[e][1]
             theory_name = self.database[e][0]
             full_name = theory_name + "Theory." + theorem_name
+            # hack for when apostrophe is in lemma name
+            if '\'' in full_name:
+                full_name = re.sub("\'", "<TMP>", full_name)
             names.append(full_name)
         return names
 
@@ -264,11 +267,14 @@ class HolEnv:
         # args is a list of strings
         if tac in thms_tactic:
             names = self.get_names(args)
-            action = tac + re.sub("'", "", str(names))
+            # action = tac + re.sub("'", "", str(names))
+            # remove apostrophes and reinsert if they were there originally
+            action = tac + re.sub("<TMP>", "\'", re.sub("'", "", str(names)))
+
         elif tac in thm_tactic:
             names = self.get_names(args)
             if names:
-                action = tac + " " + names[0]
+                action = tac + " " + re.sub("<TMP>", "\'", names[0])
             else:
                 # this will raise an error in HOL4
                 action = tac
@@ -583,7 +589,9 @@ class HolEnv:
                 if theory_allowed and (diff_theory or prev_theory):
                     allowed_arguments_ids.append(i)
                     candidate_args.append(t)
+
             self.toggle_simpset("diminish", goal_theory)
+
             logging.debug("Removed simpset of {}".format(goal_theory))
 
         except Exception as e:

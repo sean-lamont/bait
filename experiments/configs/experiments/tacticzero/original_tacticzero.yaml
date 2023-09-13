@@ -3,16 +3,16 @@ defaults:
   - tactic_zero
 
 logging_config:
-  offline: True
+  offline: False
 
-max_steps: 5
+max_steps: 50
 data_config:
   type: 'fixed'
   data_options:
     filter: []
 
 exp_config:
-  name: tacticzero_original
+  name: vanilla_full_fringe_50
 
 model_config:
   model_type: 'fixed_autoencoder'

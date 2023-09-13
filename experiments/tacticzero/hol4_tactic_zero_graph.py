@@ -66,9 +66,6 @@ class HOL4TacticZero(TacticZeroLoop):
             logging.debug(f"Creating new replay dir {self.replay_dir}")
             self.replays = {}
 
-
-
-
     # goal selection over all fringes, assuming proof tree environment state
     def get_goal(self, current_goals, candidate_fringes, replay_fringe=None):
         reverted = [revert_with_polish(g) for g in current_goals]
@@ -85,7 +82,6 @@ class HOL4TacticZero(TacticZeroLoop):
         representations = torch.unsqueeze(self.encoder_goal(batch), 1)
 
         goal_scores = self.goal_net(representations)
-
 
         fringe_scores = []
 
@@ -107,7 +103,7 @@ class HOL4TacticZero(TacticZeroLoop):
         try:
             target_goal = candidate_fringes[fringe][0]
         except Exception as e:
-            print ("error")
+            print("error")
 
         target_representation = representations[current_goals.index(target_goal)]
 
@@ -116,6 +112,7 @@ class HOL4TacticZero(TacticZeroLoop):
         target_goal = target_goal['polished']['goal']
 
         return target_representation, target_goal, fringe, fringe_prob
+
     def get_tac(self, tac_input):
         tac_probs = self.tac_net(tac_input)
         tac_m = Categorical(tac_probs)
@@ -239,11 +236,17 @@ class HOL4TacticZero(TacticZeroLoop):
                     except:
                         logging.warning(f"error in parser {i, replay_arg}")
                         raise Exception
+
                     theory_name = name_parser[0][:-6]  # get rid of the "Theory" substring
                     theorem_name = name_parser[1]
                     true_arg_exp = env.reverse_database[(theory_name, theorem_name)]
                 else:
-                    name_parser = replay_arg.split(".")
+                    try:
+                        name_parser = replay_arg[i].split(".")
+                    except:
+                        logging.warning(f"error in parser {i, replay_arg}")
+                        raise Exception
+
                     theory_name = name_parser[0][:-6]  # get rid of the "Theory" substring
                     theorem_name = name_parser[1]
                     true_arg_exp = env.reverse_database[(theory_name, theorem_name)]
@@ -273,27 +276,6 @@ class HOL4TacticZero(TacticZeroLoop):
 
         tactic = env.assemble_tactic(tac, arg)
         return tactic, arg_step_probs
-
-    def get_replay_tac(self, true_tactic_text):
-        if true_tactic_text in self.no_arg_tactic:
-            true_tac_text = true_tactic_text
-            true_args_text = None
-        else:
-            tac_args = re.findall(r'(.*?)\[(.*?)\]', true_tactic_text)
-            tac_term = re.findall(r'(.*?) `(.*?)`', true_tactic_text)
-            tac_arg = re.findall(r'(.*?) (.*)', true_tactic_text)
-            if tac_args:
-                true_tac_text = tac_args[0][0]
-                true_args_text = tac_args[0][1].split(", ")
-            elif tac_term:  # order matters
-                true_tac_text = tac_term[0][0]
-                true_args_text = tac_term[0][1]
-            elif tac_arg:  # order matters because tac_arg could match () ``
-                true_tac_text = tac_arg[0][0]
-                true_args_text = tac_arg[0][1]
-            else:
-                true_tac_text = true_tactic_text
-        return true_tac_text, true_args_text
 
     def forward(self, batch, train_mode=True):
         goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
@@ -397,6 +379,7 @@ class HOL4TacticZero(TacticZeroLoop):
             tac_args = re.findall(r'(.*?)\[(.*?)\]', true_tactic_text)
             tac_term = re.findall(r'(.*?) `(.*?)`', true_tactic_text)
             tac_arg = re.findall(r'(.*?) (.*)', true_tactic_text)
+            true_args_text = None
             if tac_args:
                 true_tac_text = tac_args[0][0]
                 true_args_text = tac_args[0][1].split(", ")
@@ -408,6 +391,7 @@ class HOL4TacticZero(TacticZeroLoop):
                 true_args_text = tac_arg[0][1]
             else:
                 true_tac_text = true_tactic_text
+        # todo fix bug with replay args having extra apostrophe
         return true_tac_text, true_args_text
 
     def run_replay(self, allowed_arguments_ids, candidate_args, env, encoded_fact_pool, goal):
@@ -439,6 +423,7 @@ class HOL4TacticZero(TacticZeroLoop):
             tac_m = Categorical(tac_probs)
 
             true_tactic_text = tactic
+
             true_tac_text, true_args_text = self.get_replay_tac(true_tactic_text)
 
             true_tac = torch.tensor([self.tactic_pool.index(true_tac_text)], device=self.device)  # .to(self.device)
@@ -475,12 +460,10 @@ class HOL4TacticZero(TacticZeroLoop):
     def save_replays(self):
         torch.save(self.replays, self.replay_dir)
 
+    def get_goal_updown(self, goal_nodes, root, replay_goal=None):
+        current_goals = [g.goal for g in goal_nodes]
 
-class UpDown(torch.nn.Module):
-    # todo updown: give goal scores and env.graph to updown module to run and compute scores for each goal
-
-    def forward(self, goal_nodes, root):
-        reverted = [revert_with_polish(g.goal) for g in goal_nodes]
+        reverted = [revert_with_polish(g) for g in current_goals]
 
         batch = self.converter(reverted)
 
@@ -495,38 +478,73 @@ class UpDown(torch.nn.Module):
 
         goal_scores = self.goal_net(representations)
 
-        # Up Step
-        # set the score of each node as the maximum of itself and all children (i.e. most promising path)
+        goal_scores = up_down(goal_scores=goal_scores,
+                              goal_nodes=goal_nodes,
+                              root=root)
 
-        # recursive, start from root, use dictionary to score each node as max of itself and children
-        # ...
-        up_scores = {}
-        node_idx = goal_nodes.index(root)
+        goal_scores = torch.stack(goal_scores)
 
-        if root.children == {}:
-            up_scores[node_idx] = goal_scores[node_idx]
+        goal_probs = F.softmax(goal_scores, dim=0)
+
+        goal_dist = Categorical(goal_probs)
+
+        if replay_goal is not None:
+            goal_idx = replay_goal
         else:
-            tac_scores = []
-            for tac, subgoals in root.children:
+            goal_idx = goal_dist.sample()
+
+        target_goal = goal_nodes[goal_idx].goal
+
+        target_representation = representations[current_goals.index(target_goal)]
+
+        goal_prob = goal_dist.log_prob(goal_idx)
+
+        target_goal = target_goal['polished']['goal']
+
+        return target_representation, target_goal, goal_idx, goal_prob
+
+
+def up_down(goal_scores, goal_nodes, root):
+    # Up Step: set the score of each node as the maximum of itself and all children (i.e. most promising path)
+
+    up_scores = {}
+
+    def up_step(node):
+        node_idx = goal_nodes.index(node)
+
+        if node.children == {}:
+            up_scores[node_idx] = goal_scores[node_idx]
+
+        else:
+            tac_scores = [goal_scores[node_idx]]
+
+            for tac, subgoals in node.children:
                 sib_scores = []
+
                 for subgoal in subgoals:
                     if goal_nodes.index(subgoal) not in up_scores:
-                        # get_up_score(subgoal)
+                        up_step(subgoal)
+
                     assert goal_nodes.index(subgoal) in up_scores
+
                     sib_scores.append(up_scores[goal_nodes.index(subgoal)])
 
-                tac_score = torch.sum(torch.tensor(sib_scores).to(self.device))
+                tac_score = torch.sum(torch.tensor(sib_scores))
+
                 tac_scores.append(tac_score)
+
             up_scores[node_idx] = max(tac_scores)
 
+    up_step(root)
 
+    # down step: take product of goal and up_scores from all goals in its context
 
+    up_down_scores = []
 
+    for goal in goal_nodes:
+        context_scores = [up_scores[goal_nodes.index(context)] for context in goal.context]
+        context_scores.append(goal_scores[goal_nodes.index(goal)])
+        context_scores = torch.FloatTensor(context_scores)
+        up_down_scores.append(torch.prod(context_scores))
 
-
-
-
-
-
-
-
+    return up_down_scores
