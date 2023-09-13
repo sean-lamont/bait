@@ -1,4 +1,5 @@
 import copy
+import traceback
 
 import einops
 import torch.nn.functional as F
@@ -9,6 +10,7 @@ from torch_geometric.data import Batch
 from data.hol4.utils import ast_def
 from environments.hol4.graph_env import *
 from experiments.tacticzero.tactic_zero_module import TacticZeroLoop
+from utils.viz_net_torch import make_dot
 
 '''
 
@@ -233,26 +235,18 @@ class HOL4TacticZero(TacticZeroLoop):
             if replay_arg is None:
                 arg = arg_m.sample()
             else:
-                if isinstance(replay_arg, list):
-                    try:
+                try:
+                    if isinstance(replay_arg, list):
                         name_parser = replay_arg[i].split(".")
-                    except:
-                        logging.warning(f"error in parser {i, replay_arg}")
-                        raise Exception
+                    else:
+                        name_parser = replay_arg.split(".")
 
                     theory_name = name_parser[0][:-6]  # get rid of the "Theory" substring
                     theorem_name = name_parser[1]
                     true_arg_exp = env.reverse_database[(theory_name, theorem_name)]
-                else:
-                    try:
-                        name_parser = replay_arg[i].split(".")
-                    except:
-                        logging.warning(f"error in parser {i, replay_arg}")
-                        raise Exception
-
-                    theory_name = name_parser[0][:-6]  # get rid of the "Theory" substring
-                    theorem_name = name_parser[1]
-                    true_arg_exp = env.reverse_database[(theory_name, theorem_name)]
+                except:
+                    logging.warning(f"Error in parser {i, replay_arg}")
+                    raise Exception
 
                 arg = torch.tensor(candidate_args.index(true_arg_exp)).to(self.device)
 
@@ -301,9 +295,17 @@ class HOL4TacticZero(TacticZeroLoop):
             current_goals = [g.goal for g in env.current_goals]
             candidate_fringes = [[g.goal for g in fringe] for fringe in env.fringes]
 
+            if len(env.fringes) > 10:
+                pass
+
             target_representation, target_goal, selected_goal, goal_prob = self.get_goal(
                 current_goals=current_goals,
                 candidate_fringes=candidate_fringes)
+
+            if train_mode and len(env.fringes) > 10:
+                g = make_dot(goal_prob)
+                g.view()
+                sleep(10)
 
             goal_pool.append(goal_prob)
 
@@ -462,92 +464,3 @@ class HOL4TacticZero(TacticZeroLoop):
 
     def save_replays(self):
         torch.save(self.replays, self.replay_dir)
-
-    def get_goal_updown(self, goal_nodes, root, replay_goal=None):
-        current_goals = [g.goal for g in goal_nodes]
-
-        reverted = [revert_with_polish(g) for g in current_goals]
-
-        batch = self.converter(reverted)
-
-        if self.config.data_config.type == 'graph':
-            batch = batch.to(self.device)
-
-        # sequence case, where batch is (data, attention_mask)
-        elif self.config.data_config.type == 'sequence':
-            batch = (batch[0].to(self.device), batch[1].to(self.device))
-
-        representations = torch.unsqueeze(self.encoder_goal(batch), 1)
-
-        goal_scores = self.goal_net(representations)
-
-        goal_scores = up_down(goal_scores=goal_scores,
-                              goal_nodes=goal_nodes,
-                              root=root)
-
-        goal_scores = torch.stack(goal_scores)
-
-        goal_probs = F.softmax(goal_scores, dim=0)
-
-        goal_dist = Categorical(goal_probs)
-
-        if replay_goal is not None:
-            goal_idx = replay_goal
-        else:
-            goal_idx = goal_dist.sample()
-
-        target_goal = goal_nodes[goal_idx].goal
-
-        target_representation = representations[current_goals.index(target_goal)]
-
-        goal_prob = goal_dist.log_prob(goal_idx)
-
-        target_goal = target_goal['polished']['goal']
-
-        return target_representation, target_goal, goal_idx, goal_prob
-
-
-def up_down(goal_scores, goal_nodes, root):
-    # Up Step: set the score of each node as the maximum of itself and all children (i.e. most promising path)
-
-    up_scores = {}
-
-    def up_step(node):
-        node_idx = goal_nodes.index(node)
-
-        if node.children == {}:
-            up_scores[node_idx] = goal_scores[node_idx]
-
-        else:
-            tac_scores = [goal_scores[node_idx]]
-
-            for tac, subgoals in node.children:
-                sib_scores = []
-
-                for subgoal in subgoals:
-                    if goal_nodes.index(subgoal) not in up_scores:
-                        up_step(subgoal)
-
-                    assert goal_nodes.index(subgoal) in up_scores
-
-                    sib_scores.append(up_scores[goal_nodes.index(subgoal)])
-
-                tac_score = torch.sum(torch.tensor(sib_scores))
-
-                tac_scores.append(tac_score)
-
-            up_scores[node_idx] = max(tac_scores)
-
-    up_step(root)
-
-    # down step: take product of goal and up_scores from all goals in its context
-
-    up_down_scores = []
-
-    for goal in goal_nodes:
-        context_scores = [up_scores[goal_nodes.index(context)] for context in goal.context]
-        context_scores.append(goal_scores[goal_nodes.index(goal)])
-        context_scores = torch.FloatTensor(context_scores)
-        up_down_scores.append(torch.prod(context_scores))
-
-    return up_down_scores
