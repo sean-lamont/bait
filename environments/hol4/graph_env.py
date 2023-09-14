@@ -469,21 +469,31 @@ class HolEnv:
     def step(self, action):
         goal_idx, tactic = action
 
-
-        # if directly selecting goal
-        # goal_node = self.current_goals[goal_idx]
-        # self.history.append(copy.deepcopy(self.graph))
-
-        # else fringes
         goal_node = self.fringes[goal_idx][0]
 
-        # add current goals and fringes to history
-        self.history.append(
-            ([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes]))
+        current_hist = ([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes])
 
-        # if action in self.action_history:
-        #     reward = -1
-        #     return reward, False  # TODO: make this reward zero?
+        chosen_fringe = current_hist[1][goal_idx]
+
+       # check for repeated action
+        for i in range(len(self.history) - 1):
+            fringes = self.history[i+1][1]
+            hist_idx, hist_tactic = self.action_history[i]
+            chosen_hist_fringe = fringes[hist_idx]
+            if chosen_fringe == chosen_hist_fringe:
+                if tactic == hist_tactic:
+                    reward = -1
+                    return reward, False
+
+        if tactic in goal_node.children.keys():
+            # print ("tac duplicate")
+            reward = -0.1
+            return reward, False
+
+        # add current goals and fringes to history
+        self.history.append(current_hist)
+
+
 
         self.action_history.append(action)
 
@@ -517,13 +527,7 @@ class HolEnv:
                     if len(self.current_goals) == 1:
                         return 5, True
                 else:
-                    # same tactic
-                    if tactic in goal_node.children.keys():
-                        # print ("tac duplicate")
-                        reward = -0.1
-                        return reward, False
-
-                    # same subgoal(s) as previous tactic for same node
+                    # same subgoal(s) as different tactic for same node
                     subgoal_list = []
                     for val in goal_node.children.values():
                         goals = set(((g.goal['plain']['goal'], tuple(g.goal['plain']['assumptions'])) for g in val))
