@@ -10,11 +10,12 @@ data_config:
   type: 'fixed'
   data_options:
     filter: []
+#    environment: 'HOL4'
 #    environment: 'HOL4UpDown'
     environment: 'HOL4GraphFringe'
 
 exp_config:
-  name: updown_vanilla_
+  name: full_fringe_vanilla
 #  directory: experiments/runs/tactic_zero/vanilla_full_fringe_50_2023_09_13/14_54_33
 #  resume: True
 

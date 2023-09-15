@@ -1,10 +1,13 @@
 import logging
+from time import sleep
 import traceback
 import warnings
 from abc import abstractmethod
 
 import lightning.pytorch as pl
 import torch.optim
+
+from utils.viz_net_torch import make_dot
 
 warnings.filterwarnings('ignore')
 
@@ -50,6 +53,7 @@ class TacticZeroLoop(pl.LightningModule):
 
             if type(loss) != torch.Tensor:
                 logging.warning(f"Error in loss: {loss}")
+                traceback.print_exc()
                 return
 
             return loss
@@ -105,10 +109,16 @@ class TacticZeroLoop(pl.LightningModule):
         for i in range(steps):
             reward = reward_pool[i]
             goal_loss = -goal_pool[i] * (reward)
+
+
             arg_loss = -torch.sum(torch.stack(arg_pool[i])) * (reward)
             tac_loss = -tac_pool[i] * (reward)
             loss = goal_loss + tac_loss + arg_loss
             total_loss += loss
+
+        # g = make_dot(goal_loss)
+        # g.view()
+        # sleep(10)
 
         return total_loss
 

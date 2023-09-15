@@ -87,7 +87,6 @@ class RLData(pl.LightningDataModule):
         return transform_batch(batch, self.config)
 
     def gen_fact_pool(self, goal):
-
         allowed_arguments_ids, candidate_args = self.env.gen_fact_pool(goal)
         allowed_fact_batch = self.list_to_data(candidate_args)
 

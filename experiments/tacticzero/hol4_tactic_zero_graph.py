@@ -68,9 +68,18 @@ class HOL4TacticZero(TacticZeroLoop):
             logging.debug(f"Creating new replay dir {self.replay_dir}")
             self.replays = {}
 
+    def get_tac(self, tac_input):
+        tac_probs = self.tac_net(tac_input)
+        tac_m = Categorical(tac_probs)
+        tac = tac_m.sample()
+        tac_prob = tac_m.log_prob(tac)
+        tac_tensor = tac.to(self.device)
+        return tac_tensor, tac_prob
+
     # goal selection over all fringes, assuming proof tree environment state
     def get_goal(self, current_goals, candidate_fringes, replay_fringe=None):
         reverted = [revert_with_polish(g) for g in current_goals]
+
 
         batch = self.converter(reverted)
 
@@ -93,6 +102,9 @@ class HOL4TacticZero(TacticZeroLoop):
             fringe_score = torch.sum(fringe_score)
             fringe_scores.append(fringe_score)
 
+        # print (len(fringe_scores))
+
+
         fringe_scores = torch.stack(fringe_scores)
         fringe_probs = F.softmax(fringe_scores, dim=0)
         fringe_m = Categorical(fringe_probs)
@@ -102,29 +114,14 @@ class HOL4TacticZero(TacticZeroLoop):
         else:
             fringe = fringe_m.sample()
 
-        try:
-            target_goal = candidate_fringes[fringe][0]
-        except Exception as e:
-            print("error")
-
-        target_representation = representations[current_goals.index(target_goal)]
-
         fringe_prob = fringe_m.log_prob(fringe)
-
-
-
-
+        target_goal = candidate_fringes[fringe][0]
+        target_representation = representations[current_goals.index(target_goal)]
         target_goal = target_goal['polished']['goal']
+
 
         return target_representation, target_goal, fringe, fringe_prob
 
-    def get_tac(self, tac_input):
-        tac_probs = self.tac_net(tac_input)
-        tac_m = Categorical(tac_probs)
-        tac = tac_m.sample()
-        tac_prob = tac_m.log_prob(tac)
-        tac_tensor = tac.to(self.device)
-        return tac_tensor, tac_prob
 
     # determine term for induction based on data type (graph, fixed, sequence)
     def get_term_tac(self, target_goal, target_representation, tac, replay_term=None):
@@ -336,7 +333,7 @@ class HOL4TacticZero(TacticZeroLoop):
                 logging.debug(f"Step taken: {action, reward, done}")
             except Exception:
                 logging.warning(f"Step exception: {action, goal}")
-                # traceback.print_exc()
+                traceback.print_exc()
                 return ("Step error", action)
 
             steps += 1
@@ -351,11 +348,13 @@ class HOL4TacticZero(TacticZeroLoop):
 
                 if goal in self.replays.keys():
                     if steps < self.replays[goal][0]:
-                        self.replays[goal] = copy.deepcopy((steps, (env.history, env.action_history, reward_pool)))
+                        # self.replays[goal] = copy.deepcopy((steps, (env.history, env.action_history, reward_pool)))
+                        self.replays[goal] = copy.deepcopy((steps, env.history))
                 else:
                     self.cumulative_proven.append([goal])
                     if env.history is not None:
-                        self.replays[goal] = copy.deepcopy((steps, (env.history, env.action_history, reward_pool)))
+                        self.replays[goal] = copy.deepcopy((steps, env.history))
+                        # self.replays[goal] = copy.deepcopy((steps, (env.history, env.action_history, reward_pool)))
                     else:
                         logging.warning(f"History is none. {env.history}")
                 break
@@ -403,14 +402,21 @@ class HOL4TacticZero(TacticZeroLoop):
         tac_pool = []
         steps = 0
 
-        goal_history, action_history, reward_history = self.replays[goal][1]
+        # goal_history, action_history, reward_history = self.replays[goal][1]
+        history = self.replays[goal][1]
 
         # history_graphs = graph_from_history(goal_history, action_history)
 
-        for t in range(len(goal_history) - 1):
-            fringe_idx, tactic = action_history[t]
+        for t in range(len(history) - 1):
 
-            goals, candidate_fringes = goal_history[t + 1]
+            cur_step = history[t + 1]
+
+            goals, candidate_fringes = cur_step[0]
+            reward = cur_step[1]
+            fringe_idx, tactic = cur_step[2]
+
+            # fringe_idx, tactic = action_history[t]
+            # goals, candidate_fringes = goal_history[t + 1]
             # candidate_fringes = goal_history[fringe_idx][1]
 
             true_fringe = torch.tensor([fringe_idx], device=self.device)  # .to(self.device)
@@ -453,7 +459,7 @@ class HOL4TacticZero(TacticZeroLoop):
 
             arg_pool.append(arg_probs)
 
-            reward = reward_history[t]
+            # reward = reward_history[t]
             reward_pool.append(reward)
             steps += 1
 

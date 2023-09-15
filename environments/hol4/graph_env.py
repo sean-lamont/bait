@@ -207,9 +207,22 @@ class HolEnv:
             self.process.sendline("open {};".format(i).encode("utf-8"))
             sleep(5)
 
+        # remove built-in simp lemmas
+        # logging.debug("Removing simp lemmas...")
+        # # self.process.sendline("delsimps [\"HD\", \"EL_restricted\", \"EL_simp_restricted\"];")
+        # self.process.sendline("delsimps {};".format(dels))
+        # self.process.sendline("delsimps {};".format(dels2))
+        # # self.process.sendline("delsimps {};".format(dels3))
+        # sleep(1)
+
+        # load utils
+        # logging.debug("Loading modules...")
         self.process.sendline("use \"helper.sml\";")
+        # self.process.sendline("val _ = load \"Timeout\";")
         sleep(5)
+        # logging.debug("Configuration done.")
         self.process.expect('\r\n>')
+        # self.process.readline()
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         # consumes hol4 head
         self.process.expect('\r\n>')
@@ -221,8 +234,10 @@ class HolEnv:
 
         self.fringes = [[self.graph]]
 
+        self.history = [
+            (([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes]), 0, None)]
 
-        self.history = [([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes])]
+        # self.history = [([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes])]
 
         self.action_history = []  # list of tuples (id, id, tactic)
 
@@ -236,17 +251,24 @@ class HolEnv:
         if mode == "diminish":
             cmd = "val _ = diminish_srw_ss {};".format([theory])
             cmd = re.sub("'", "\"", cmd)
-            # print("Removing simp lemmas from {}".format(theory))
+            logging.debug("Removing simp lemmas from {}".format(theory))
 
         else:
             cmd = "val _ = augment_srw_ss {};".format([theory])
             cmd = re.sub("'", "\"", cmd)
             logging.debug("Adding simp lemmas from {}".format(theory))
 
+        # self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
+        # # sleep(0.5)
+        # self.process.sendline(cmd.encode("utf-8"))
+        # self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
+        # self.process.expect('\r\n>')
+
         reset_cmd = "BasicProvers.recreate_sset_at_parentage (parents \"{}\");".format(theory)
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         self.process.sendline(reset_cmd.encode("utf-8"))
-
+        # sleep(0.5)
+        # self.process.sendline(cmd.encode("utf-8"))
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         self.process.expect('\r\n>')
 
@@ -275,7 +297,7 @@ class HolEnv:
             names = self.get_names(args)
             if names:
                 # action = tac + " " + re.sub("<TMP>", "\'", names[0])
-                action = tac + " " +  names[0]
+                action = tac + " " + names[0]
             else:
                 # this will raise an error in HOL4
                 action = tac
@@ -310,8 +332,8 @@ class HolEnv:
         # self.history = [[(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals]]
         # self.history = [[g.goal for g in self.current_goals]]
 
-        self.history = [([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes])]
-
+        self.history = [
+            (([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes]), 0, None)]
 
         # self.history = [[(g.goal, None) for g in self.current_goals]]
         self.action_history = []
@@ -393,11 +415,17 @@ class HolEnv:
                 ["metis: proof translation error", "Initial goal proved", ": proof", ":\r\n +proof", "Exception",
                  "error"])
         except:
+            # print("Exception: {} to {} to be debugged".format(tac, raw_goal))
             i = -1
 
         if i == -1:
             data = "unexpected"
             return data
+        # print("i is {}".format(i))
+
+        # bug3 = self.process.before.decode("utf-8")
+        # print("bug3: {}".format(bug3))
+        # exit()
 
         # workaround
         while i == 0:
@@ -405,6 +433,8 @@ class HolEnv:
             i = self.process.expect(
                 ["metis: proof translation error", "Initial goal proved", ": proof", ":\r\n +proof", "Exception",
                  "error"])
+
+            # print("i is {}".format(i))
 
         if i == 2 or i == 3:
             self.process.expect("\r\n>")
@@ -471,19 +501,24 @@ class HolEnv:
 
         goal_node = self.fringes[goal_idx][0]
 
-        current_hist = ([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes])
+        current_state = deepcopy(
+            ([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes]))
 
-        chosen_fringe = current_hist[1][goal_idx]
+        # current_hist = deepcopy([g.goal for g in self.current_goals],
+        #                         [[g.goal for g in fringe] for fringe in self.fringes])
 
-       # check for repeated action
-        for i in range(len(self.history) - 1):
-            fringes = self.history[i+1][1]
-            hist_idx, hist_tactic = self.action_history[i]
-            chosen_hist_fringe = fringes[hist_idx]
-            if chosen_fringe == chosen_hist_fringe:
-                if tactic == hist_tactic:
-                    reward = -1
-                    return reward, False
+        # current_hist = deepcopy([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes])
+        # chosen_fringe = current_hist[1][goal_idx]
+        #
+        # # check for repeated action
+        # for i in range(len(self.history) - 1):
+        #     fringes = self.history[i + 1][1]
+        #     hist_idx, hist_tactic = self.action_history[i]
+        #     chosen_hist_fringe = fringes[hist_idx]
+        #     if chosen_fringe == chosen_hist_fringe:
+        #         if tactic == hist_tactic:
+        #             reward = -1
+        #             return reward, False
 
         if tactic in goal_node.children.keys():
             # print ("tac duplicate")
@@ -491,13 +526,16 @@ class HolEnv:
             return reward, False
 
         # add current goals and fringes to history
-        self.history.append(current_hist)
-
-
-
-        self.action_history.append(action)
+        # self.history.append(current_hist)
+        # self.action_history.append(action)
 
         target = goal_node.goal["plain"]
+
+        if (target, tactic) in self.action_history:
+            self.action_history.append((target, tactic))
+            return -0.1, False
+
+        self.action_history.append((target, tactic))
 
         if target["assumptions"]:
             # there are assumptions
@@ -514,19 +552,34 @@ class HolEnv:
         elif d != "exception" and d != "timeout":
             # progress has been made
             if [goal_node.goal] != d:
+
+                # todo if we have seen this state before?
+                # previously just checked if current fringe was in history
+
                 if d == []:
                     if goal_node == self.graph:
+                        self.history.append((current_state, 5, action))
+                        # print ('original goal proven')
                         return 5, True
 
+                    # print ('subgoal proven')
                     reward = 0.2
 
                     goal_node.prop_proved()
 
                     self.current_goals = nodes_list(self.graph, result=[])
 
+                    self.update_fringes()
+
+
                     if len(self.current_goals) == 1:
+                        self.history.append((current_state, 5, action))
+                        # print ('subgoal proven original goal')
                         return 5, True
+
+                    self.history.append((current_state, 0.2, action))
                 else:
+
                     # same subgoal(s) as different tactic for same node
                     subgoal_list = []
                     for val in goal_node.children.values():
@@ -534,7 +587,8 @@ class HolEnv:
                         subgoal_list.append(goals)
 
                     if set(((d_['plain']['goal'], tuple(d_['plain']['assumptions'])) for d_ in d)) in subgoal_list:
-                        # print ("subgoal duplicate")
+                        # print([g for g in subgoal_list], [d_['plain'] for d_ in d])
+                        # print("subgoal duplicate")
                         reward = -0.1
                         return reward, False
 
@@ -542,13 +596,20 @@ class HolEnv:
                     strd = [str(d_) for d_ in d]
 
                     if len(list(set(strd))) < len(strd):
-                        # print ("HOL duplicate subgoal?")
+                        # print("HOL duplicate subgoal?")
                         reward = -0.1
                         return reward, False
 
                     reward = 0.1
 
+                    for subgoal in d:
+                        if subgoal in [g.goal for g in self.current_goals]:
+                            # print('dupe')
+                            # print([g.goal for g in self.current_goals], [d_['plain'] for d_ in d])
+                            return -0.1, False
+
                     for i, subgoal in enumerate(d):
+
                         new_node = GoalNode(subgoal)
                         new_node.parent = goal_node
                         new_node.from_tac = tactic
@@ -567,6 +628,10 @@ class HolEnv:
                                                              child != subgoal]
 
                     self.current_goals = nodes_list(self.graph, result=[])
+
+                    self.update_fringes()
+
+                    self.history.append((current_state, 0.1, action))
             else:
                 # nothing changed
                 reward = -0.1

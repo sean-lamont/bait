@@ -109,6 +109,8 @@ class HOL4TacticZero(TacticZeroLoop):
             fringe_score = torch.sum(s)
             fringe_scores.append(fringe_score)
 
+        # print (len(fringe_scores))
+
         fringe_scores = torch.stack(fringe_scores)
         fringe_probs = F.softmax(fringe_scores, dim=0)
         fringe_m = Categorical(fringe_probs)
@@ -123,6 +125,7 @@ class HOL4TacticZero(TacticZeroLoop):
         target_context = contexts_by_fringe[fringe][0]
         target_goal = target_context["polished"]["goal"]
         target_representation = representations[contexts.index(target_context)]
+
 
         return target_representation, target_goal, fringe, fringe_prob
 
@@ -276,27 +279,6 @@ class HOL4TacticZero(TacticZeroLoop):
         tactic = env.assemble_tactic(tac, arg)
         return tactic, arg_step_probs
 
-    def get_replay_tac(self, true_tactic_text):
-        if true_tactic_text in self.no_arg_tactic:
-            true_tac_text = true_tactic_text
-            true_args_text = None
-        else:
-            tac_args = re.findall(r'(.*?)\[(.*?)\]', true_tactic_text)
-            tac_term = re.findall(r'(.*?) `(.*?)`', true_tactic_text)
-            tac_arg = re.findall(r'(.*?) (.*)', true_tactic_text)
-            if tac_args:
-                true_tac_text = tac_args[0][0]
-                true_args_text = tac_args[0][1].split(", ")
-            elif tac_term:  # order matters
-                true_tac_text = tac_term[0][0]
-                true_args_text = tac_term[0][1]
-            elif tac_arg:  # order matters because tac_arg could match () ``
-                true_tac_text = tac_arg[0][0]
-                true_args_text = tac_arg[0][1]
-            else:
-                true_tac_text = true_tactic_text
-        return true_tac_text, true_args_text
-
     def forward(self, batch, train_mode=True):
         goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
         # logging.debug(f"Goal: {goal}")
@@ -344,6 +326,7 @@ class HOL4TacticZero(TacticZeroLoop):
 
             try:
                 reward, done = env.step(action)
+
                 # logging.debug(f"Step taken: {action, reward, done}")
             except Exception:
                 logging.warning(f"Step exception: {action, goal}")
@@ -392,6 +375,9 @@ class HOL4TacticZero(TacticZeroLoop):
             else:
                 reward_pool.append(reward)
 
+        # self.replays[goal] = (steps, env.history)
+        # self.save_replays()
+
         return reward_pool, goal_pool, arg_pool, tac_pool, steps, done
 
     def get_replay_tac(self, true_tactic_text):
@@ -402,6 +388,7 @@ class HOL4TacticZero(TacticZeroLoop):
             tac_args = re.findall(r'(.*?)\[(.*?)\]', true_tactic_text)
             tac_term = re.findall(r'(.*?) `(.*?)`', true_tactic_text)
             tac_arg = re.findall(r'(.*?) (.*)', true_tactic_text)
+            true_args_text = None
             if tac_args:
                 true_tac_text = tac_args[0][0]
                 true_args_text = tac_args[0][1].split(", ")

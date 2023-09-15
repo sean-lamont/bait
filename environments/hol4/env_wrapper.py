@@ -314,8 +314,9 @@ class HolEnv:
         # Note we may see "metis: proof translation error: trying again with types."]
         
         try: 
-            i = self.process.expect(["metis: proof translation error", "Initial goal proved", ": proof", ":\r\n +proof" , "Exception", "error"])
-
+            i = self.process.expect(
+                ["metis: proof translation error", "Initial goal proved", ": proof", ":\r\n +proof", "Exception",
+                 "error"])
         except:
             # print("Exception: {} to {} to be debugged".format(tac, raw_goal))
             i = -1
@@ -441,9 +442,12 @@ class HolEnv:
                 new_content.remove(pre_target)
                 new_content.extend(d)
 
+                # never any repeats without a dupe (all new subgoals exist in an old fringe, if the current fringe equals an old fringe)
+                # but there are sometimes dupes without repeat. I.e. all new subgoals exist in an old fringe, but the current fringe does not equal that fringe
                 for f in self.history:
-                    # if results in something occurred before 
+                    # if results in something occurred before
                     if new_content == f["content"]:
+                        # print ('repeat\n')
                         return -0.1, False # do not penalize the agent here
                         # return 0, False # do not penalize the agent here
 
@@ -466,8 +470,13 @@ class HolEnv:
                 # reward solving a subgoal
                 if d == []:
                     reward = 0.2
+                    print ('subgoal proven')
 
                 if new_content == []:
+                    if fringe_id == 0:
+                        print ('original goal proven')
+                    else:
+                        print ('subgoal proven original')
                     new = self.goal
                     
                     # shape reward
