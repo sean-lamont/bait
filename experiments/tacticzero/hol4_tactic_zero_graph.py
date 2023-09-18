@@ -392,7 +392,6 @@ class HOL4TacticZero(TacticZeroLoop):
                 true_args_text = tac_arg[0][1]
             else:
                 true_tac_text = true_tactic_text
-        # todo fix bug with replay args having extra apostrophe
         return true_tac_text, true_args_text
 
     def run_replay(self, allowed_arguments_ids, candidate_args, env, encoded_fact_pool, goal):

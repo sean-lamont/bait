@@ -470,13 +470,8 @@ class HolEnv:
                 # reward solving a subgoal
                 if d == []:
                     reward = 0.2
-                    print ('subgoal proven')
 
                 if new_content == []:
-                    if fringe_id == 0:
-                        print ('original goal proven')
-                    else:
-                        print ('subgoal proven original')
                     new = self.goal
                     
                     # shape reward

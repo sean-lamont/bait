@@ -329,9 +329,6 @@ class HolEnv:
 
         self.current_goals = nodes_list(self.graph, result=[])
 
-        # self.history = [[(g.goal, g.parent.goal) if g.parent is not None else (g.goal, None) for g in self.current_goals]]
-        # self.history = [[g.goal for g in self.current_goals]]
-
         self.history = [
             (([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes]), 0, None)]
 
@@ -504,30 +501,10 @@ class HolEnv:
         current_state = deepcopy(
             ([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes]))
 
-        # current_hist = deepcopy([g.goal for g in self.current_goals],
-        #                         [[g.goal for g in fringe] for fringe in self.fringes])
-
-        # current_hist = deepcopy([g.goal for g in self.current_goals], [[g.goal for g in fringe] for fringe in self.fringes])
-        # chosen_fringe = current_hist[1][goal_idx]
-        #
-        # # check for repeated action
-        # for i in range(len(self.history) - 1):
-        #     fringes = self.history[i + 1][1]
-        #     hist_idx, hist_tactic = self.action_history[i]
-        #     chosen_hist_fringe = fringes[hist_idx]
-        #     if chosen_fringe == chosen_hist_fringe:
-        #         if tactic == hist_tactic:
-        #             reward = -1
-        #             return reward, False
-
         if tactic in goal_node.children.keys():
             # print ("tac duplicate")
             reward = -0.1
             return reward, False
-
-        # add current goals and fringes to history
-        # self.history.append(current_hist)
-        # self.action_history.append(action)
 
         target = goal_node.goal["plain"]
 
@@ -580,14 +557,13 @@ class HolEnv:
                     self.history.append((current_state, 0.2, action))
                 else:
 
-                    # same subgoal(s) as different tactic for same node
+                    # same subgoal(s) as previous tactic for same node
                     subgoal_list = []
                     for val in goal_node.children.values():
                         goals = set(((g.goal['plain']['goal'], tuple(g.goal['plain']['assumptions'])) for g in val))
                         subgoal_list.append(goals)
 
                     if set(((d_['plain']['goal'], tuple(d_['plain']['assumptions'])) for d_ in d)) in subgoal_list:
-                        # print([g for g in subgoal_list], [d_['plain'] for d_ in d])
                         # print("subgoal duplicate")
                         reward = -0.1
                         return reward, False
@@ -602,6 +578,7 @@ class HolEnv:
 
                     reward = 0.1
 
+                    # todo duplicate goals, ignore for now
                     for subgoal in d:
                         if subgoal in [g.goal for g in self.current_goals]:
                             # print('dupe')
@@ -646,9 +623,7 @@ class HolEnv:
     def gen_fact_pool(self, goal):
         allowed_theories = list(set(re.findall(r'C\$(\w+)\$ ', goal[0])))
         goal_theory = self.database[goal[0]][0]
-
         polished_goal = goal[0]
-
         try:
             allowed_arguments_ids = []
             candidate_args = []

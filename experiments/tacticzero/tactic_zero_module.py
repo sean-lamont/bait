@@ -116,10 +116,6 @@ class TacticZeroLoop(pl.LightningModule):
             loss = goal_loss + tac_loss + arg_loss
             total_loss += loss
 
-        # g = make_dot(goal_loss)
-        # g.view()
-        # sleep(10)
-
         return total_loss
 
     def configure_optimizers(self):
