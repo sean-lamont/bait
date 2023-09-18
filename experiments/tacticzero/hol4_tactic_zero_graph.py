@@ -1,4 +1,3 @@
-import copy
 import traceback
 
 import einops
@@ -10,7 +9,6 @@ from torch_geometric.data import Batch
 from data.hol4.utils import ast_def
 from environments.hol4.graph_env import *
 from experiments.tacticzero.tactic_zero_module import TacticZeroLoop
-from utils.viz_net_torch import make_dot
 
 '''
 
@@ -296,11 +294,6 @@ class HOL4TacticZero(TacticZeroLoop):
                 current_goals=current_goals,
                 candidate_fringes=candidate_fringes)
 
-            # if train_mode and len(env.fringes) > 10:
-            #     g = make_dot(goal_prob)
-            #     g.view()
-            #     sleep(10)
-
             goal_pool.append(goal_prob)
 
             tac, tac_prob = self.get_tac(target_representation)
@@ -329,7 +322,6 @@ class HOL4TacticZero(TacticZeroLoop):
 
             try:
                 reward, done = env.step(action)
-                # print (reward)
                 logging.debug(f"Step taken: {action, reward, done}")
             except Exception:
                 logging.warning(f"Step exception: {action, goal}")
@@ -348,13 +340,11 @@ class HOL4TacticZero(TacticZeroLoop):
 
                 if goal in self.replays.keys():
                     if steps < self.replays[goal][0]:
-                        # self.replays[goal] = copy.deepcopy((steps, (env.history, env.action_history, reward_pool)))
-                        self.replays[goal] = copy.deepcopy((steps, env.history))
+                        self.replays[goal] = deepcopy((steps, env.history))
                 else:
                     self.cumulative_proven.append([goal])
                     if env.history is not None:
-                        self.replays[goal] = copy.deepcopy((steps, env.history))
-                        # self.replays[goal] = copy.deepcopy((steps, (env.history, env.action_history, reward_pool)))
+                        self.replays[goal] = deepcopy((steps, env.history))
                     else:
                         logging.warning(f"History is none. {env.history}")
                 break
@@ -458,7 +448,6 @@ class HOL4TacticZero(TacticZeroLoop):
 
             arg_pool.append(arg_probs)
 
-            # reward = reward_history[t]
             reward_pool.append(reward)
             steps += 1
 

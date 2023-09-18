@@ -528,7 +528,7 @@ class HolEnv:
             if [goal_node.goal] != d:
                 if d == []:
                     if goal_node == self.graph:
-                        self.history.append((current_state, 5, action))
+                        self.history.append((current_state, 5, tactic))
                         # print ('original goal proven')
                         return 5, True
 
@@ -539,11 +539,11 @@ class HolEnv:
                     self.current_goals = nodes_list(self.graph, result=[])
 
                     if len(self.current_goals) == 1:
-                        self.history.append((current_state, 5, action))
+                        self.history.append((current_state, 5, tactic))
                         # print ('subgoal proven original goal')
                         return 5, True
 
-                    self.history.append((current_state, 0.2, action))
+                    self.history.append((current_state, 0.2, tactic))
                 else:
                     # same subgoal(s) as previous tactic for same node
                     subgoal_list = []
@@ -593,7 +593,7 @@ class HolEnv:
 
                     self.current_goals = nodes_list(self.graph, result=[])
 
-                    self.history.append((current_state, 0.1, action))
+                    self.history.append((current_state, 0.1, tactic))
             else:
                 # nothing changed
                 reward = -0.1
@@ -640,7 +640,7 @@ def extract_proof(history):
     parent_goal_id = qed["goal"]
     tactic = qed["by_tactic"]
     for _ in count():
-        parent_fringe = history[parent_fringe_id]
+        parent_fringe = tactic[parent_fringe_id]
         path.append(history[parent_fringe_id])
         parent_goal = parent_fringe["content"][parent_goal_id]
         plain_text_goal = parent_goal["plain"]["goal"]

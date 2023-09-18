@@ -1,4 +1,3 @@
-import copy
 import traceback
 
 import einops
@@ -184,26 +183,18 @@ class HOL4TacticZero(TacticZeroLoop):
             if replay_arg is None:
                 arg = arg_m.sample()
             else:
-                if isinstance(replay_arg, list):
-                    try:
+                try:
+                    if isinstance(replay_arg, list):
                         name_parser = replay_arg[i].split(".")
-                    except:
-                        logging.warning(f"error in parser {i, replay_arg}")
-                        raise Exception
+                    else:
+                        name_parser = replay_arg.split(".")
 
                     theory_name = name_parser[0][:-6]  # get rid of the "Theory" substring
                     theorem_name = name_parser[1]
                     true_arg_exp = env.reverse_database[(theory_name, theorem_name)]
-                else:
-                    try:
-                        name_parser = replay_arg[i].split(".")
-                    except:
-                        logging.warning(f"error in parser {i, replay_arg}")
-                        raise Exception
-
-                    theory_name = name_parser[0][:-6]  # get rid of the "Theory" substring
-                    theorem_name = name_parser[1]
-                    true_arg_exp = env.reverse_database[(theory_name, theorem_name)]
+                except:
+                    logging.warning(f"Error in parser {i, replay_arg}")
+                    raise Exception
 
                 arg = torch.tensor(candidate_args.index(true_arg_exp)).to(self.device)
 
@@ -297,11 +288,11 @@ class HOL4TacticZero(TacticZeroLoop):
 
                 if goal in self.replays.keys():
                     if steps < self.replays[goal][0]:
-                        self.replays[goal] = deepcopy((steps, (env.history, env.action_history, reward_pool)))
+                        self.replays[goal] = deepcopy((steps, env.history))
                 else:
                     self.cumulative_proven.append([goal])
                     if env.history is not None:
-                        self.replays[goal] = deepcopy((steps, (env.history, env.action_history, reward_pool)))
+                        self.replays[goal] = deepcopy((steps, env.history))
                     else:
                         logging.warning(f"History is none. {env.history}")
                 break
@@ -348,20 +339,28 @@ class HOL4TacticZero(TacticZeroLoop):
         tac_pool = []
         steps = 0
 
-        goal_history, action_history, reward_history = self.replays[goal][1]
+        # goal_history, action_history, reward_history = self.replays[goal][1]
+        history = self.replays[goal][1]
 
         # history_graphs = graph_from_history(goal_history, action_history)
 
-        for t in range(len(goal_history) - 1):
-            goal_idx, tactic = action_history[t]
+        for t in range(len(history) - 1):
 
-            goal_nodes, root = goal_history[t + 1]
+            cur_step = history[t + 1]
+
+            selected_goal, graph = cur_step[0]
+            reward = cur_step[1]
+            tactic = cur_step[2]
+
+            goal_nodes = nodes_list(graph, result=[])
+
+            goal_idx = [g.goal for g in goal_nodes].index(selected_goal)
 
             true_fringe = torch.tensor([goal_idx], device=self.device)  # .to(self.device)
 
             target_representation, target_goal, fringe, goal_prob = self.get_goal(
                 goal_nodes=goal_nodes,
-                root=root,
+                root=graph,
                 replay_goal=true_fringe)
 
             goal_pool.append(goal_prob)
@@ -397,7 +396,6 @@ class HOL4TacticZero(TacticZeroLoop):
 
             arg_pool.append(arg_probs)
 
-            reward = reward_history[t]
             reward_pool.append(reward)
             steps += 1
 
@@ -407,7 +405,6 @@ class HOL4TacticZero(TacticZeroLoop):
         torch.save(self.replays, self.replay_dir)
 
     def get_goal(self, goal_nodes, root, replay_goal=None):
-
         current_goals = [g.goal for g in goal_nodes]
 
         reverted = [revert_with_polish(g) for g in current_goals]
@@ -429,7 +426,7 @@ class HOL4TacticZero(TacticZeroLoop):
                               goal_nodes=goal_nodes,
                               root=root)
 
-        goal_scores = torch.stack(goal_scores)
+        goal_scores = torch.stack(goal_scores).to(self.device)
 
         goal_probs = F.softmax(goal_scores, dim=0)
 
