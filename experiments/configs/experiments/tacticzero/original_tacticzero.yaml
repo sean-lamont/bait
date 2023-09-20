@@ -3,22 +3,22 @@ defaults:
   - tactic_zero
 
 logging_config:
-  offline: True
-  id: 2ndj5nh7
+  offline: False
+#  id: 2ndj5nh7
 
-max_steps: 5
+max_steps: 50
 data_config:
   type: 'fixed'
   data_options:
     filter: []
 #    environment: 'HOL4'
-    environment: 'HOL4UpDown'
-#    environment: 'HOL4GraphFringe'
+#    environment: 'HOL4UpDown'
+    environment: 'HOL4GraphFringe'
 
 exp_config:
-  name: original_5_step
-  directory: experiments/runs/tactic_zero/original_5_step_2023_09_18/17_02_44
-  resume: True
+  name: full_fringe_50_step
+#  directory: experiments/runs/tactic_zero/original_5_step_2023_09_18/17_02_44
+#  resume: True
 #  directory: experiments/runs/tactic_zero/vanilla_full_fringe_50_2023_09_13/14_54_33
 
 model_config:

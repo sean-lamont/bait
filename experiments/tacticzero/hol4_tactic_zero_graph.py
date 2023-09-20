@@ -94,6 +94,9 @@ class HOL4TacticZero(TacticZeroLoop):
 
         fringe_scores = []
 
+        # todo thorough check that the right goal is being chosen/indexed.
+        # todo run through trained original model and trained new model with same goal and compare outputs
+
         for fringe in candidate_fringes:
             inds = torch.LongTensor([current_goals.index(goal) for goal in fringe]).to(self.device)
             fringe_score = torch.index_select(goal_scores, 0, inds)

@@ -109,8 +109,11 @@ class GoalNode:
 
     def prop_proved(self):
         # remove self from parent
-        if self.parent != None:
+        if self.parent:
             self.parent.update_child(self)
+        else:
+            self.children = {}
+
 
     def update_child(self, proven_child):
         prove_tac = proven_child.from_tac
@@ -120,9 +123,14 @@ class GoalNode:
 
         # if no goals left from same tactic, then this goal is proved
         if self.children[prove_tac] == []:
+            # unnecessary?
             self.children.pop(prove_tac)
-            if self.parent:
-                self.parent.update_child(self)
+            self.prop_proved()
+            # if self.parent:
+            #     self.parent.update_child(self)
+            # # root must be proven
+            # else:
+            #    self.children = {}
         else:
             # update context for other siblings of same tac
             for child in self.children[prove_tac]:
@@ -192,6 +200,7 @@ class HolEnv:
         self.mean_frequency = 0
 
         self.import_theories = ["probabilityTheory"]
+        # todo test longer timeout
         self.process = pexpect.spawn(HOLPATH, timeout=3)
 
         # experimental feature
@@ -463,6 +472,7 @@ class HolEnv:
             polished_subgoals = ansi_escape.sub('', polished_subgoals)
             subgoals = ansi_escape.sub('', subgoals)
 
+            # todo throws errors..
             pd = eval(polished_subgoals)
             d = eval(subgoals)
             # data = list(zip(pd, d))

@@ -109,8 +109,10 @@ class GoalNode:
 
     def prop_proved(self):
         # remove self from parent
-        if self.parent != None:
+        if self.parent:
             self.parent.update_child(self)
+        else:
+            self.children = {}
 
     def update_child(self, proven_child):
         prove_tac = proven_child.from_tac
@@ -121,8 +123,7 @@ class GoalNode:
         # if no goals left from same tactic, then this goal is proved
         if self.children[prove_tac] == []:
             self.children.pop(prove_tac)
-            if self.parent:
-                self.parent.update_child(self)
+            self.prop_proved()
         else:
             # update context for other siblings of same tac
             for child in self.children[prove_tac]:

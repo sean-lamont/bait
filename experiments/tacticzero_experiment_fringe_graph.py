@@ -145,7 +145,7 @@ def tactic_zero_experiment(config):
         experiment.load_state_dict(state_dict)
         trainer.fit(experiment, module, ckpt_path=ckpt_dir)
     else:
-        # trainer.validate(experiment, module)
+        trainer.validate(experiment, module)
         trainer.fit(experiment, module)
 
 
