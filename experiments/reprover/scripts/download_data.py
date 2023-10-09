@@ -4,6 +4,7 @@ import argparse
 from hashlib import md5
 from loguru import logger
 
+# todo place in data/leandojo/..
 
 LEANDOJO_BENCHMARK_URL = (
     "https://zenodo.org/record/8242196/files/leandojo_benchmark_v2.tar.gz"

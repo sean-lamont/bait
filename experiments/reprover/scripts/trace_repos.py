@@ -5,6 +5,8 @@ from glob import glob
 from loguru import logger
 from lean_dojo import LeanGitRepo, trace, is_available_in_cache
 
+# todo place in data/leandojo/..
+# todo combine all setup into single script
 
 def main() -> None:
     parser = argparse.ArgumentParser()

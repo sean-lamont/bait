@@ -14,7 +14,7 @@ from subprocess import CalledProcessError
 from typing import List, Dict, Any, Optional, Tuple
 from transformers import T5ForConditionalGeneration, AutoTokenizer
 
-from common import (
+from experiments.reprover.common import (
     zip_strict,
     remove_marks,
     IndexedCorpus,
@@ -22,7 +22,7 @@ from common import (
     load_checkpoint,
     format_augmented_state,
 )
-from retrieval.model import PremiseRetriever
+from experiments.reprover.retrieval.model import PremiseRetriever
 
 
 torch.set_float32_matmul_precision("medium")

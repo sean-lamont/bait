@@ -11,6 +11,7 @@ from lean_dojo.constants import LEAN3_DEPS_DIR
 
 from common import Corpus
 
+# todo place in data/leandojo/..
 
 def main() -> None:
     parser = argparse.ArgumentParser()
