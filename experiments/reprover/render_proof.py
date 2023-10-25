@@ -1,4 +1,4 @@
-from prover.new_search_tree import Status, ErrorNode, ProofFinishedNode
+from prover.search_tree_context import Status, ErrorNode, ProofFinishedNode
 import pickle
 import pygraphviz as pgv
 from loguru import logger

@@ -14,7 +14,7 @@ from subprocess import CalledProcessError
 from typing import List, Dict, Any, Optional, Tuple
 from transformers import T5ForConditionalGeneration, AutoTokenizer
 
-from experiments.reprover.common import (
+from common import (
     zip_strict,
     remove_marks,
     IndexedCorpus,
@@ -22,7 +22,7 @@ from experiments.reprover.common import (
     load_checkpoint,
     format_augmented_state,
 )
-from experiments.reprover.retrieval.model import PremiseRetriever
+from retrieval.model import PremiseRetriever
 
 
 torch.set_float32_matmul_precision("medium")
@@ -318,6 +318,9 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
             truncation=True,
             return_tensors="pt",
         )
+
+
+        logger.info(f'State len {tokenized_state.input_ids.shape}')
 
         state_ids = tokenized_state.input_ids.to(self.device)
         state_mask = tokenized_state.attention_mask.to(self.device)

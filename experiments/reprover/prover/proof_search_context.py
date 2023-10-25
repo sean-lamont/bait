@@ -281,8 +281,8 @@ class BestFirstSearchProver:
         result_node = []
 
         if type(response) in (
-                TacticError,
-                # LeanError,
+                # TacticError,
+                LeanError,
                 TimeoutError,
                 ProofGivenUp,
         ):

@@ -53,6 +53,7 @@ Aim:
       - Training data has few examples of multiple goals as context (5k vs 30k actually being generated)
       - Allows for more refined proof search strategy based on subgoals (e.g. Fringe, HTPS)
         - Enable open source HTPS implementation and comparison of strategies
+      - As stated in LLM agent, multiple proof steps at once are error prone,
     - Why not?
       - Some overhead, with rotate_tac 
         - Can't necessarily keep a tactic_state with the chosen goal at the top, since we may not have seen one
@@ -141,5 +142,111 @@ with the objective to try a different exploratory strategy. Or autoregressive ta
 
 ## Results
 - Original ReProver (no retrieval): pass@1 = 0.583, 1148 proved, 821 failed, 31 non-theorems discarded
+- With subgoal separation, no other change: pass@1 = 0.6, 1180 proved, 788, 32 non-theorems discarded
+- Simple goal prediction, 57% negatives, 43% positive, negatives taken as unproven goals if over 256 visits. 
+  - Best accuracy approx. 89% 
 
 
+
+## HTPS vs UpDown
+### UpDown
+- Initialise leaves v(g) = 1 if proven, c(g) otherwise where c is the critic/goal model
+- Backprop with 
+  - u(g) = max(v(g), {prod(u(s)) for s in siblings} for t in children(g))
+    - Up Score is maximum of self raw score, and all children, where each child is a product over siblings)
+    - Up score represents the probability of proving a goal from any observed path (max over children)
+- Final score s(g) = v(g) * (prod(u(c)) for c in context(g))
+  - Context represents the root of other goals needed to prove the original 
+  - Hence u(s) is used, as we want to take the best path for s, rather than just the raw score
+- Labelling, similar to HTPS, is taken to be the final u(g) (1 if proven, otherwise max over all paths)
+- OR label: use prior as P(provable) = P(provable | visit-count), taken empirically from data.
+
+### HTPS
+- Each edge has attributes W(g,t), N(g,t), Q(g,t)
+  - W(g,t) is the sum of all vt(g) where vt(g) is the value of g in hypertree t
+  - N(g,t) is the total visit count, or number of hypertrees where g appears
+  - Q is the ratio (W/N), or 1 if proven, or 0 if failed. Also initialised to 0.5 if no visits
+- Leaves of a hypertree are initialised as before, vt(g) = 1 if proven, c(g) otherwise
+- For a given hypertree, backprop now computes vt(g) = prod(children(g)),
+ where there is only one path in a given tree so we only take the one product
+- The overall node score is summed over all trees where g appears to compute W and Q, with N being the total number of times it appears
+- PUCT is used to select the hypertree
+  - PUCT(g) = argmax_t(Q(g,t) + c * P(t | g) * (sum(sqrt(N(g,.)))/ C(g,t)))
+  - Where C is the total count N + V, for Virtual count V in search
+
+
+## Goal Search
+### Simple 
+- Take 1 for proven, 0 if over visit threshold, then get model to predict P(Provable | critic, g)
+### Tac dependent
+- Get model to learn P(Provable | critic, g, tactic)
+- P(g) then can be taken as the max over tactics of the scores
+- This way, automatically ranks the (g,t) pairs
+- Take P(g) as initial score for up step
+- Final scores will be P(Provable | critic, g,t) * max(Prod(S(g') for g' in context(g)) where max is over all contexts, 
+ S(g) is score from up step
+- Some engineering required to recompute rankings, tactics for new goals, while env is running.
+  - Can probably optimise to only recompute S(g) for new/relevant branches
+   
+- TOO SLOW! Would need all tactics for a goal computed to get the score for a goal, and goals
+are generated very quickly. For every goal, need to rank (g,t) pairs, which explodes the number 
+of batches needed.. Can't generate tactic with score, as you'd need to use seq2seq loss which could make low scores still likely to be generated. 
+Only way (afaik) is to have model which takes (g,t) as input, and there are too many of these pairs to be feasible.
+  - Instead, keep goal model S(g) for leaves, and have ranking model R(g,t) as well. Once a goal has been selected, we generate the tactics and then can rank them with R(g,t) (which is much faster than tac_gen, which is the bottleneck)
+  - This way, can have best of both worlds
+### Other ideas/notes
+- Regress on total time for either edges or goals
+  - Up step take the minimum over self and children edges
+  - Total score is time for self + time for context 
+- Difficulty if doing (P(.|g,t)) as we have to first predict tactics, and then predict the separate probability
+  - Could we get the model to output tactic and score in one go?
+
+
+### Misc
+- PyMongoArrow for fast MongoDB serialisation
+
+### 19/10
+- Ranking model poor at predicting the proof length (including error nodes, set to 0)
+- Most nodes are error nodes so there is scope for significant improvements here
+- Best way, I think, is to finetune the tactic selection model with the edge data
+- Then the ranking will be implicitly done in tactic generation, and we can just take the logits as the model's ranking
+- Saves significant compute, and is simpler. Don't have to consider mismatch between ranking and goal model
+- New pipeline will then be:
+  - Env runs goal -> new goals -> goal scored + environment updated -> goal selected -> tactics generated -> repeat
+  - Have tac_gen generating tactics while environment runs 
+  - Keep generated tactics (e.g. 64), and when goal selected, either pop off and run in environment or generate tactics 
+
+## 24/10
+
+- DPO better than RLHF, needs no reward model
+- Policy gradient still seems reasonable to apply end to end
+  - Need to track enough information to reconstruct the state at each step
+    - E.g. goal selected + resulting goals, can then construct tree for each step, and update parameters each step
+    - Track reward for full episode (i.e. so we can sum and discount to the End of Proof attempt)
+    - Track logprobs for each action (both goal and tactics)
+      - Goal probs will be based on the distribution of updown scores
+- ProverBot for ordering over goals
+  - g1 >= g2 -> g1 is at least as hard as g2
+  - g1 >= g2 iff all hypotheses in g1 are in g2, the goal of g1 is the same goal as g2
+
+
+
+## Language agent paper notes
+- Not sure about removing ReProver's retrieval mechanism, could this not be done similarly to them? 
+  - The code is available, and the agent system mentions a Lemma repository, which should be crucial to the model
+- Slightly more formal algorithm for figure 3. E.g. define r, what O'/O'' actually is
+- More details on this symbolic procedure? Would be useful in its own right, is it e.g. alpha-equivalence checker?
+- Page 7 typo (correlated [with the] number of correct proofs..)
+- Could the pass@k inferences be stated instead as the pass@k tactic applications or environment runs?
+From my experience, the environment is the primary bottleneck, so we wish to minimise the number of 
+tactic applications in the environment. As it is structured, since each inference is restricted to a single response,
+they are essentially the same in this setup, but I think it's worth emphasising you are mostly restricted by the environment.
+The approach does seem to effectively 'triage' the tactics by conditioning them on previous failures, which I think is a good contribution,
+however I think the framing of inference being the bottleneck is incorrect.
+- Typo in results (if only 60 inferences [are] allowed)
+- COPRA only gives up faster because it is restricted to 60 inferences, how does it perform if given also 10 minutes, unlimited inferences?
+- If you could integrate the lemma/retriever for MiniF2F the results should be even stronger, not sure why this couldn't be done, the explanation given didn't make sense to me
+since you can access ReProver's code for MiniF2F and get the set of relevant premises from there (even just using BM25)
+- The key idea, imo, is conditioning tactic applications 
+- Not sure about details in backtracking.. ('after a few queries, it backtracks'). Where is this number specified?
+Also, how about 

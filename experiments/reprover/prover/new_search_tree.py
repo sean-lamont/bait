@@ -9,8 +9,8 @@ from typing import Optional, List, Iterable, Union, Tuple, Set
 
 from lean_dojo import (
     TacticState,
-    # LeanError,
-    TacticError,
+    LeanError,
+    # TacticError,
     TimeoutError,
     ProofGivenUp,
 )
@@ -71,8 +71,8 @@ class ProofFinishedNode(Node):
 
 @dataclass
 class ErrorNode(Node):
-    inner: Union[TacticError, TimeoutError, ProofGivenUp, TreeError]
-    # inner: Union[LeanError, TimeoutError, ProofGivenUp]
+    # inner: Union[TacticError, TimeoutError, ProofGivenUp, TreeError]
+    inner: Union[LeanError, TimeoutError, ProofGivenUp]
     status = Status.FAILED
     distance_to_proof = math.inf
     visit_count = 0

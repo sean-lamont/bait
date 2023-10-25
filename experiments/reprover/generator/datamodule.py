@@ -10,7 +10,7 @@ from lean_dojo.constants import LEAN3_DEPS_DIR
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoTokenizer, ByT5Tokenizer
 
-from experiments.reprover.common import (
+from common import (
     Batch,
     Corpus,
     Example,

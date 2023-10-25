@@ -267,8 +267,8 @@ class BestFirstSearchProver:
         self.environment_time += elapsed
 
         if type(response) in (
-                TacticError,
-                # LeanError,
+                # TacticError,
+                LeanError,
                 TimeoutError,
                 ProofGivenUp,
         ):
