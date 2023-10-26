@@ -1,6 +1,8 @@
+import os
 import time
 from loguru import logger
 
+from lean_dojo.constants import LEAN3_DEPS_DIR, LEAN4_DEPS_DIR
 from refactor.proof_node import *
 
 from lean_dojo import (
@@ -12,7 +14,8 @@ from lean_dojo import (
     DojoInitError,
     DojoCrashError,
     DojoHardTimeoutError,
-    TacticError,
+    # TacticError,
+    LeanError,
     TimeoutError,
     TacticState,
     ProofGivenUp
@@ -22,12 +25,42 @@ from lean_dojo import (
 # https://stackoverflow.com/questions/31189526/what-is-the-pythonic-way-to-inherit-context-manager
 
 class LeanDojoEnv:
-    def __init__(self):
+    def __init__(self, thm, timeout):
         # need a dictionary mapping goals to their state
+        self.timeout = timeout
         self.goal_map = {}
-        # self.dojo = ..
         self.environment_time = 0
         self.nodes = {}
+        self.thm = thm
+        self.repo = self.thm.repo
+
+    def __enter__(self):
+        self.dojo, init_state = Dojo(self.thm, hard_timeout=600 + self.timeout).__enter__()
+
+        self.goal_map[init_state.pp] = init_state
+
+        return init_state.pp
+
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.dojo.__exit__(exc_type, exc_val, exc_tb)
+
+
+    def retrieve_premises(self):
+        path = str(self.thm.file_path)
+
+        if self.thm.repo != self.repo:
+            if self.thm.repo.uses_lean3:
+                path = os.path.join(LEAN3_DEPS_DIR, self.thm.repo.name, path)
+            elif self.thm.repo.is_lean:
+                raise NotImplementedError
+            else:
+                path = os.path.join(LEAN4_DEPS_DIR, self.thm.repo.name, path)
+
+        #todo..
+        premises = None
+        return premises
+
 
     def _run_tactic(self, node: InternalNode, tactic: str, logprob: float):  # -> Tuple[Edge, List]:
         t0 = time.monotonic()
@@ -53,8 +86,8 @@ class LeanDojoEnv:
         result_node = []
 
         if type(response) in (
-                TacticError,
-                # LeanError,
+                # TacticError,
+                LeanError,
                 TimeoutError,
                 ProofGivenUp,
         ):

@@ -289,6 +289,7 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
             [state], [file_path], [theorem_full_name], [theorem_pos], num_samples
         )[0]
 
+    # todo remove file path
     def batch_generate(
         self,
         state: List[str],
