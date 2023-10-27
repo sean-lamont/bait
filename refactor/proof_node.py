@@ -107,28 +107,17 @@ class ErrorNode(Node):
     provable_score = -math.inf
 
 
-@total_ordering
 @dataclass(unsafe_hash=True)
 class InternalNode(Node):
     """
     An internal node in the search tree, representing a nonterminal state.
-
-    Nodes are sorted by _inverse_ priority, for compatibility with the `heapq` library.
-    That is, node_a < node_b is true if node_a has _higher_ priority than node_b.
     """
 
     # Unique goal, can either be isolated goal or complete state
     goal: str = field(compare=True)
 
-    # The first state where the goal was created. Used as a 'surrogate', where the tactic selected
-    # for 'goal' is applied to 'state', with a rotation defined by 'goal_num' to ensure the correct goal is selected
-    # state: TacticState = field(compare=False, repr=False)
-
     # The sum of action logprobs along edges from the root to this node
     cumulative_logprob: float = field(compare=False, repr=False)
-
-    # Tracks the number of the goal in the
-    # goal_num: int = field(compare=False)
 
     # Tracks the top level goal of siblings and ancestors required for a full proof.
     # Can include multiple possible paths, each of which will satisfy the requirements
@@ -165,9 +154,6 @@ class InternalNode(Node):
     # Number of tactic applications from this node
     visit_count: int = field(default=0, compare=False, repr=False)
 
-    # Maintain a list of unique child nodes (hashed by the state string). (might not need this, just take set of out_edge.dst?)
-    # children: Set[str] = field(compare=False, default_factory=set, repr=False)
-
     # Scores based on the intrinsic probability of proving a goal, and the best available path from children
     provable_score = -math.inf
     up_score = -math.inf
@@ -191,15 +177,6 @@ class InternalNode(Node):
         self._out_edges = out_edges
         self._recompute_status()
         self._recompute_distance_to_proof()
-
-    # A node is considered fully explored if we've evaluated all candidate tactics in the environment
-    # @property
-    # def is_explored(self) -> bool:
-    #     return self.out_edges is not None
-    # if not self.out_edges:
-    #     return False
-    # else:
-    #     return len(self.out_edges) >= self.max_expansions
 
     @property
     def status(self) -> Status:
@@ -272,14 +249,6 @@ class InternalNode(Node):
                 edge.src._recompute_status()
 
             self._set_explored()
-
-    # todo move calculating this to the specific search algorithm
-    # @property
-    # def priority(self) -> float:
-    #     return self.cumulative_logprob
-    #
-    # def __lt__(self, other: "InternalNode") -> bool:
-    #     return self.priority > other.priority
 
     @property
     def distance_to_proof(self) -> float:

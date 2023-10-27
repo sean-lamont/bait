@@ -178,7 +178,7 @@ class File:
 
 class Corpus:
     """Our retrieval corpus is a DAG of files. Each file consists of
-    premises (theorems, definitoins, etc.) that can be retrieved.
+    premises (theorems, definitions, etc.) that can be retrieved.
     """
 
     transitive_dep_graph: nx.DiGraph
@@ -311,6 +311,7 @@ class Corpus:
             accessible_premises = self.get_accessible_premises(
                 ctx.path, ctx.theorem_pos
             )
+
             for i in idxs:
                 p = self.all_premises[i]
                 if p in accessible_premises:
@@ -354,7 +355,7 @@ _SPACES_REGEX = re.compile(r"\s+", re.DOTALL)
 
 
 def normalize_spaces(s: str) -> str:
-    """Repalce any consecutive block of whitespace characters in ``s`` with a single whitespace."""
+    """Replace any consecutive block of whitespace characters in ``s`` with a single whitespace."""
     return _SPACES_REGEX.sub(" ", s).strip()
 
 

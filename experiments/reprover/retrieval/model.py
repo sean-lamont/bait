@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from typing import List, Dict, Any, Tuple, Union
 from transformers import T5EncoderModel, AutoTokenizer
 
-from common import (
+from experiments.reprover.common import (
     Premise,
     Context,
     Corpus,
@@ -280,6 +280,7 @@ class PremiseRetriever(pl.LightningModule):
     def predict_step(self, batch: Dict[str, Any], _):
         context_emb = self._encode(batch["context_ids"], batch["context_mask"])
         assert not self.embeddings_staled
+
         retrieved_premises, scores = self.corpus.get_nearest_premises(
             self.corpus_embeddings,
             batch["context"],

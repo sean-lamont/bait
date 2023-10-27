@@ -1,5 +1,7 @@
 import os
 import time
+from typing import Tuple
+
 from loguru import logger
 
 from lean_dojo.constants import LEAN3_DEPS_DIR, LEAN4_DEPS_DIR
@@ -14,37 +16,39 @@ from lean_dojo import (
     DojoInitError,
     DojoCrashError,
     DojoHardTimeoutError,
-    # TacticError,
-    LeanError,
+    TacticError,
+    # LeanError,
     TimeoutError,
     TacticState,
     ProofGivenUp
 )
 
-# todo wrap in a context manager over LeanDojo, as below
-# https://stackoverflow.com/questions/31189526/what-is-the-pythonic-way-to-inherit-context-manager
+'''
 
+Environment Wrapper over LeanDojo. Adds premise retrieval and processing of proof tree
+
+'''
 class LeanDojoEnv:
-    def __init__(self, thm, timeout):
+    def __init__(self, repo, thm, pos, timeout):
         # need a dictionary mapping goals to their state
         self.timeout = timeout
-        self.goal_map = {}
         self.environment_time = 0
-        self.nodes = {}
+        self.node_map = {}
         self.thm = thm
-        self.repo = self.thm.repo
+        self.repo = repo
+        self.pos = pos
 
     def __enter__(self):
         self.dojo, init_state = Dojo(self.thm, hard_timeout=600 + self.timeout).__enter__()
 
-        self.goal_map[init_state.pp] = init_state
+        root = InternalNode(goal=init_state.pp, cumulative_logprob=0.0)
 
-        return init_state.pp
+        self.node_map[init_state.pp] = (0, init_state, root)
 
+        return self, root
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.dojo.__exit__(exc_type, exc_val, exc_tb)
-
 
     def retrieve_premises(self):
         path = str(self.thm.file_path)
@@ -57,15 +61,14 @@ class LeanDojoEnv:
             else:
                 path = os.path.join(LEAN4_DEPS_DIR, self.thm.repo.name, path)
 
-        #todo..
-        premises = None
-        return premises
+        return path, self.thm, self.pos
 
-
-    def _run_tactic(self, node: InternalNode, tactic: str, logprob: float):  # -> Tuple[Edge, List]:
+    def run_tactic(self, node: InternalNode, tactic: Tuple[str, float]):  # -> Tuple[Edge, List]:
         t0 = time.monotonic()
 
-        goal_num, state = self.goal_map[node.goal]
+        tactic, logprob = tactic
+
+        goal_num, state, _ = self.node_map[node.goal]
 
         if goal_num != 0:
             # ensure the tactic is applied to the correct goal in the surrogate state
@@ -79,15 +82,13 @@ class LeanDojoEnv:
 
         self.environment_time += elapsed
 
-        new_nodes = []
-
         node.visit_count += 1
 
         result_node = []
 
         if type(response) in (
-                # TacticError,
-                LeanError,
+                TacticError,
+                # LeanError,
                 TimeoutError,
                 ProofGivenUp,
         ):
@@ -114,25 +115,25 @@ class LeanDojoEnv:
             # no new goals, and previous goal not present, so selected goal is proven
             elif not new_goals:
                 # sanity checks
-                if response.num_goals >= node.state.num_goals:
+                if response.num_goals >= state.num_goals:
                     logger.info(
                         # e.g response contains two identical goals, which was in prev_goals
-                        f'edge case: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {node.state}')
+                        f'edge case: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {state}')
                     response = TreeError(
-                        f'edge case 1: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {node.state}')
+                        f'edge case 1: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {state}')
                     result_node = ErrorNode(response)
                 elif not all([g in prev_goals for g in response_goals]):
                     logger.info(
-                        f'edge case 2: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {node.state}')
+                        f'edge case 2: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {state}')
                     response = TreeError(
-                        f'edge case 2: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {node.state}')
+                        f'edge case 2: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {state}')
                     result_node = ErrorNode(response)
                 # if more than one goal proven by the tactic application
-                elif response.num_goals != node.state.num_goals - 1:
+                elif response.num_goals != state.num_goals - 1:
                     # logger.info(
                     #     f'edge case 3: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {node.state}')
                     response = TreeError(
-                        f'edge case 3: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {node.state}')
+                        f'edge case 3: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {state}')
                     result_node = ErrorNode(response)
                 else:
                     result_node = ProofFinishedNode(GoalFinished())
@@ -148,8 +149,8 @@ class LeanDojoEnv:
                         result_node = ErrorNode(response)
                         result = [result_node]
                         break
-                    if goal in self.nodes:
-                        result_node = self.nodes[goal]
+                    if goal in self.node_map:
+                        goal_num, _, result_node = self.node_map[goal]
                     else:
                         result_node = InternalNode(
                             goal=goal,
@@ -157,8 +158,9 @@ class LeanDojoEnv:
                             depth=node.depth + 1
                         )
 
-                        new_nodes.append(result_node)
+                        self.node_map[goal] = (i, response, result_node)
 
+                    # todo add below to search processing?
                     # This will add the parent context (any goals required to prove the parent)
                     # as well as other siblings from the current result.
                     sib_context = {goal_ for goal_ in new_goals if goal_ != goal}
@@ -171,19 +173,8 @@ class LeanDojoEnv:
 
                     # Add ancestors for detecting cycles
                     result_node.add_ancestors(node.ancestors | {node.goal})
-                    result.append(result_node)
 
-                # if new_nodes:
-                #     # compute provable_score/up_score for new internal nodes
-                #     node_goals = ['<extra_id_0>' + node_.goal for node_ in new_nodes]
-                #
-                #     t1 = time.monotonic()
-                #     scores = self.goal_model.batch_generate(node_goals)
-                #     self.goal_time += time.monotonic() - t1
-                #
-                #     for i, node_ in enumerate(new_nodes):
-                #         node_.provable_score = scores[i] + (node_.depth * math.log(0.95))
-                #         node_.up_score = node_.provable_score
+                    result.append(result_node)
 
         # self-loop sanity check
         if result_node == node:
@@ -195,16 +186,5 @@ class LeanDojoEnv:
         # Build an edge connecting these nodes.
         # Will be added to the source node externally.
         edge = Edge(tactic=tactic, src=node, dst=result, logprob=logprob, time=elapsed)
-
-        # for result_node in result:
-        #     # Record the new node and add it to the search queue.
-        #     if isinstance(result_node, InternalNode):
-        #         result_node.in_edges.append(edge)
-        #         self.nodes[result_node.goal] = result_node
-        #         node.children = node.children | {result_node.goal}
-
-            # Don't search proved/explored/queued nodes
-            # if result_node.status == Status.OPEN and not result_node.is_explored and result_node not in self.priority_queue:
-            #     heapq.heappush(self.priority_queue, result_node)  # type: ignore
 
         return edge

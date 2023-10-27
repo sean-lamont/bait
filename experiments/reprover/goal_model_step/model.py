@@ -11,7 +11,7 @@ from torch import Tensor
 from transformers import T5ForConditionalGeneration, AutoTokenizer, NoBadWordsLogitsProcessor
 from torch.nn import CrossEntropyLoss
 
-from common import (
+from experiments.reprover.common import (
     zip_strict,
     remove_marks,
     get_optimizers,

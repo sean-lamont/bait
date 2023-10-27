@@ -625,7 +625,6 @@ class DistributedProver:
                     goal_path,
                     indexed_corpus_path,
                     timeout=timeout,
-                    num_sampled_tactics=num_sampled_tactics,
                     debug=debug,
                 )
                 for _ in range(num_cpus)
