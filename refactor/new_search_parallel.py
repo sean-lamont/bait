@@ -29,42 +29,11 @@ from experiments.reprover.goal_model_step.model import StepGoalModel
 from refactor.leandojo_env import LeanDojoEnv
 from refactor.proof_node import *
 
-# todo parallelise with Ray so that a single GPU can be used for several environments
-# Idea 1: rewrite TacGen and UpDown to be ray remote classes, with 0.5 GPU
-# Then instantiate them and pass them as arguments (instantiated with e.g. updown.remote(goal_model) for a prover class.
-# The prover class will also be a ray remote class, and we make e.g. 16 of these.
-# The prover class must then be changed to only use remote methods of the Tac/UpDown classes
-# Therefore need to update these classes to include methods to update/access attributes
-
-
-# todo serialisation issues (can't pass env between processes): https://docs.ray.io/en/master/ray-core/objects/serialization.html#troubleshooting
-
-@dataclass(frozen=True)
-class SearchResult:
-    """The result of attempting to prove a theorem."""
-    theorem: str
-    status: Status
-    proof: Optional[List[str]]
-    tree: Node
-    nodes: Dict = field(repr=False)
-
-    # Some statistics during proof search.
-    total_time: float
-    tac_time: float
-    search_time: float
-    env_time: float
-    num_expansions: int
-    num_nodes: int
-
-    # Search trace to reconstruct state+selected goals+probs
-    search_trace: Any = field(repr=False)
-
-    # Tac gen trace
-    tac_trace: Any = field(repr=False)
+from refactor.search_result import SearchResult
 
 
 # todo add tac/search model train functions, which can be lightning data modules
-@ray.remote
+@ray.remote(num_gpus=0.01)
 class EndToEndProver:
     def __init__(self, timeout, search_model, tac_model):
         self.timeout = timeout
@@ -80,20 +49,78 @@ class EndToEndProver:
         self.tac_trace = []
 
         self.dir = f'traces_{time.strftime("%Y-%m-%d_%H:%M")}'
+        self.remaining_tacs = {}
         os.makedirs(self.dir, exist_ok=True)
 
-    def _process_trace(self, trace):
-        with open(f"{self.dir}/{trace.theorem}.pk", "wb") as f:
-            pickle.dump(trace, f)
-        return
+    def _process_trace(self, theorem):
+        root = self.search_model.get_root()
+        nodes = self.search_model.get_nodes()
+        traces = self.search_model.get_traces()
+
+        if root.status == Status.PROVED:
+            proof = [e.tactic for e in root.extract_proof()]
+        else:
+            proof = None
+
+        result = SearchResult(
+            theorem=f'{theorem}',
+            status=root.status,
+            proof=proof,
+            tree=root,
+            nodes=nodes,
+            total_time=self.total_time,
+            tac_time=self.tac_time,
+            search_time=self.search_time,
+            env_time=self.env_time,
+            num_expansions=self.num_expansions,
+            tac_trace=self.tac_trace,
+            search_trace=traces,
+            num_nodes=len(nodes)
+        )
+
+        logger.info(f'Result: {result}')
+
+        with open(f"{self.dir}/{result.theorem}.pk", "wb") as f:
+            pickle.dump(result, f)
+
+        return result
+
+    # todo change based on fixed expansions vs one at a time
+    def get_tactics(self, goals, premises):
+        search_node = goals
+        ts = search_node.goal
+
+        # Get full set of suggestions for goal if it hasn't been computed already
+        if ts not in self.remaining_tacs:
+            logger.debug(f'Generating tacs for {ts}')
+            tacs = ray.get(self.tac_model.get_tactics.remote(ts, premises))
+            tacs.reverse()
+            self.remaining_tacs[ts] = tacs
+
+        suggestions = self.remaining_tacs[ts]
+
+        # if we've exhausted all options
+        if not suggestions:
+            search_node.is_explored = True
+            return None
+
+        tactic, logprob = suggestions.pop()
+
+        logger.debug(f'Running {tactic}, node visits: {len(suggestions)}')
+
+        return tactic, logprob
 
     def _step(self, env):
         t0 = time.monotonic()
-        goals = self.search_model.get_goals.remote()
+        goals = self.search_model.get_goals()
         self.search_time += time.monotonic() - t0
 
         t0 = time.monotonic()
-        tactics = self.tac_model.get_tactics.remote(goals, env)
+
+        premises = env.retrieve_premises()
+
+        tactics = self.get_tactics(goals, premises)
+
         if not tactics:
             return
         self.tac_time += time.monotonic() - t0
@@ -103,12 +130,12 @@ class EndToEndProver:
         self.env_time += time.monotonic() - t0
 
         # record tactic and response in trace
-        self.tac_trace.append((tactics, response))
+        self.tac_trace.append(response)
 
         self.num_expansions += 1
 
         t0 = time.monotonic()
-        self.search_model.process_response.remote(response)
+        self.search_model.process_response(response)
         self.search_time += time.monotonic() - t0
 
     def search(self, env):
@@ -119,30 +146,7 @@ class EndToEndProver:
                 logger.warning(f"Error in search {e}")
                 pass
 
-        if ray.get(self.search_model.get_root.remote()).status == Status.PROVED:
-            proof = [e.tactic for e in self.search_model.get_root.remote().extract_proof()]
-        else:
-            proof = None
-
-        result = SearchResult(
-            theorem=f'{env.thm.full_name}',
-            status=self.search_model.get_root.remote().status,
-            proof=proof,
-            tree=self.search_model.get_root.remote(),
-            nodes=self.search_model.get_nodes.remote(),
-            total_time=self.total_time,
-            tac_time=self.tac_time,
-            search_time=self.search_time,
-            env_time=self.env_time,
-            num_expansions=self.num_expansions,
-            tac_trace=self.tac_trace,
-            search_trace=self.search_model.get_traces.remote().search_trace,
-            num_nodes=len(self.search_model.get_nodes.remote())
-        )
-
-        logger.info(f'Result: {result}')
-
-        self._process_trace(result)
+        result = self._process_trace(env.thm.full_name)
 
         return result
 
@@ -150,7 +154,7 @@ class EndToEndProver:
         try:
             with env as (env, root):
                 time_start = time.monotonic()
-                self.search_model.reset.remote(root)
+                self.search_model.reset(root)
                 logger.info(f'Attempting to prove {root}')
 
                 self.search_time = 0
@@ -163,7 +167,9 @@ class EndToEndProver:
                     try:
                         self._step(env)
                     except Exception as e:
-                        assert time.monotonic() - time_start >= self.timeout, f"Exception not timeout: {e}"
+                        if not (time.monotonic() - time_start >= self.timeout):
+                            logger.info(f"Exception not timeout: {e}")
+                            traceback.print_exc()
 
                     self.total_time = time.monotonic() - time_start
 
@@ -200,7 +206,16 @@ class Search:
         return
 
 
-@ray.remote(num_gpus=0.5)
+@ray.remote(num_gpus=0.45)
+class GoalModel:
+    def __init__(self, model):
+        self.model = model
+
+    def run(self, goals):
+        scores = self.model.batch_generate(goals)
+        return scores
+
+
 class UpDown(Search):
     def __init__(self, goal_model):
         self.goal_model = goal_model
@@ -218,7 +233,8 @@ class UpDown(Search):
         # Initially will only have the root
         if len(self.nodes) == 1:
             node_goals = ['<extra_id_0>' + self.root.goal]
-            scores = self.goal_model.batch_generate(node_goals)
+            # scores = self.goal_model.batch_generate(node_goals)
+            scores = ray.get(self.goal_model.run.remote(node_goals))
 
             self.root.provable_score = scores[0]
             self.root.up_score = scores[0]
@@ -279,7 +295,7 @@ class UpDown(Search):
             # compute provable_score/up_score for new internal nodes
             node_goals = ['<extra_id_0>' + node_.goal for node_ in new_nodes]
 
-            scores = self.goal_model.batch_generate(node_goals)
+            scores = ray.get(self.goal_model.run.remote(node_goals))
 
             for i, node_ in enumerate(new_nodes):
                 node_.provable_score = scores[i] + (node_.depth * math.log(0.95))
@@ -309,22 +325,23 @@ class UpDown(Search):
     def get_nodes(self):
         return self.nodes
 
+
 class TacModel:
     @abstractmethod
     def get_tactics(self, goals, env):
         return
 
 
-@ray.remote(num_gpus=0.5)
+# todo make tac_gen and retriever more system agnostic
+@ray.remote(num_gpus=0.45)
 class ReProverTacGen(TacModel):
     def __init__(self, tac_model, num_sampled_tactics=64):
         super().__init__()
         self.tac_model = tac_model
-        self.remaining_tacs = {}
         self.num_sampled_tactics = num_sampled_tactics
 
-    def _generate_tactics(self, ts: str, env) -> List[Tuple[str, float]]:
-        path, theorem, position = env.retrieve_premises()
+    def get_tactics(self, ts, premises):
+        path, theorem, position = premises
 
         tactics = self.tac_model.generate(
             state=ts,
@@ -336,30 +353,6 @@ class ReProverTacGen(TacModel):
 
         logger.debug(f"Tactic suggestions: {tactics}")
         return tactics
-
-    def get_tactics(self, goals, env):
-        search_node = goals
-        ts = search_node.goal
-
-        # Get full set of suggestions for goal if it hasn't been computed already
-        if ts not in self.remaining_tacs:
-            logger.debug(f'Generating tacs for {ts}')
-            tacs = self._generate_tactics(ts, env)
-            tacs.reverse()
-            self.remaining_tacs[ts] = tacs
-
-        suggestions = self.remaining_tacs[ts]
-
-        # if we've exhausted all options
-        if not suggestions:
-            search_node.is_explored = True
-            return None
-
-        tactic, logprob = suggestions.pop()
-
-        logger.debug(f'Running {tactic}, node visits: {len(suggestions)}')
-
-        return tactic, logprob
 
 
 # # set to 1 / (gpu_mem //  required_mem)
@@ -455,6 +448,8 @@ class DistributedProver:
 
             ray.init(num_gpus=1)
 
+            # todo make multiple copies for tac_gen and goal_model depending on the number of GPUs and available GPU VRAM
+
             device = torch.device("cuda") if with_gpus else torch.device("cpu")
             tac_gen = RetrievalAugmentedGenerator.load(
                 ckpt_path, device=device, freeze=True
@@ -467,11 +462,9 @@ class DistributedProver:
 
             tac_model = ReProverTacGen.remote(tac_model=tac_gen)
 
-            search_model = UpDown.remote(goal_model)
+            goal_model = GoalModel.remote(goal_model)
 
-            # self.prover = EndToEndProver(
-            #     tac_model=tac_model, search_model=search_model, timeout=timeout
-            # )
+            search_model = UpDown(goal_model)
 
             self.prover_pool = ActorPool([EndToEndProver.remote(
                 tac_model=tac_model, search_model=search_model, timeout=timeout

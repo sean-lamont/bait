@@ -68,7 +68,10 @@ class LeanDojoEnv:
 
         tactic, logprob = tactic
 
-        goal_num, state, _ = self.node_map[node.goal]
+        try:
+            goal_num, state, _ = self.node_map[node.goal]
+        except:
+            logger.warning(f'wtf: {self.node_map, node.goal}')
 
         if goal_num != 0:
             # ensure the tactic is applied to the correct goal in the surrogate state
