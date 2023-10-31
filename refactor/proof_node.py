@@ -151,9 +151,6 @@ class InternalNode(Node):
         default=math.inf, init=False, compare=False, repr=False
     )
 
-    # Number of tactic applications from this node
-    visit_count: int = field(default=0, compare=False, repr=False)
-
     # Scores based on the intrinsic probability of proving a goal, and the best available path from children
     provable_score = -math.inf
     up_score = -math.inf
@@ -165,6 +162,14 @@ class InternalNode(Node):
     depth: int = field(default=0, compare=False, repr=False)
 
     max_expansions: int = field(default=64, compare=False, repr=False)
+
+    # Number of tactic applications from this node
+    @property
+    def visit_count(self) -> int:
+        if self.out_edges:
+            return len(self.out_edges)
+        else:
+            return 0
 
     @property
     def out_edges(self):
@@ -240,6 +245,9 @@ class InternalNode(Node):
         for edge in self.out_edges:
             if all(child.status == Status.PROVED for child in edge.dst):
                 self._status = Status.PROVED
+
+        if all([child.dst[0].status == Status.FAILED for child in self.out_edges]) and self.visit_count >= self.max_expansions:
+            self._status = Status.FAILED
 
         # If this node was proved or failed, parents may need to recompute.
         # This is guaranteed to terminate because only open nodes can change, and

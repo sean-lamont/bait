@@ -488,6 +488,8 @@ def set_logger(verbose: bool) -> None:
         logger.add(sys.stderr, level="DEBUG")
     else:
         logger.add(sys.stderr, level="INFO")
+        # logger.add('log.log', level="INFO")
+
 
 
 def cpu_checkpointing_enabled(pl_module) -> bool:

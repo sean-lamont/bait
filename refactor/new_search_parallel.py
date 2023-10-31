@@ -80,7 +80,7 @@ class EndToEndProver:
 
         logger.info(f'Result: {result}')
 
-        with open(f"{self.dir}/{result.theorem}.pk", "wb") as f:
+        with open(f"{self.dir}/{theorem}.pk", "wb") as f:
             pickle.dump(result, f)
 
         return result
@@ -170,10 +170,13 @@ class EndToEndProver:
                         if not (time.monotonic() - time_start >= self.timeout):
                             logger.info(f"Exception not timeout: {e}")
                             traceback.print_exc()
+                            self._process_trace(f'error_{env.thm.full_name}')
 
                     self.total_time = time.monotonic() - time_start
 
-                    if self.total_time > self.timeout:
+                    # if self.total_time > self.timeout:
+                    # timeout only on environment, since model calls are queued and blocking
+                    if self.env_time > self.timeout:
                         if root.status == Status.PROVED:
                             logger.info("Found a proof but timed out.")
                         root.status = Status.OPEN
@@ -190,6 +193,7 @@ class EndToEndProver:
         except Exception as e:
             logger.warning(f'Environment error {e}')
             traceback.print_exc()
+            self._process_trace(f'error_{env.thm.full_name}')
 
 
 class Search:
@@ -258,7 +262,7 @@ class UpDown(Search):
                 best_score = score
                 best_node = node
 
-        self.search_trace.append((best_node, best_score.item()))
+        self.search_trace.append((best_node, best_score))
 
         return best_node
 
@@ -273,7 +277,14 @@ class UpDown(Search):
                 if edge_score > best_score:
                     best_score = edge_score
 
-            if best_score > node.up_score:
+            if node.visit_count == node.max_expansions:
+                node.provable_score = -math.inf
+
+            up_score = max(node.provable_score, best_score)
+
+            # todo scale breadth as it's explored
+            if up_score != node.up_score:
+                # if best_score > node.up_score:
                 node.up_score = best_score
                 parents = set([edge.src for edge in node.in_edges])
                 for parent in parents:
@@ -314,6 +325,7 @@ class UpDown(Search):
             search_node.out_edges = [response]
 
         self._up_step(search_node)
+
         return
 
     def get_root(self):
@@ -441,12 +453,14 @@ class DistributedProver:
             timeout: int,
     ) -> None:
 
-        self.distributed = num_cpus > 1
+        # self.distributed = num_cpus > 1
+        self.distributed = False
 
         if not self.distributed:
             with_gpus = True
+            self.num_gpus = 2
 
-            ray.init(num_gpus=1)
+            ray.init(num_gpus=self.num_gpus)
 
             # todo make multiple copies for tac_gen and goal_model depending on the number of GPUs and available GPU VRAM
 
@@ -458,17 +472,27 @@ class DistributedProver:
                 assert indexed_corpus_path is not None
                 tac_gen.retriever.load_corpus(indexed_corpus_path)
 
-            goal_model = StepGoalModel.load(goal_path, device=torch.device("cuda"), freeze=True)
+            prover_pool = []
 
-            tac_model = ReProverTacGen.remote(tac_model=tac_gen)
+            for _ in range(self.num_gpus):
+                goal_model = StepGoalModel.load(goal_path, device=torch.device("cuda"), freeze=True)
 
-            goal_model = GoalModel.remote(goal_model)
+                tac_model = ReProverTacGen.remote(tac_model=tac_gen)
 
-            search_model = UpDown(goal_model)
+                goal_model = GoalModel.remote(goal_model)
 
-            self.prover_pool = ActorPool([EndToEndProver.remote(
-                tac_model=tac_model, search_model=search_model, timeout=timeout
-            ) for _ in range(8)])
+                search_model = UpDown(goal_model)
+
+                prover_pool.extend([EndToEndProver.remote(
+                    tac_model=tac_model, search_model=search_model, timeout=timeout
+                    # ) for _ in range(num_cpus // self.num_gpus)])
+                ) for _ in range(2)])
+
+            # self.prover_pool = ActorPool([EndToEndProver.remote(
+            #     tac_model=tac_model, search_model=search_model, timeout=timeout
+            # ) for _ in range(8)])
+
+            self.prover_pool = ActorPool(prover_pool)
 
             return
 
@@ -510,7 +534,7 @@ class DistributedProver:
                 # for thm, pos in zip_strict(theorems, positions)
                 list(
                     self.prover_pool.map_unordered(
-                        lambda p, x: p.search.remote(LeanDojoEnv(repo, x[0], x[1], 600)),
+                        lambda p, x: p.search.remote(LeanDojoEnv(repo, x[0], x[1], 6000)),
                         zip_strict(theorems, positions),
                     )
                 )
@@ -518,7 +542,7 @@ class DistributedProver:
         try:
             results = list(
                 self.prover_pool.map_unordered(
-                    lambda p, x: p.search.remote(LeanDojoEnv(repo, x[0], x[1], 600)),
+                    lambda p, x: p.search.remote(LeanDojoEnv(repo, x[0], x[1], 6000)),
                     zip_strict(theorems, positions),
                 )
             )
