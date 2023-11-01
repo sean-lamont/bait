@@ -98,7 +98,6 @@ class ProofFinishedNode(Node):
 @dataclass
 class ErrorNode(Node):
     inner: Union[EnvironmentError, TreeError]
-    # inner: Union[LeanError, TimeoutError, ProofGivenUp, TreeError]
     status = Status.FAILED
     distance_to_proof = math.inf
     visit_count = 0
@@ -246,7 +245,8 @@ class InternalNode(Node):
             if all(child.status == Status.PROVED for child in edge.dst):
                 self._status = Status.PROVED
 
-        if all([child.dst[0].status == Status.FAILED for child in self.out_edges]) and self.visit_count >= self.max_expansions:
+        if all([child.dst[0].status == Status.FAILED for child in
+                self.out_edges]) and self.visit_count >= self.max_expansions:
             self._status = Status.FAILED
 
         # If this node was proved or failed, parents may need to recompute.

@@ -262,7 +262,7 @@ class UpDown(Search):
                 best_score = score
                 best_node = node
 
-        self.search_trace.append((best_node, best_score))
+        self.search_trace.append((best_node.goal, best_score.item()))
 
         return best_node
 
@@ -309,8 +309,8 @@ class UpDown(Search):
             scores = ray.get(self.goal_model.run.remote(node_goals))
 
             for i, node_ in enumerate(new_nodes):
-                node_.provable_score = scores[i] + (node_.depth * math.log(0.95))
-                node_.up_score = node_.provable_score
+                node_.provable_score = (scores[i] + (node_.depth * math.log(0.95))).item()
+                node_.up_score = node_.provable_score.item()
 
         for result_node in result:
             # Record the new node and add it to the search queue.
@@ -458,7 +458,7 @@ class DistributedProver:
 
         if not self.distributed:
             with_gpus = True
-            self.num_gpus = 2
+            self.num_gpus = 1
 
             ray.init(num_gpus=self.num_gpus)
 
@@ -486,7 +486,7 @@ class DistributedProver:
                 prover_pool.extend([EndToEndProver.remote(
                     tac_model=tac_model, search_model=search_model, timeout=timeout
                     # ) for _ in range(num_cpus // self.num_gpus)])
-                ) for _ in range(2)])
+                ) for _ in range(8)])
 
             # self.prover_pool = ActorPool([EndToEndProver.remote(
             #     tac_model=tac_model, search_model=search_model, timeout=timeout
