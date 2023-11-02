@@ -42,6 +42,7 @@ def config_to_dict(conf):
         conf, resolve=True, throw_on_missing=True
     )
 
+
 # todo add tac/search model train functions, which can be lightning data modules
 @ray.remote(num_gpus=0.01)
 class EndToEndProver:
@@ -59,7 +60,7 @@ class EndToEndProver:
         self.tac_trace = []
 
         self.dir = directory
-        #f'traces_{time.strftime("%Y-%m-%d_%H:%M")}'
+        # f'traces_{time.strftime("%Y-%m-%d_%H:%M")}'
         self.remaining_tacs = {}
         # os.makedirs(self.dir, exist_ok=True)
 
@@ -180,8 +181,8 @@ class EndToEndProver:
                     try:
                         self._step(env)
                     except Exception as e:
-                        # if not (time.monotonic() - self.env_time >= self.timeout):
-                        if not (time.monotonic() - self.env_time >= 6000):
+                        # if not (time.monotonic() - time_start >= self.timeout):
+                        if not (self.env_time >= self.timeout):
                             logger.warning(f"Exception not timeout: {e}")
                             traceback.print_exc()
                             root.status = Status.FAILED
@@ -191,7 +192,7 @@ class EndToEndProver:
 
                     # if self.total_time > self.timeout:
                     # timeout only on environment, since model calls are queued and blocking
-                    if self.env_time > self.timeout:
+                    if self.env_time >= self.timeout:
                         if root.status == Status.PROVED:
                             logger.info("Found a proof but timed out.")
                         root.status = Status.OPEN
@@ -226,7 +227,7 @@ class Search:
         return
 
 
-@ray.remote(num_gpus=0.45)
+@ray.remote(num_cpus=0.5, num_gpus=0.225)
 class GoalModel:
     def __init__(self, model):
         self.model = model
@@ -278,7 +279,7 @@ class UpDown(Search):
                 best_score = score
                 best_node = node
 
-        self.search_trace.append((best_node.goal, best_score.item()))
+        self.search_trace.append((best_node.goal, best_score))
 
         return best_node
 
@@ -326,7 +327,7 @@ class UpDown(Search):
 
             for i, node_ in enumerate(new_nodes):
                 node_.provable_score = (scores[i] + (node_.depth * math.log(0.95))).item()
-                node_.up_score = node_.provable_score.item()
+                node_.up_score = node_.provable_score
 
         for result_node in result:
             # Record the new node and add it to the search queue.
@@ -361,7 +362,7 @@ class TacModel:
 
 
 # todo make tac_gen and retriever more system agnostic
-@ray.remote(num_gpus=0.45)
+@ray.remote(num_cpus=0.5, num_gpus=0.225)
 class ReProverTacGen(TacModel):
     def __init__(self, tac_model, num_sampled_tactics=64):
         super().__init__()
@@ -482,16 +483,18 @@ class DistributedProver:
             # todo make multiple copies for tac_gen and goal_model depending on the number of GPUs and available GPU VRAM
 
             device = torch.device("cuda") if with_gpus else torch.device("cpu")
-            tac_gen = RetrievalAugmentedGenerator.load(
-                ckpt_path, device=device, freeze=True
-            )
-            if tac_gen.retriever is not None:
-                assert indexed_corpus_path is not None
-                tac_gen.retriever.load_corpus(indexed_corpus_path)
 
             prover_pool = []
 
-            for _ in range(self.num_gpus):
+            # todo test performance loading these before and passing object reference
+            for _ in range(4):
+                tac_gen = RetrievalAugmentedGenerator.load(
+                    ckpt_path, device=device, freeze=True
+                )
+                if tac_gen.retriever is not None:
+                    assert indexed_corpus_path is not None
+                    tac_gen.retriever.load_corpus(indexed_corpus_path)
+
                 goal_model = StepGoalModel.load(goal_path, device=torch.device("cuda"), freeze=True)
 
                 tac_model = ReProverTacGen.remote(tac_model=tac_gen)
@@ -503,7 +506,7 @@ class DistributedProver:
                 prover_pool.extend([EndToEndProver.remote(
                     tac_model=tac_model, search_model=search_model, timeout=timeout, directory=log_dir
                     # ) for _ in range(num_cpus // self.num_gpus)])
-                ) for _ in range(2)])
+                ) for _ in range(1)])
 
             self.prover_pool = ActorPool(prover_pool)
 
@@ -567,7 +570,8 @@ class DistributedProver:
         return results
 
 
-@hydra.main(config_path="/home/sean/Documents/bait/experiments/configs/experiments")  # , config_name="experiments/holist_eval")
+@hydra.main(
+    config_path="/home/sean/Documents/bait/experiments/configs/experiments")  # , config_name="experiments/holist_eval")
 def main(config) -> None:
     OmegaConf.resolve(config)
 
@@ -593,14 +597,12 @@ def main(config) -> None:
     #                mode='offline' if config.logging_config.offline else 'online'
     #                )
 
-
     set_logger(config.verbose)
 
     logger.info(f"PID: {os.getpid()}")
     logger.info(f"Config: {config}")
 
     repo, theorems, positions = _get_theorems(config)
-
 
     # Remove proven theorems if resuming
     if config.exp_config.resume:
@@ -653,13 +655,8 @@ def main(config) -> None:
         logger.info(f"Results saved to {pickle_path}")
 
 
-
-
-
-
 if __name__ == '__main__':
     main()
-
 
 # DPO loss from paper,
 
@@ -750,8 +747,3 @@ if __name__ == '__main__':
 # Randomly generate an experiment ID if not provided.
 # if args.exp_id is None:
 #     args.exp_id = str(uuid.uuid4())
-
-
-
-
-

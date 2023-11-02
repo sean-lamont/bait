@@ -7,8 +7,8 @@ defaults:
 exp_config:
   name: leandojo_eval
   experiment: eval_loop
-  directory: experiments/runs/eval_loop/leandojo_eval_2023_11_02/15_53_50
-  resume: True
+#  directory: experiments/runs/eval_loop/leandojo_eval_2023_11_02/15_53_50
+#  resume: True
 
 #model_config:
 #  model_type: ???
@@ -31,7 +31,7 @@ ckpt_path: last.ckpt
 goal_path: goal_step.ckpt
 indexed_corpus_path: null
 num_sampled_tactics: 64
-timeout: 6000
+timeout: 600
 num_cpus: 4
 with_gpus: True
 verbose: False
