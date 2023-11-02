@@ -1,41 +1,51 @@
 """Script for evaluating the prover on theorems extracted by LeanDojo.
 """
-import argparse
-import hashlib
-import json
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import glob
 import os
 import pickle
 import sys
 import time
 import traceback
-import uuid
-from typing import Dict, Tuple, Any
+from typing import Any
 
+import hydra
 import ray
 import torch
+import wandb
 from lean_dojo import (
     Pos,
     Theorem,
     LeanGitRepo,
 )
-from lean_dojo import is_available_in_cache
 from loguru import logger
+from omegaconf import OmegaConf
 from ray.util.actor_pool import ActorPool
 
+# from experiments.holist_supervised import config_to_dict
 from experiments.reprover.common import set_logger
 from experiments.reprover.common import zip_strict
 from experiments.reprover.generator.model import RetrievalAugmentedGenerator
 from experiments.reprover.goal_model_step.model import StepGoalModel
+from refactor.get_lean_theorems import _get_theorems
 from refactor.leandojo_env import LeanDojoEnv
 from refactor.proof_node import *
-
 from refactor.search_result import SearchResult
 
+
+def config_to_dict(conf):
+    return OmegaConf.to_container(
+        conf, resolve=True, throw_on_missing=True
+    )
 
 # todo add tac/search model train functions, which can be lightning data modules
 @ray.remote(num_gpus=0.01)
 class EndToEndProver:
-    def __init__(self, timeout, search_model, tac_model):
+    def __init__(self, timeout, search_model, tac_model, directory):
         self.timeout = timeout
         self.search_model = search_model
         self.tac_model = tac_model
@@ -48,9 +58,10 @@ class EndToEndProver:
 
         self.tac_trace = []
 
-        self.dir = f'traces_{time.strftime("%Y-%m-%d_%H:%M")}'
+        self.dir = directory
+        #f'traces_{time.strftime("%Y-%m-%d_%H:%M")}'
         self.remaining_tacs = {}
-        os.makedirs(self.dir, exist_ok=True)
+        # os.makedirs(self.dir, exist_ok=True)
 
     def _process_trace(self, theorem):
         root = self.search_model.get_root()
@@ -80,7 +91,7 @@ class EndToEndProver:
 
         logger.info(f'Result: {result}')
 
-        with open(f"{self.dir}/{theorem}.pk", "wb") as f:
+        with open(f"{self.dir}/{theorem}", "wb") as f:
             pickle.dump(result, f)
 
         return result
@@ -152,7 +163,9 @@ class EndToEndProver:
 
     def _search(self, env) -> None:
         try:
+            thm_name = 'None'
             with env as (env, root):
+                thm_name = env.thm.full_name
                 time_start = time.monotonic()
                 self.search_model.reset(root)
                 logger.info(f'Attempting to prove {root}')
@@ -167,10 +180,12 @@ class EndToEndProver:
                     try:
                         self._step(env)
                     except Exception as e:
-                        if not (time.monotonic() - time_start >= self.timeout):
-                            logger.info(f"Exception not timeout: {e}")
+                        # if not (time.monotonic() - self.env_time >= self.timeout):
+                        if not (time.monotonic() - self.env_time >= 6000):
+                            logger.warning(f"Exception not timeout: {e}")
                             traceback.print_exc()
-                            self._process_trace(f'error_{env.thm.full_name}')
+                            root.status = Status.FAILED
+                            self._process_trace(f'{thm_name}')
 
                     self.total_time = time.monotonic() - time_start
 
@@ -193,7 +208,8 @@ class EndToEndProver:
         except Exception as e:
             logger.warning(f'Environment error {e}')
             traceback.print_exc()
-            self._process_trace(f'error_{env.thm.full_name}')
+            root.status = Status.FAILED
+            self._process_trace(f'{thm_name}')
 
 
 class Search:
@@ -451,6 +467,7 @@ class DistributedProver:
             num_cpus: int,
             with_gpus: bool,
             timeout: int,
+            log_dir: str
     ) -> None:
 
         # self.distributed = num_cpus > 1
@@ -458,7 +475,7 @@ class DistributedProver:
 
         if not self.distributed:
             with_gpus = True
-            self.num_gpus = 1
+            self.num_gpus = 2
 
             ray.init(num_gpus=self.num_gpus)
 
@@ -484,13 +501,9 @@ class DistributedProver:
                 search_model = UpDown(goal_model)
 
                 prover_pool.extend([EndToEndProver.remote(
-                    tac_model=tac_model, search_model=search_model, timeout=timeout
+                    tac_model=tac_model, search_model=search_model, timeout=timeout, directory=log_dir
                     # ) for _ in range(num_cpus // self.num_gpus)])
-                ) for _ in range(8)])
-
-            # self.prover_pool = ActorPool([EndToEndProver.remote(
-            #     tac_model=tac_model, search_model=search_model, timeout=timeout
-            # ) for _ in range(8)])
+                ) for _ in range(2)])
 
             self.prover_pool = ActorPool(prover_pool)
 
@@ -554,157 +567,66 @@ class DistributedProver:
         return results
 
 
-def _get_theorems(args) -> Tuple[LeanGitRepo, List[Theorem], List[Pos]]:
-    repo, theorems, positions = _get_theorems_from_files(
-        args.data_path,
-        args.split,
-        args.file_path,
-        args.full_name,
-        args.name_filter,
-        args.num_theorems,
-    )
+@hydra.main(config_path="/home/sean/Documents/bait/experiments/configs/experiments")  # , config_name="experiments/holist_eval")
+def main(config) -> None:
+    OmegaConf.resolve(config)
 
-    all_repos = {thm.repo for thm in theorems}
-    for r in all_repos:
-        assert is_available_in_cache(
-            r
-        ), f"{r} has not been traced yet. Please use LeanDojo to trace it so that it's available in the cache."
+    os.makedirs(config.exp_config.directory + '/checkpoints', exist_ok=True)
+    os.makedirs(config.exp_config.directory + '/traces', exist_ok=True)
 
-    return repo, theorems, positions
+    if config.exp_config.resume:
+        # wandb.init(project=config.logging_config.project,
+        #            name=config.exp_config.name,
+        #            config=config_to_dict(config),
+        #            dir=config.exp_config.directory,
+        #            resume='must',
+        #            id=config.logging_config.id,
+        #            mode='offline' if config.logging_config.offline else 'online'
+        #            )
 
-
-def _get_theorems_from_files(
-        data_path: str,
-        split: str,
-        file_path: Optional[str],
-        full_name: Optional[str],
-        name_filter: Optional[str],
-        num_theorems: Optional[int],
-) -> Tuple[LeanGitRepo, List[Theorem], List[Pos]]:
-    data = json.load(open(os.path.join(data_path, f"{split}.json")))
-    theorems = []
-    positions = []
-
-    cur_url = None
-    cur_commit = None
-    for t in data:
-        if file_path is not None and t["file_path"] != file_path:
-            continue
-        if full_name is not None and t["full_name"] != full_name:
-            continue
-        if name_filter is not None and not hashlib.md5(
-                t["full_name"].encode()
-        ).hexdigest().startswith(name_filter):
-            continue
-        logger.debug(f'repo {t["url"], t["commit"]}')
-
-        if t['url'] != cur_url or t['commit'] != cur_commit:
-            cur_url = t['url']
-            cur_commit = t['commit']
-            repo = LeanGitRepo(t["url"], t["commit"])
-
-        theorems.append(Theorem(repo, t["file_path"], t["full_name"]))
-        positions.append(Pos(*t["start"]))
-    theorems = sorted(
-        theorems,
-        key=lambda t: hashlib.md5(
-            (str(t.file_path) + ":" + t.full_name).encode()
-        ).hexdigest(),
-    )
-    if num_theorems is not None:
-        theorems = theorems[:num_theorems]
-        positions = positions[:num_theorems]
-    logger.info(f"{len(theorems)} theorems loaded from {data_path}")
-
-    metadata = json.load(open(os.path.join(data_path, "../metadata.json")))
-    repo = LeanGitRepo(metadata["from_repo"]["url"], metadata["from_repo"]["commit"])
-
-    return repo, theorems, positions
+        prev_theorems = glob.glob(config.exp_config.directory + '/traces/*')
+    # else:
+    #     wandb.init(project=config.logging_config.project,
+    #                name=config.exp_config.name,
+    #                config=config_to_dict(config),
+    #                dir=config.exp_config.directory,
+    #                mode='offline' if config.logging_config.offline else 'online'
+    #                )
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Script for evaluating the prover on theorems extracted by LeanDojo."
-    )
-    parser.add_argument("--exp-id", type=str, help="Experiment ID used for logging.")
-    parser.add_argument(
-        "--data-path",
-        type=str,
-        required=True,
-        help="Path to the data extracted by LeanDojo (e.g., data/leandojo_benchmark/random).",
-    )
-    parser.add_argument(
-        "--split",
-        type=str,
-        choices=["train", "val", "test"],
-        default="val",
-    )
-    # `file_path`, `full_name`, `name_filter`, and `num_theorems` can be used to filter theorems.
-    parser.add_argument("--file-path", type=str)
-    parser.add_argument("--full-name", type=str)
-    parser.add_argument("--name-filter", type=str)
-    parser.add_argument("--num-theorems", type=int)
+    set_logger(config.verbose)
 
-    parser.add_argument(
-        "--ckpt_path",
-        type=str,
-        required=True,
-        help="Checkpoint of the tactic generator.",
-    )
-
-    parser.add_argument(
-        "--goal_path",
-        type=str,
-        required=True,
-        help="Checkpoint of the goal model",
-    )
-
-    parser.add_argument(
-        "--indexed-corpus-path",
-        type=str,
-        help="Path to a pickled indexed corpus. Not required for models w/o retrieval.",
-    )
-    parser.add_argument(
-        "--num-sampled-tactics",
-        type=int,
-        default=64,
-        help="Number of tactics to sample at each node during proof search.",
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=600,
-        help="Maximum number of seconds the proof search can take.",
-    )
-    parser.add_argument(
-        "--num-cpus", type=int, default=1, help="The number of concurrent provers."
-    )
-    parser.add_argument(
-        "--with-gpus", action="store_true", help="Use GPUs for proof search."
-    )
-    parser.add_argument(
-        "--verbose", action="store_true", help="Set the logging level to DEBUG."
-    )
-    args = parser.parse_args()
-
-    # Randomly generate an experiment ID if not provided.
-    if args.exp_id is None:
-        args.exp_id = str(uuid.uuid4())
-
-    set_logger(args.verbose)
     logger.info(f"PID: {os.getpid()}")
-    logger.info(args)
+    logger.info(f"Config: {config}")
 
-    repo, theorems, positions = _get_theorems(args)
+    repo, theorems, positions = _get_theorems(config)
+
+
+    # Remove proven theorems if resuming
+    if config.exp_config.resume:
+
+        final_theorems = []
+        final_positions = []
+
+        for i, theorem in enumerate(theorems):
+            if theorem.full_name in prev_theorems:
+                continue
+            else:
+                final_theorems.append(theorem)
+                final_positions.append(positions[i])
+
+        theorems = final_theorems
+        positions = final_positions
 
     # Search for proofs using multiple concurrent provers.
     prover = DistributedProver(
-        args.ckpt_path,
-        args.goal_path,
-        args.indexed_corpus_path,
-        num_cpus=args.num_cpus,
-        with_gpus=args.with_gpus,
-        timeout=args.timeout,
+        config.ckpt_path,
+        config.goal_path,
+        config.indexed_corpus_path,
+        num_cpus=config.num_cpus,
+        with_gpus=config.with_gpus,
+        timeout=config.timeout,
+        log_dir=config.exp_config.directory + '/traces'
     )
 
     results = prover.search_unordered(repo, theorems, positions)
@@ -725,14 +647,19 @@ def main() -> None:
     logger.info(f"Pass@1: {num_proved / (num_proved + num_failed)}")
 
     # Save the results.
-    if args.exp_id is not None:
-        pickle_path = f"{args.exp_id}_results.pickle"
+    if config.exp_id is not None:
+        pickle_path = f"{config.exp_id}_results.pickle"
         pickle.dump(results, open(pickle_path, "wb"))
         logger.info(f"Results saved to {pickle_path}")
 
 
-if __name__ == "__main__":
+
+
+
+
+if __name__ == '__main__':
     main()
+
 
 # DPO loss from paper,
 
@@ -754,3 +681,77 @@ if __name__ == "__main__":
 #     losses = -F.logsigmoid(beta * (pi_logratios - ref_logratios))
 #     rewards = beta * (pi_logps - ref_logps).detach()
 #     return losses, rewards
+
+
+# parser = argparse.ArgumentParser(
+#     description="Script for evaluating the prover on theorems extracted by LeanDojo."
+# )
+# parser.add_argument("--exp-id", type=str, help="Experiment ID used for logging.")
+# parser.add_argument(
+#     "--data-path",
+#     type=str,
+#     required=True,
+#     help="Path to the data extracted by LeanDojo (e.g., data/leandojo_benchmark/random).",
+# )
+# parser.add_argument(
+#     "--split",
+#     type=str,
+#     choices=["train", "val", "test"],
+#     default="val",
+# )
+# # `file_path`, `full_name`, `name_filter`, and `num_theorems` can be used to filter theorems.
+# parser.add_argument("--file-path", type=str)
+# parser.add_argument("--full-name", type=str)
+# parser.add_argument("--name-filter", type=str)
+# parser.add_argument("--num-theorems", type=int)
+#
+# parser.add_argument(
+#     "--ckpt_path",
+#     type=str,
+#     required=True,
+#     help="Checkpoint of the tactic generator.",
+# )
+#
+# parser.add_argument(
+#     "--goal_path",
+#     type=str,
+#     required=True,
+#     help="Checkpoint of the goal model",
+# )
+#
+# parser.add_argument(
+#     "--indexed-corpus-path",
+#     type=str,
+#     help="Path to a pickled indexed corpus. Not required for models w/o retrieval.",
+# )
+# parser.add_argument(
+#     "--num-sampled-tactics",
+#     type=int,
+#     default=64,
+#     help="Number of tactics to sample at each node during proof search.",
+# )
+# parser.add_argument(
+#     "--timeout",
+#     type=int,
+#     default=600,
+#     help="Maximum number of seconds the proof search can take.",
+# )
+# parser.add_argument(
+#     "--num-cpus", type=int, default=1, help="The number of concurrent provers."
+# )
+# parser.add_argument(
+#     "--with-gpus", action="store_true", help="Use GPUs for proof search."
+# )
+# parser.add_argument(
+#     "--verbose", action="store_true", help="Set the logging level to DEBUG."
+# )
+# args = parser.parse_args()
+
+# Randomly generate an experiment ID if not provided.
+# if args.exp_id is None:
+#     args.exp_id = str(uuid.uuid4())
+
+
+
+
+
