@@ -236,6 +236,9 @@ class InternalNode(Node):
         # assert self.is_explored and self.out_edges is not None
         assert self.out_edges is not None
 
+        if self.visit_count >= self.max_expansions:
+            self.is_explored = True
+
         # If this node is proved or failed, nothing can change that
         if self._status != Status.OPEN:
             return
@@ -245,7 +248,7 @@ class InternalNode(Node):
             if all(child.status == Status.PROVED for child in edge.dst):
                 self._status = Status.PROVED
 
-        if all([child.dst[0].status == Status.FAILED for child in
+        if all([all([c.status == Status.FAILED for c in child.dst]) for child in
                 self.out_edges]) and self.visit_count >= self.max_expansions:
             self._status = Status.FAILED
 

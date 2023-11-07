@@ -32,7 +32,7 @@ from experiments.reprover.common import zip_strict
 from experiments.reprover.generator.model import RetrievalAugmentedGenerator
 from experiments.reprover.goal_model_step.model import StepGoalModel
 from refactor.get_lean_theorems import _get_theorems
-from refactor.leandojo_env import LeanDojoEnv
+from refactor.leandojo_env import LeanDojoEnv, EnvInitError
 from refactor.proof_node import *
 from refactor.search_result import SearchResult
 
@@ -60,9 +60,7 @@ class EndToEndProver:
         self.tac_trace = []
 
         self.dir = directory
-        # f'traces_{time.strftime("%Y-%m-%d_%H:%M")}'
         self.remaining_tacs = {}
-        # os.makedirs(self.dir, exist_ok=True)
 
     def _process_trace(self, theorem):
         root = self.search_model.get_root()
@@ -122,6 +120,7 @@ class EndToEndProver:
 
         return tactic, logprob
 
+    # todo treat goals and tactics as a list, and loop over env.run based on the # goals and tactics
     def _step(self, env):
         t0 = time.monotonic()
         goals = self.search_model.get_goals()
@@ -129,12 +128,16 @@ class EndToEndProver:
 
         t0 = time.monotonic()
 
+        if not goals:
+            raise Exception("No valid goals")
+
         premises = env.retrieve_premises()
 
         tactics = self.get_tactics(goals, premises)
 
         if not tactics:
             return
+
         self.tac_time += time.monotonic() - t0
 
         t0 = time.monotonic()
@@ -155,8 +158,11 @@ class EndToEndProver:
             try:
                 self._search(env)
             except Exception as e:
+                # will only be raised if there is no root from search (e.g. error loading environment)
                 logger.warning(f"Error in search {e}")
-                pass
+                traceback.print_exc()
+                self.search_model.__init__(self.search_model.goal_model)
+                self.search_model.root = ErrorNode(EnvironmentError(str(e)))
 
         result = self._process_trace(env.thm.full_name)
 
@@ -164,33 +170,30 @@ class EndToEndProver:
 
     def _search(self, env) -> None:
         try:
-            thm_name = 'None'
+            root = None
+            self.search_time = 0
+            self.tac_time = 0
+            self.env_time = 0
+            self.num_expansions = 0
+            self.tac_trace = []
+
             with env as (env, root):
-                thm_name = env.thm.full_name
                 time_start = time.monotonic()
                 self.search_model.reset(root)
                 logger.info(f'Attempting to prove {root}')
-
-                self.search_time = 0
-                self.tac_time = 0
-                self.env_time = 0
-                self.num_expansions = 0
-                self.tac_trace = []
 
                 while True:
                     try:
                         self._step(env)
                     except Exception as e:
-                        # if not (time.monotonic() - time_start >= self.timeout):
+                        # todo make env timeout error
                         if not (self.env_time >= self.timeout):
                             logger.warning(f"Exception not timeout: {e}")
                             traceback.print_exc()
                             root.status = Status.FAILED
-                            self._process_trace(f'{thm_name}')
 
                     self.total_time = time.monotonic() - time_start
 
-                    # if self.total_time > self.timeout:
                     # timeout only on environment, since model calls are queued and blocking
                     if self.env_time >= self.timeout:
                         if root.status == Status.PROVED:
@@ -209,8 +212,10 @@ class EndToEndProver:
         except Exception as e:
             logger.warning(f'Environment error {e}')
             traceback.print_exc()
-            root.status = Status.FAILED
-            self._process_trace(f'{thm_name}')
+            if root:
+                root.status = Status.FAILED
+            else:
+                raise Exception
 
 
 class Search:
@@ -250,16 +255,17 @@ class UpDown(Search):
         self.root = root
         self.nodes[root.goal] = root
 
+        # initialise scores for root
+        node_goals = ['<extra_id_0>' + self.root.goal]
+        # scores = self.goal_model.batch_generate(node_goals)
+        scores = ray.get(self.goal_model.run.remote(node_goals))
+
+        self.root.provable_score = scores[0]
+        self.root.up_score = scores[0]
+
+    # todo sample?
+    # todo return goal plus the context (i.e. best fringe)?
     def get_goals(self):
-        # Initially will only have the root
-        if len(self.nodes) == 1:
-            node_goals = ['<extra_id_0>' + self.root.goal]
-            # scores = self.goal_model.batch_generate(node_goals)
-            scores = ray.get(self.goal_model.run.remote(node_goals))
-
-            self.root.provable_score = scores[0]
-            self.root.up_score = scores[0]
-
         best_score = -math.inf
         best_node = None
 
@@ -279,7 +285,10 @@ class UpDown(Search):
                 best_score = score
                 best_node = node
 
-        self.search_trace.append((best_node.goal, best_score))
+        if best_node:
+            self.search_trace.append((best_node.goal, best_score))
+        else:
+            self.search_trace.append((None, -math.inf))
 
         return best_node
 
@@ -291,18 +300,18 @@ class UpDown(Search):
                 for sib in edge.dst:
                     edge_score += sib.up_score
 
-                if edge_score > best_score:
+                if edge_score >= best_score:
                     best_score = edge_score
 
-            if node.visit_count == node.max_expansions:
+            if node.visit_count >= node.max_expansions:
                 node.provable_score = -math.inf
+                node.is_explored = True
 
             up_score = max(node.provable_score, best_score)
 
             # todo scale breadth as it's explored
             if up_score != node.up_score:
-                # if best_score > node.up_score:
-                node.up_score = best_score
+                node.up_score = up_score
                 parents = set([edge.src for edge in node.in_edges])
                 for parent in parents:
                     self._up_step(parent)
@@ -334,7 +343,6 @@ class UpDown(Search):
             if isinstance(result_node, InternalNode):
                 result_node.in_edges.append(response)
                 self.nodes[result_node.goal] = result_node
-                # search_node.children = search_node.children | {result_node.goal}
 
         if search_node.out_edges:
             search_node.out_edges = search_node.out_edges + [response]
@@ -544,17 +552,17 @@ class DistributedProver:
     ) -> Any:
         """Parallel proof search for `theorems`. The order of the results is not guaranteed to match the order of the input."""
         if not self.distributed:
-            return [
-                # self.prover.search(repo, thm, pos)
-                # self.prover.search(LeanDojoEnv(repo, thm, pos, 600))
-                # for thm, pos in zip_strict(theorems, positions)
-                list(
-                    self.prover_pool.map_unordered(
-                        lambda p, x: p.search.remote(LeanDojoEnv(repo, x[0], x[1], 6000)),
-                        zip_strict(theorems, positions),
-                    )
+            return list(
+                self.prover_pool.map_unordered(
+                    lambda p, x: p.search.remote(LeanDojoEnv(repo, x[0], x[1], 6000)),
+                    zip_strict(theorems, positions),
                 )
-            ]
+            )
+
+            # self.prover.search(repo, thm, pos)
+            # self.prover.search(LeanDojoEnv(repo, thm, pos, 600))
+            # for thm, pos in zip_strict(theorems, positions)
+
         try:
             results = list(
                 self.prover_pool.map_unordered(
@@ -613,9 +621,13 @@ def main(config) -> None:
         for i, theorem in enumerate(theorems):
             if theorem.full_name in prev_theorems:
                 continue
-            else:
+            elif theorem.full_name == 'nat.arithmetic_function.zeta_mul_pow_eq_sigma':
                 final_theorems.append(theorem)
                 final_positions.append(positions[i])
+            else:
+                # final_theorems.append(theorem)
+                # final_positions.append(positions[i])
+                continue
 
         theorems = final_theorems
         positions = final_positions
@@ -678,72 +690,3 @@ if __name__ == '__main__':
 #     losses = -F.logsigmoid(beta * (pi_logratios - ref_logratios))
 #     rewards = beta * (pi_logps - ref_logps).detach()
 #     return losses, rewards
-
-
-# parser = argparse.ArgumentParser(
-#     description="Script for evaluating the prover on theorems extracted by LeanDojo."
-# )
-# parser.add_argument("--exp-id", type=str, help="Experiment ID used for logging.")
-# parser.add_argument(
-#     "--data-path",
-#     type=str,
-#     required=True,
-#     help="Path to the data extracted by LeanDojo (e.g., data/leandojo_benchmark/random).",
-# )
-# parser.add_argument(
-#     "--split",
-#     type=str,
-#     choices=["train", "val", "test"],
-#     default="val",
-# )
-# # `file_path`, `full_name`, `name_filter`, and `num_theorems` can be used to filter theorems.
-# parser.add_argument("--file-path", type=str)
-# parser.add_argument("--full-name", type=str)
-# parser.add_argument("--name-filter", type=str)
-# parser.add_argument("--num-theorems", type=int)
-#
-# parser.add_argument(
-#     "--ckpt_path",
-#     type=str,
-#     required=True,
-#     help="Checkpoint of the tactic generator.",
-# )
-#
-# parser.add_argument(
-#     "--goal_path",
-#     type=str,
-#     required=True,
-#     help="Checkpoint of the goal model",
-# )
-#
-# parser.add_argument(
-#     "--indexed-corpus-path",
-#     type=str,
-#     help="Path to a pickled indexed corpus. Not required for models w/o retrieval.",
-# )
-# parser.add_argument(
-#     "--num-sampled-tactics",
-#     type=int,
-#     default=64,
-#     help="Number of tactics to sample at each node during proof search.",
-# )
-# parser.add_argument(
-#     "--timeout",
-#     type=int,
-#     default=600,
-#     help="Maximum number of seconds the proof search can take.",
-# )
-# parser.add_argument(
-#     "--num-cpus", type=int, default=1, help="The number of concurrent provers."
-# )
-# parser.add_argument(
-#     "--with-gpus", action="store_true", help="Use GPUs for proof search."
-# )
-# parser.add_argument(
-#     "--verbose", action="store_true", help="Set the logging level to DEBUG."
-# )
-# args = parser.parse_args()
-
-# Randomly generate an experiment ID if not provided.
-# if args.exp_id is None:
-#     args.exp_id = str(uuid.uuid4())

@@ -23,11 +23,18 @@ from lean_dojo import (
     ProofGivenUp
 )
 
+
+class EnvInitError(Exception):
+    pass
+
+
 '''
 
 Environment Wrapper over LeanDojo. Adds premise retrieval and processing of proof tree
 
 '''
+
+
 class LeanDojoEnv:
     def __init__(self, repo, thm, pos, timeout):
         # need a dictionary mapping goals to their state
@@ -39,7 +46,10 @@ class LeanDojoEnv:
         self.pos = pos
 
     def __enter__(self):
-        self.dojo, init_state = Dojo(self.thm, hard_timeout=600 + self.timeout).__enter__()
+        try:
+            self.dojo, init_state = Dojo(self.thm, hard_timeout=600 + self.timeout).__enter__()
+        except Exception as e:
+            raise EnvInitError(e)
 
         root = InternalNode(goal=init_state.pp, cumulative_logprob=0.0)
 
@@ -68,10 +78,7 @@ class LeanDojoEnv:
 
         tactic, logprob = tactic
 
-        try:
-            goal_num, state, _ = self.node_map[node.goal]
-        except:
-            logger.warning(f'wtf: {self.node_map, node.goal}')
+        goal_num, state, _ = self.node_map[node.goal]
 
         if goal_num != 0:
             # ensure the tactic is applied to the correct goal in the surrogate state
@@ -84,8 +91,6 @@ class LeanDojoEnv:
         elapsed = time.monotonic() - t0
 
         self.environment_time += elapsed
-
-        # node.visit_count += 1
 
         result_node = []
 
@@ -115,30 +120,24 @@ class LeanDojoEnv:
                 result_node = ErrorNode(response)
                 result = [result_node]
 
-            # no new goals, and previous goal not present, so selected goal is proven
             elif not new_goals:
-                # sanity checks
+                # if no new goals,
                 if response.num_goals >= state.num_goals:
-                    logger.info(
-                        # e.g response contains two identical goals, which was in prev_goals
-                        f'edge case: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {state}')
+                    # e.g response contains two identical goals, which were in prev_goals
                     response = TreeError(
-                        f'edge case 1: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {state}')
+                        f'Edge case 1: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {state}')
                     result_node = ErrorNode(response)
                 elif not all([g in prev_goals for g in response_goals]):
-                    logger.info(
-                        f'edge case 2: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {state}')
                     response = TreeError(
-                        f'edge case 2: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {state}')
+                        f'Edge case 2: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {state}')
                     result_node = ErrorNode(response)
-                # if more than one goal proven by the tactic application
                 elif response.num_goals != state.num_goals - 1:
-                    # logger.info(
-                    #     f'edge case 3: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {node.state}')
+                    # if more than one goal proven by the tactic application
                     response = TreeError(
-                        f'edge case 3: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {state}')
+                        f'Edge case 3: {tactic_}, prev_goals: {prev_goals}, response: {response}, state: {state}')
                     result_node = ErrorNode(response)
                 else:
+                    # no new goals, and previous goal not present, so selected goal is proven
                     result_node = ProofFinishedNode(GoalFinished())
 
                 result = [result_node]
