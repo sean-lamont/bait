@@ -44,7 +44,6 @@ def config_to_dict(conf):
     )
 
 
-# todo add tac/search model train functions, which can be lightning data modules
 class EndToEndProver:
     def __init__(self, timeout, search_model, tac_model, directory):
         self.timeout = timeout
@@ -278,7 +277,7 @@ class DistributedProver:
     #  different)
 
     def search_unordered(
-            self, repo: LeanGitRepo, theorems: List[Theorem], positions: List[Pos]
+            self, repo: LeanGitRepo, theorems: List[Theorem], positions: List[Pos], iteration=0
     ) -> Any:
 
         """Parallel proof search for `theorems`. The order of the results is not guaranteed to match the order of the
@@ -295,7 +294,7 @@ class DistributedProver:
                 logger.info(f'Result: {res}')
                 if res.proof:
                     proven += 1
-                    wandb.log({'Step': i + 1, 'Proven': proven})
+                    wandb.log({'Step': i + 1, 'Proven': proven, 'Iteration': iteration})
 
             return results
 
@@ -353,6 +352,9 @@ def main(config) -> None:
     logger.info(f"PID: {os.getpid()}")
     logger.info(f"Config: {config}")
 
+
+    # todo loop over iterations
+    # for i in range(len(self.num_iterations)): ...
     # Search for proofs using multiple concurrent provers.
     prover = DistributedProver(
         config.ckpt_path,
@@ -364,7 +366,7 @@ def main(config) -> None:
         log_dir=config.exp_config.directory + '/traces'
     )
 
-    results = prover.search_unordered(repo, theorems, positions)
+    results = prover.search_unordered(repo, theorems, positions, iteration=0)
 
     # Calculate the result statistics.
     num_proved = num_failed = num_discarded = 0
@@ -380,6 +382,17 @@ def main(config) -> None:
         f"Iteration done! {num_proved} theorems proved, {num_failed} theorems failed, {num_discarded} non-theorems discarded"
     )
     logger.info(f"Pass@1: {num_proved / (num_proved + num_failed)}")
+
+
+    # todo add end-to-end training
+    # todo add tac/search model train functions, which can be lightning data modules
+    # self.process_result(results, config) (e.g. process and add results to mongodb)
+    # if self.tac_train:
+        # self.tac_model.train (take recently updated database, and retrain tac_model)
+        # also would update retriever e.g. refresh embedding generation
+    # if self.goal.train:
+        # self.goal_model.train (likewise for goal_model)
+
 
 
 if __name__ == '__main__':
