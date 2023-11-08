@@ -1,8 +1,10 @@
+# @package _global_
 defaults:
-  - optimiser_config
-  - logging_config
+  - /base/optimiser_config@_here_
+  - /base/logging_config@_here_
+  - /base/exp_config@_here_
 
-epochs: 100000
+epochs: 15000
 batch_size: 32
 
 logging_config:
@@ -11,52 +13,40 @@ logging_config:
 #  offline: False
 #  id: 'bcqz72ui'
 
-resume: False
 
 exp_config:
-  name: offline_gnn_5_5
-  experiment: int_experiment
-  directory: 'experiments/runs/${.experiment}/${now:%Y_%m_%d}/${.name}_${now:%H_%M_%S}'#'experiments/runs/holist_pretrain/2023_08_05/int_experiment_17_55_27'
-  checkpoint_dir: ${.directory}/checkpoints
-  accelerator: gpu
-  device: [0]
+  name: gnn_k3_l5
   resume: False
-
-#model_config:
-#  model_type: ???
-#  model_attributes: ???
-
-hydra:
-  run:
-    dir: ${exp_config.directory}
-  job:
-    chdir: False
+  experiment: int_experiment
 
 
 use_gpu: True
 timestamp: ${now:%Y_%m_%d_%H_%M_%S}
 path_to_data: ""
-train_sets: ["k=5_l=5"]
-test_sets: ["k=5_l=5"]
+train_sets: ["k=3_l=5"]
+test_sets: ["k=3_l=5"]
 # whether to test graph or transformer encoder
 obs_mode: "geometric"
+#obs_mode: "seq"
 num_probs: 1000
 evaluation_size: 256
 num_val_probs: 100
 num_test_probs: 100
 transform_gt: True
 online: True
-combo_path: ???
+combo_path: data/int/data/benchmark/field
 online_order_generation: False
 num_order_or_combo: -1
 cuda: True
-dump: ???
+dump: pt_models
+
 resume_dir: ""
 pretrain_dir: ""
 fix_policy: True
 epoch_per_record: 1
-epochs_per_case_record: 50
+epochs_per_case_record: 500
 epochs_per_online_dataset: 10
+epochs_per_new_dataset_eval: 100
 epoch: 100000
 updates: 200000
 time_limit: 15

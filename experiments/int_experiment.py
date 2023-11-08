@@ -18,7 +18,6 @@ from environments.int_environment.algos.model.thm_model import ThmNet
 from environments.int_environment.algos.model.thm_model_transformer import ThmNet as TransThmNet
 from environments.int_environment.data_generation.generate_problems import generate_multiple_problems
 from environments.int_environment.data_generation.utils import Dataset
-from environments.int_environment.proof_system.graph_seq_conversion import Parser
 
 
 def config_to_dict(conf):
@@ -73,7 +72,7 @@ class INTDataModule(pl.LightningDataModule):
 
         super().__init__()
 
-        # all_first datasets are only the first step in the proof, and are used to intialise the rollout in evaluation
+        # all_first datasets are only the first step in the proof, and are used to initialise the rollout in evaluation
         if not self.config.online:
             train_dirs = [os.path.join(self.config.path_to_data, train_dir) for train_dir in config.train_sets]
             test_dirs = [os.path.join(self.config.path_to_data, test_dir) for test_dir in config.test_sets]
@@ -166,13 +165,13 @@ class INTDataModule(pl.LightningDataModule):
         # batcher = data_handler.BatchSampler(sampler, batch_size=self.config.batch_size, drop_last=False)
         # batch = self.train_dataset.get_multiple(indices=indices)
         # batch_states, batch_actions, batch_name_actions = batch_process(batch, mode=self.config.obs_mode)
-        return torch.utils.data.DataLoader(self.train_dataset, batch_size=32, collate_fn=self.collate)
+        return torch.utils.data.DataLoader(self.train_dataset, batch_size=self.config.batch_size, collate_fn=self.collate)
 
     def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=32, collate_fn=self.collate)
+        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=self.config.batch_size, collate_fn=self.collate)
 
     def test_dataloader(self):
-        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=32, collate_fn=self.collate)
+        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=self.config.batch_size, collate_fn=self.collate)
 
 
 class INTLoop(pl.LightningModule):
@@ -297,7 +296,7 @@ class INTLoop(pl.LightningModule):
                       open(
                           os.path.join(
                               self.config.dump,
-                              str(self.config.timestamp),
+                              # str(self.config.timestamp),
                               f"cases_record{(int(self.global_step / self.config.updates))}.json"),
                           "w")
                       )
@@ -306,15 +305,16 @@ class INTLoop(pl.LightningModule):
             logging.info("Generating new proofs..")
             self.data_module.reset()
 
-            train_first_success_rate, train_first_wrong_case, train_first_right_case, train_first_avg_proof_length = \
-                self.test_rollout(self.data_module.train_first_dataset)
+            if self.current_epoch % self.config.epochs_per_new_dataset_eval == 0:
+                train_first_success_rate, train_first_wrong_case, train_first_right_case, train_first_avg_proof_length = \
+                    self.test_rollout(self.data_module.train_first_dataset)
 
-            self.log_dict({"new_dataset_success_rates": train_first_success_rate,
-                           "new_dataset_avg_proof_lengths": train_first_avg_proof_length},
-                          batch_size=self.config.batch_size)
+                self.log_dict({"new_dataset_success_rates": train_first_success_rate,
+                               "new_dataset_avg_proof_lengths": train_first_avg_proof_length},
+                              batch_size=self.config.batch_size)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
         return optimizer
 
     def backward(self, loss, *args, **kwargs) -> None:
@@ -327,7 +327,8 @@ class INTLoop(pl.LightningModule):
 @hydra.main(config_path="configs/experiments", config_name="int_base")
 def int_experiment(config):
     os.makedirs(config.exp_config.checkpoint_dir, exist_ok=True)
-    os.makedirs(os.path.join(config.dump, str(config.timestamp)))
+    config.dump = os.path.join(config.exp_config.directory, config.dump)
+    os.makedirs(config.dump)
 
     torch.set_float32_matmul_precision('high')
 

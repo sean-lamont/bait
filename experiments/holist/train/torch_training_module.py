@@ -41,8 +41,6 @@ class HOListTraining_(pl.LightningModule):
         self.lr = lr
         self.batch_size = batch_size
 
-
-
     '''
 
     Calculate loss function as defined in original implementation paper. 

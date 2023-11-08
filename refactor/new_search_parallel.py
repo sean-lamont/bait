@@ -88,7 +88,7 @@ class EndToEndProver:
             num_nodes=len(nodes)
         )
 
-        logger.info(f'Result: {result}')
+        # logger.info(f'Result: {result}')
 
         with open(f"{self.dir}/{theorem}", "wb") as f:
             pickle.dump(result, f)
@@ -232,7 +232,7 @@ class Search:
         return
 
 
-@ray.remote(num_cpus=0.5, num_gpus=0.225)
+@ray.remote(num_gpus=0.45)
 class GoalModel:
     def __init__(self, model):
         self.model = model
@@ -300,7 +300,7 @@ class UpDown(Search):
                 for sib in edge.dst:
                     edge_score += sib.up_score
 
-                if edge_score >= best_score:
+                if edge_score > best_score:
                     best_score = edge_score
 
             if node.visit_count >= node.max_expansions:
@@ -370,7 +370,7 @@ class TacModel:
 
 
 # todo make tac_gen and retriever more system agnostic
-@ray.remote(num_cpus=0.5, num_gpus=0.225)
+@ray.remote(num_gpus=0.45)
 class ReProverTacGen(TacModel):
     def __init__(self, tac_model, num_sampled_tactics=64):
         super().__init__()
@@ -495,7 +495,7 @@ class DistributedProver:
             prover_pool = []
 
             # todo test performance loading these before and passing object reference
-            for _ in range(4):
+            for _ in range(1):
                 tac_gen = RetrievalAugmentedGenerator.load(
                     ckpt_path, device=device, freeze=True
                 )
@@ -514,7 +514,7 @@ class DistributedProver:
                 prover_pool.extend([EndToEndProver.remote(
                     tac_model=tac_model, search_model=search_model, timeout=timeout, directory=log_dir
                     # ) for _ in range(num_cpus // self.num_gpus)])
-                ) for _ in range(1)])
+                ) for _ in range(8)])
 
             self.prover_pool = ActorPool(prover_pool)
 
@@ -552,16 +552,37 @@ class DistributedProver:
     ) -> Any:
         """Parallel proof search for `theorems`. The order of the results is not guaranteed to match the order of the input."""
         if not self.distributed:
-            return list(
-                self.prover_pool.map_unordered(
+            # return list(
+            #     self.prover_pool.map_unordered(
+            #         lambda p, x: p.search.remote(LeanDojoEnv(repo, x[0], x[1], 6000)),
+            #         zip_strict(theorems, positions),
+            #     )
+            # )
+            #
+            results = self.prover_pool.map_unordered(
                     lambda p, x: p.search.remote(LeanDojoEnv(repo, x[0], x[1], 6000)),
                     zip_strict(theorems, positions),
                 )
-            )
 
-            # self.prover.search(repo, thm, pos)
-            # self.prover.search(LeanDojoEnv(repo, thm, pos, 600))
-            # for thm, pos in zip_strict(theorems, positions)
+            proven = 0
+            for i, res in enumerate(results):
+                logger.info(f'Result: {res}')
+                if res.proof:
+                    proven += 1
+                    wandb.log({'Step': i+1, 'Proven': proven})
+
+
+                # self.prover.search(repo, thm, pos)
+                # self.prover.search(LeanDojoEnv(repo, thm, pos, 600))
+                # for thm, pos in zip_strict(theorems, positions)
+                # list(
+                #     self.prover_pool.map_unordered(
+                #         lambda p, x: p.search.remote(LeanDojoEnv(repo, x[0], x[1], 6000)),
+                #         zip_strict(theorems, positions),
+                #     )
+                # )
+            return results
+
 
         try:
             results = list(
@@ -579,7 +600,7 @@ class DistributedProver:
 
 
 @hydra.main(
-    config_path="/home/sean/Documents/bait/experiments/configs/experiments")  # , config_name="experiments/holist_eval")
+    config_path="../experiments/configs/experiments")  # , config_name="experiments/holist_eval")
 def main(config) -> None:
     OmegaConf.resolve(config)
 
@@ -587,23 +608,23 @@ def main(config) -> None:
     os.makedirs(config.exp_config.directory + '/traces', exist_ok=True)
 
     if config.exp_config.resume:
-        # wandb.init(project=config.logging_config.project,
-        #            name=config.exp_config.name,
-        #            config=config_to_dict(config),
-        #            dir=config.exp_config.directory,
-        #            resume='must',
-        #            id=config.logging_config.id,
-        #            mode='offline' if config.logging_config.offline else 'online'
-        #            )
+        wandb.init(project=config.logging_config.project,
+                   name=config.exp_config.name,
+                   config=config_to_dict(config),
+                   dir=config.exp_config.directory,
+                   resume='must',
+                   id=config.logging_config.id,
+                   mode='offline' if config.logging_config.offline else 'online'
+                   )
 
         prev_theorems = glob.glob(config.exp_config.directory + '/traces/*')
-    # else:
-    #     wandb.init(project=config.logging_config.project,
-    #                name=config.exp_config.name,
-    #                config=config_to_dict(config),
-    #                dir=config.exp_config.directory,
-    #                mode='offline' if config.logging_config.offline else 'online'
-    #                )
+    else:
+        wandb.init(project=config.logging_config.project,
+                   name=config.exp_config.name,
+                   config=config_to_dict(config),
+                   dir=config.exp_config.directory,
+                   mode='offline' if config.logging_config.offline else 'online'
+                   )
 
     set_logger(config.verbose)
 
@@ -621,13 +642,9 @@ def main(config) -> None:
         for i, theorem in enumerate(theorems):
             if theorem.full_name in prev_theorems:
                 continue
-            elif theorem.full_name == 'nat.arithmetic_function.zeta_mul_pow_eq_sigma':
+            else:
                 final_theorems.append(theorem)
                 final_positions.append(positions[i])
-            else:
-                # final_theorems.append(theorem)
-                # final_positions.append(positions[i])
-                continue
 
         theorems = final_theorems
         positions = final_positions

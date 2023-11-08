@@ -197,8 +197,6 @@ class ThmNet(torch.nn.Module):
         # Process inputs with GNNs
         # batch_obj_state = Batch.from_data_list(obj_gnns)
 
-
-
         obj_state_tensor, obj_out = self.obj_encoder(
             obj_gnns, obj_gnns_ind, obj_batch_gnn_ind)
 

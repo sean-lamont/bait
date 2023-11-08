@@ -250,6 +250,7 @@ def obs_to_graphs(obs, bag=False):
 
         for _ in range(len(node_op)):
             obj_gnn_ind.append(g_ind)
+
         g_ind += 1
 
         if cuda:

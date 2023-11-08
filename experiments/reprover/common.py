@@ -1,4 +1,5 @@
 import os
+import logging
 import re
 import sys
 import json
@@ -17,6 +18,8 @@ from transformers import get_cosine_schedule_with_warmup
 from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
 from typing import Optional, List, Dict, Any, Tuple, Generator
 from pytorch_lightning.strategies.deepspeed import DeepSpeedStrategy
+
+
 
 
 Example = Dict[str, Any]
@@ -477,6 +480,10 @@ def zip_strict(*args):
     return zip(*args)
 
 
+def log_to_file(file, msg):
+    with open(file, 'a') as f:
+        f.write(msg)
+
 def set_logger(verbose: bool) -> None:
     """
     Set the logging level of loguru.
@@ -488,7 +495,9 @@ def set_logger(verbose: bool) -> None:
         logger.add(sys.stderr, level="DEBUG")
     else:
         logger.add(sys.stderr, level="INFO")
-        # logger.add('log.log', level="INFO")
+        # logger.add(logging.FileHandler("extra_ray_tune_log.log"))
+
+        # logger.add(lambda msg: log_to_file('log.log', msg),  level="INFO")
 
 
 

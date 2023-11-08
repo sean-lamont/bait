@@ -50,6 +50,7 @@ class GroundTruthEncoder(torch.nn.Module):
         elif gnn_type == "GIN":
             self.graph_encoder = GraphIsomorphismEncoder(
                 num_in, num_out, nn_dim=conv_dim, hidden_layers=hidden_layers, norm=norm)
+            # num_in, num_out, nn_dim=options['hidden_dim'], hidden_layers=hidden_layers, norm=norm)
         elif gnn_type == "GICN":
             self.graph_encoder1 = GraphIsomorphismEncoder(
                 num_in, num_out, nn_dim=conv_dim, hidden_layers=hidden_layers, norm=norm)
@@ -91,15 +92,8 @@ class GroundTruthEncoder(torch.nn.Module):
 
         out = scatter_add(out, batch_gnn_ind, 0)
 
-        # do it as 1 X M x D tensor, with M as the total number of nodes
-        # should return state_tensor as separate encoding of every entity in transformer
         return state_tensor, out
 
-
-# todo convert graph batch to transformer
-# batch will be (N x M x max_len) where N is number of batches, M is number of graphs (i.e. nodes/expressions)
-# and max_len for transformers. Take gnn_id for M, batches for N and fix max_len
-# also need to wrap transformer to take one hot input (just add Linear layer instead of embedding)
 
 class ThmNet(torch.nn.Module):
     def __init__(self, **options):
@@ -264,10 +258,11 @@ class ThmNet(torch.nn.Module):
         # Prepare for entity actions
         ent_mask = compute_mask(obj_node_ent, gt_node_ent)
         rev_trans_ind = compute_trans_ind(obj_trans_ind, gt_trans_ind)
+
         # entity representations?
         ent_rep = torch.index_select(state_tensor[ent_mask, :].clone(), 0, rev_trans_ind)
 
-        #todo
+        # todo
         if actions is None:
 
             entity_actions = []
@@ -287,6 +282,7 @@ class ThmNet(torch.nn.Module):
                     h = torch.mean(self.key_transform(key) * ent_rep, 1)
 
                     gumble_h = h - torch.log(-torch.log(h_uniform.sample().to(device)))
+
                     # calculate loss term.
                     entity_action = scatter_max(gumble_h, batch_ind)[1]
 

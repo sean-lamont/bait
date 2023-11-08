@@ -50,13 +50,6 @@ class INTTransformer(nn.Module):
         self.embedding = nn.Embedding(ntoken, d_model, padding_idx=0)
 
     def forward(self, data, iv_data, mask, global_pool=False):
-        # if type(data) == list or type(data) == tuple:
-        #     x = data[0]
-        #     mask = data[1]
-        # else:
-        #     x = data.data
-        #     mask = data.mask
-
         iv_data = self.embedding(iv_data)
         x = self.embedding(data)
         x = x + iv_data
