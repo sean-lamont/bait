@@ -1,3 +1,4 @@
+import itertools
 from itertools import islice
 
 import lightning
@@ -7,33 +8,34 @@ import ray
 import torch
 from lightning import Trainer
 from pymongo import MongoClient
+from tqdm import tqdm
 
+from data.stream_dataset import MongoStreamDataset, CursorIter
 
-# todo distributed setting:
-# - can add a random id field, then sort for query. Then query will be identical for all nodes, and can then do islice
-#
 
 class MongoModule(lightning.LightningDataModule):
-    def __init__(self, db, col, query, uri='localhost:27017'):
+    def __init__(self, ds):
         super().__init__()
+        # pl.seed_everything(1)
+        self.ds_ = ds
 
-        pl.seed_everything(1)
-
-        self.ds = ray.data.read_mongo(
-            uri=uri,
-            database=db,
-            collection=col,
-            pipeline=[{"$project": {"_id": 0, "edge_attr": "$data.edge_attr"}}],
-        )
-
+    def setup(self, stage: str) -> None:
+        # self.ds = self.ds_.split(4, equal=True)[3]
+        self.ds = self.ds_
 
     def train_dataloader(self):
-        return self.ds.iter_torch_batches(collate_fn=collate_fn)
+        return self.ds.iter_torch_batches(collate_fn=self.collate_fn)
 
     def val_dataloader(self):
         # print (self.trainer.node_rank, self.trainer.global_rank, self.trainer.local_rank, self.trainer.world_size)
-        return islice(self.ds.iter_torch_batches(collate_fn=collate_fn), self.trainer.local_rank, None, self.trainer.world_size + 1)
-        # return self.ds.iter_torch_batches(collate_fn=collate_fn)
+        # it = islice(self.ds.iter_torch_batches(collate_fn=self.collate_fn), self.trainer.local_rank, None, self.trainer.world_size + 1)
+        it = self.ds.iter_torch_batches(collate_fn=self.collate_fn)
+        # print (next(it))
+        return it
+
+    def collate_fn(self, batch):
+        return (np.copy(batch['goal']), np.copy(batch['tactic']), torch.from_numpy(np.copy(batch['distance_to_proof'])))
+
 
 class TestModule(lightning.LightningModule):
     def __init__(self):
@@ -41,15 +43,13 @@ class TestModule(lightning.LightningModule):
         self.nn = torch.nn.Linear(128, 128)
 
     def forward(self, batch):
-        return torch.sum(batch[0])
+        return torch.sum(batch[2])
 
     def training_step(self, batch):
         self.log(self.global_step, prog_bar=True)
         return self(batch)
 
     def validation_step(self, batch, batch_idx):
-        # if batch_idx == 0:
-        #     print (batch)
         return self(batch)
 
     def configure_optimizers(self):
@@ -58,18 +58,68 @@ class TestModule(lightning.LightningModule):
 
 if __name__ == '__main__':
     client = MongoClient()
-    db = client['hol4']
-    col = db['expression_graphs']
 
-    def collate_fn(batch):
-        return [torch.from_numpy(np.copy(array)) for array in batch['edge_attr']]
+    db = client['lean_dojo']
+    col = db['edge_data']
+
+    # def collate_fn(batch):
+    #     return [torch.from_numpy(np.copy(array)) for array in batch['edge_attr']]
 
     data = []
 
-    data_module = MongoModule('holstep', 'expression_graphs', None)
+    ds = ray.data.read_mongo(
+        uri='localhost:27017',
+        database='lean_dojo',
+        collection='edge_data',
+        # sort by random index so data is shuffled, and constant between cursors
+        pipeline=[{"$sort": {'rand_idx': 1}},
+                  {"$project": {"_id": 0, "goal": 1, "tactic": 1, "distance_to_proof": 1}}],
+    )
+
+    data_module = MongoModule(ds)
+
+    # data_module = MongoModulev2('lean_dojo', 'edge_data', None)
+
     model = TestModule()
 
     trainer = Trainer()
 
     trainer.validate(model, data_module)
-    trainer.validate(model, data_module)
+    # trainer.validate(model, data_module)
+
+    # trainer.validate(model, data_module)
+    # val_loader = data_module.val_dataloader()
+
+    # data = []
+    # for d in tqdm(val_loader):
+    #     data.append(d)
+
+# class MongoModulev2(lightning.LightningDataModule):
+#     def __init__(self, db, col, query, uri='localhost:27017'):
+#         super().__init__()
+#
+#         pl.seed_everything(1)
+#         client = MongoClient()
+#         self.ds = client[db][col]
+#
+#         # sort by random index so data is shuffled, and constant between cursors
+#         self.cursor = self.ds.aggregate(
+#             [{"$sort": {'rand_idx': 1}},
+#              {"$project": {"_id": 0, "goal": 1, "tactic": 1, "distance_to_proof": 1}}])
+#
+#         self.ds = itertools.cycle(CursorIter(cursor=self.cursor, fields=['goal', 'tactic', 'distance_to_proof']))
+#
+#     def train_dataloader(self):
+#         return islice(self.cursor, self.trainer.local_rank, None, self.trainer.world_size + 1)
+#         # return self.ds.iter_torch_batches(collate_fn=self.collate_fn)
+#
+#     def val_dataloader(self):
+#         # print (self.trainer.node_rank, self.trainer.global_rank, self.trainer.local_rank, self.trainer.world_size)
+#         return islice(self.cursor, self.trainer.local_rank, None, self.trainer.world_size + 1)
+#
+#     def collate_fn(self, batch):
+#         goals = [g['goal'] for g in batch]
+#         tactics = [g['tactic'] for g in batch]
+#         y = [g['distance_to_proof'] for g in batch]
+#         return (goals, tactics, y)
+#

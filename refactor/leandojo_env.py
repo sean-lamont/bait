@@ -38,13 +38,15 @@ Environment Wrapper over LeanDojo. Adds premise retrieval and processing of proo
 
 class LeanDojoEnv:
     def __init__(self, repo, thm, pos, timeout):
-        # need a dictionary mapping goals to their state
         self.timeout = timeout
         self.environment_time = 0
+        # dictionary mapping goals to their state
         self.node_map = {}
         self.thm = thm
         self.repo = repo
         self.pos = pos
+
+        self.premises = self.retrieve_premises()
 
     def __enter__(self):
         try:
@@ -179,9 +181,9 @@ class LeanDojoEnv:
 
                     result.append(result_node)
 
-        # self-loop sanity check
+        # self-loop sanity check (should never happen)
         if result_node == node:
-            logger.debug(f'Self loop found')
+            logger.warning(f'Self loop found')
             response = TreeError('Self-loop')
             result_node = ErrorNode(response)
             result = [result_node]
@@ -189,5 +191,14 @@ class LeanDojoEnv:
         # Build an edge connecting these nodes.
         # Will be added to the source node externally.
         edge = Edge(tactic=tactic, src=node, dst=result, logprob=logprob, time=elapsed)
+
+        if node.out_edges:
+            node.out_edges = node.out_edges + [edge]
+        else:
+            node.out_edges = [edge]
+
+        for result_node in result:
+            if isinstance(result_node, InternalNode):
+                result_node.in_edges.append(edge)
 
         return edge
