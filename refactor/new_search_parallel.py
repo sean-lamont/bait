@@ -58,7 +58,8 @@ class EndToEndProver:
 
         self.tac_trace = []
 
-        self.dir = directory
+        self.dir = directory + '/traces'
+        self.error_dir = directory + '/error_logs'
         # maps goals to tactics once generated
         self.remaining_tacs = {}
 
@@ -151,16 +152,21 @@ class EndToEndProver:
             self.search_model.process_response(response)
             self.search_time += time.monotonic() - t0
 
+    def log_error(self, msg, theorem):
+        with open(f"{self.error_dir}/{theorem}", "a") as f:
+            f.writelines([msg])
+
     def search(self, env):
         with torch.no_grad():
             try:
                 self._search(env)
             except Exception as e:
-                # will only be raised if there is no root from search (e.g. error loading environment)
-                logger.warning(f"Error in search {e}")
-                traceback.print_exc()
+                logger.warning(f'Environment error {e}')
+                # will only be raised if there is no valid root from search (e.g. error loading environment)
                 self.search_model.__init__(self.search_model.goal_model)
                 self.search_model.root = ErrorNode(EnvironmentError(str(e)))
+                self.log_error(str(e), env.thm.full_name)
+
 
         result = self._process_trace(env.thm.full_name)
 
@@ -187,7 +193,6 @@ class EndToEndProver:
                         # todo make env timeout error
                         if not (self.env_time >= self.timeout):
                             logger.warning(f"Exception not timeout: {e}")
-                            traceback.print_exc()
                             root.status = Status.FAILED
 
                     self.total_time = time.monotonic() - time_start
@@ -208,12 +213,12 @@ class EndToEndProver:
                         logger.info("Found a proof!")
                         break
         except Exception as e:
-            logger.warning(f'Environment error {e}')
-            traceback.print_exc()
             if root:
+                logger.warning(f"Error in search {e}")
                 root.status = Status.FAILED
+                self.log_error(str(e))
             else:
-                raise Exception
+                raise Exception(e)
 
 
 class DistributedProver:
@@ -238,10 +243,10 @@ class DistributedProver:
 
         if not self.distributed:
             with_gpus = True
-            self.num_gpus = 1
-            self.cpus_per_gpu = 8
+            self.num_gpus = 4
+            self.cpus_per_gpu = 1
 
-            ray.init(num_gpus=self.num_gpus)
+            ray.init(num_gpus=2)
 
             device = torch.device("cuda") if with_gpus else torch.device("cpu")
 
@@ -259,9 +264,9 @@ class DistributedProver:
                 goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
 
                 # todo best way to parameterise resource allocation
-                tac_model = ray.remote(num_gpus=0.45)(ReProverTacGen).remote(tac_model=tac_gen)
+                tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
 
-                goal_model = ray.remote(num_gpus=0.45)(GoalModel).remote(goal_model)
+                goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
 
                 search_model = UpDown(goal_model)
 
@@ -309,6 +314,7 @@ def main(config) -> None:
 
     os.makedirs(config.exp_config.directory + '/checkpoints', exist_ok=True)
     os.makedirs(config.exp_config.directory + '/traces', exist_ok=True)
+    os.makedirs(config.exp_config.directory + '/error_logs', exist_ok=True)
 
     # todo make this system agnostic
     repo, theorems, positions = _get_theorems(config)
@@ -363,7 +369,7 @@ def main(config) -> None:
         num_cpus=config.num_cpus,
         with_gpus=config.with_gpus,
         timeout=config.timeout,
-        log_dir=config.exp_config.directory + '/traces'
+        log_dir=config.exp_config.directory
     )
 
     results = prover.search_unordered(repo, theorems, positions, iteration=0)

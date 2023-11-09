@@ -82,6 +82,7 @@ class UpDown(Search):
             self.search_trace.append((best_node.goal, best_score))
         else:
             self.search_trace.append((None, -math.inf))
+            return None
 
         # todo pass whole fringe for running (need to get argmax context)
         # return [best_node] + [self.nodes[ctx] for ctx in best_node.context]

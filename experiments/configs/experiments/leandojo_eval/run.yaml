@@ -27,7 +27,7 @@ full_name: null
 num_theorems: null
 name_filter: null
 name: null
-ckpt_path: gen.ckpt
+ckpt_path: last.ckpt
 goal_path: goal_step.ckpt
 indexed_corpus_path: null
 num_sampled_tactics: 64
