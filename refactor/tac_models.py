@@ -10,7 +10,7 @@ from refactor.proof_node import *
 
 class TacModel:
     @abstractmethod
-    def get_tactics(self, goals, env):
+    def get_tactics(self, goals, premises):
         return
 
 
@@ -21,11 +21,11 @@ class ReProverTacGen(TacModel):
         self.tac_model = tac_model
         self.num_sampled_tactics = num_sampled_tactics
 
-    def get_tactics(self, ts, premises):
+    def get_tactics(self, goals, premises):
         path, theorem, position = premises
 
         tactics = self.tac_model.generate(
-            state=ts,
+            state=goals,
             file_path=path,
             theorem_full_name=theorem.full_name,
             theorem_pos=position,

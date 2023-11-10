@@ -82,7 +82,7 @@ class UpDown(Search):
             self.search_trace.append((best_node.goal, best_score))
         else:
             self.search_trace.append((None, -math.inf))
-            return None
+            return []
 
         # todo pass whole fringe for running (need to get argmax context)
         # return [best_node] + [self.nodes[ctx] for ctx in best_node.context]
@@ -151,19 +151,32 @@ class BestFS(Search):
 
     def reset(self, root):
         self.__init__()
+        self.root = root
         self.priority_queue = [root]
+        self.nodes[root.goal] = root
 
     def get_goals(self):
-        return heapq.heappop(self.priority_queue)
+        self.priority_queue = sorted(self.priority_queue, key=lambda x: x.cumulative_logprob)
+        if len(self.priority_queue) > 0:
+            search_node = self.priority_queue.pop()
+            # if node was set to explored since being added (e.g. if ancestor was proven)
+            if search_node.is_explored:
+                return self.get_goals()
+            self.search_trace.append((search_node.goal, search_node.cumulative_logprob))
+            return [search_node]
+        else:
+            self.search_trace.append((None, -math.inf))
+            return None
 
     def process_response(self, response: Edge):
         result = response.dst
 
         for result_node in result:
-            # Record the new node and add it to the search queue.
-            if isinstance(result_node, InternalNode):
-                # self.nodes[result_node.goal] = result_node
-                pass
+            # Don't search proved/explored/queued nodes
+            if isinstance(result_node,
+                          InternalNode) and result_node not in self.priority_queue and not result_node.is_explored:
+                self.nodes[result_node.goal] = result_node
+                self.priority_queue.append(result_node)
 
         return
 

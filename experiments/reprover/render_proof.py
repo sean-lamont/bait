@@ -1,4 +1,5 @@
 from refactor.proof_node import Status, ErrorNode, ProofFinishedNode, InternalNode
+import networkx as nx
 import pickle
 import pygraphviz as pgv
 from loguru import logger
@@ -123,6 +124,14 @@ def render_full_trace(trace, filename=None):
     add_edges(trace.tree)
 
     processed_nodes = set()
+
+    if trace.tree.status == Status.PROVED:
+        G.add_node(node_map[trace.tree.goal], color='green')
+    elif trace.tree.status == Status.FAILED:
+        G.add_node(node_map[trace.tree.goal], color='red')
+    else:
+        G.add_node(node_map[trace.tree.goal])
+
     for i, sib in enumerate(siblings):
         src = [s[0] for s in sib][0]
         dst = [s[1] for s in sib]
@@ -137,9 +146,7 @@ def render_full_trace(trace, filename=None):
             for s in dst:
                 if s not in processed_nodes:
                     if trace.nodes[rev_map[s]].status == Status.FAILED:
-                        print ('asdf')
                         subgraph.add_node(s, color='red')
-
                     elif trace.nodes[rev_map[s]].status == Status.PROVED:
                         subgraph.add_node(s, color='green')
                     else:
@@ -149,8 +156,89 @@ def render_full_trace(trace, filename=None):
                     # If newly seen set of subgoals, with one goal already seen, just connect to source for now
                     G.add_edge(new_nodes[0], s, color='yellow')
 
-            G.add_edge(src, new_nodes[0], lhead=f'cluster_{i}')
+            if all([trace.nodes[rev_map[d]].status == Status.PROVED for d in dst]):
+                G.add_edge(src, new_nodes[0], lhead=f'cluster_{i}', color='green')
+            else:
+                G.add_edge(src, new_nodes[0], lhead=f'cluster_{i}')
 
-    # G.write('test.dot')
+    # G = nx.nx_agraph.from_agraph(G)
+    # nx.write_gexf(G, filename)
+
+    G.write('test.dot')
     G.draw(filename, prog='dot', format='svg:cairo')
     logger.info(f'Proof tree saved to {filename}')
+
+
+def render_nx(trace, filename=None):
+    # with open(path, 'rb') as f:
+    #     trace = pickle.load(f)
+
+    logger.info(f'Rendering proof of {trace.tree.goal}..')
+
+    if not filename:
+        filename = 'figures/' + trace.theorem
+
+    G = nx.DiGraph()
+    # G = pgv.AGraph(name='root', compound=True)
+
+    node_map = {}
+    i = 0
+    for edge in trace.tac_trace:
+        if edge.src.goal not in node_map:
+            node_map[edge.src.goal] = i
+            i += 1
+        for d in edge.dst:
+            if isinstance(d, InternalNode):
+                if d.goal not in node_map:
+                    node_map[d.goal] = i
+                    i += 1
+
+    # node_map = {goal: i for i, goal in enumerate(trace.nodes.keys())}
+
+    rev_map = {v: k for k, v in node_map.items()}
+
+    for node in trace.nodes.values():
+        G.add_node(node_map[node.goal],
+                   # goal=node.goal,
+                   status=node.status == Status.PROVED,
+                   visit_count=node.visit_count,
+                   contexts=[[node_map[a] for a in context] for context in node.context],
+                   )
+
+    def add_edges(node):
+        if not node.out_edges:
+            return
+        for j, edge in enumerate(node.out_edges):
+            for i, d in enumerate(edge.dst):
+                if hasattr(edge.src, 'goal') and hasattr(d, 'goal'):
+                    # G.add_edge(edge.src.goal, d.goal, label=edge.tactic, color='green')
+                    # G.add_edge(edge.src.goal, d.goal, label=edge.tactic, color='green')
+                    if all([d_.status == Status.PROVED for d_ in edge.dst]):
+                        # G.add_edge(node_map[edge.src.goal], node_map[d.goal], label=edge.tactic, color='green')
+                        G.add_edge(node_map[edge.src.goal], node_map[d.goal],  color='green')
+                    else:
+                        # G.add_edge(node_map[edge.src.goal], node_map[d.goal], label=edge.tactic)
+                        G.add_edge(node_map[edge.src.goal], node_map[d.goal])
+                    if node.out_edges != None:
+                        add_edges(d)
+                else:
+                    if type(d) == ErrorNode:
+                        pass
+                    elif type(d) == ProofFinishedNode:
+                        pass
+
+    add_edges(trace.tree)
+
+    # G = nx.nx_agraph.from_agraph(G)
+    # nx.write_gexf(G, filename)
+
+    # G.write('test.dot')
+    from experiments.reprover.plotly_graph import visualize_graph
+    visualize_graph(G,None, filename='figures/test.html')
+    # G.draw(filename, prog='dot', format='svg:cairo')
+    # logger.info(f'Proof tree saved to {filename}')
+
+
+
+
+

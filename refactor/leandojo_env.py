@@ -17,8 +17,8 @@ from lean_dojo import (
     DojoInitError,
     DojoCrashError,
     DojoHardTimeoutError,
-    # TacticError,
-    LeanError,
+    TacticError,
+    # LeanError,
     TimeoutError,
     TacticState,
     ProofGivenUp
@@ -76,6 +76,7 @@ class LeanDojoEnv:
 
         return path, self.thm, self.pos
 
+    # todo move some of this to search model?
     def run_tactic(self, node: InternalNode, tactic: Tuple[str, float]):  # -> Tuple[Edge, List]:
         t0 = time.monotonic()
 
@@ -98,8 +99,8 @@ class LeanDojoEnv:
         result_node = []
 
         if type(response) in (
-                # TacticError,
-                LeanError,
+                TacticError,
+                # LeanError,
                 TimeoutError,
                 ProofGivenUp,
         ):

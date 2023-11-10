@@ -33,7 +33,7 @@ from experiments.reprover.goal_model_step.model import StepGoalModel
 from refactor.get_lean_theorems import _get_theorems
 from refactor.leandojo_env import LeanDojoEnv
 from refactor.proof_node import *
-from refactor.search_models import UpDown, GoalModel
+from refactor.search_models import UpDown, GoalModel, BestFS
 from refactor.search_result import SearchResult
 from refactor.tac_models import ReProverTacGen
 
@@ -95,27 +95,34 @@ class EndToEndProver:
         return result
 
     # todo add # of tactics per goal to expand
-    def get_tactics(self, goals, premises):
+    def get_tactics(self, goals, premises, tacs_per_goal=64):
         suggestions = []
         for search_node in goals:
+            assert not search_node.is_explored
             ts = search_node.goal
 
             # Get full set of suggestions for goal if it hasn't been computed already
             if ts not in self.remaining_tacs:
                 logger.debug(f'Generating tacs for {ts}')
                 tacs = ray.get(self.tac_model.get_tactics.remote(ts, premises))
+                if len(tacs) < tacs_per_goal:
+                    logger.debug(f'Fewer than max tactics generated for {search_node.goal}')
                 tacs.reverse()
                 self.remaining_tacs[ts] = tacs
 
             remaining_tacs = self.remaining_tacs[ts]
 
             # if we've exhausted all options
-            if not remaining_tacs:
-                search_node.is_explored = True
-                continue
+            # if not remaining_tacs:
+            #     search_node.is_explored = True
 
-            tactic, logprob = remaining_tacs.pop()
-            suggestions.append((search_node, (tactic, logprob)))
+            for _ in range(tacs_per_goal):
+                if remaining_tacs:
+                    tactic, logprob = remaining_tacs.pop()
+                    suggestions.append((search_node, (tactic, logprob)))
+                else:
+                    search_node.is_explored = True
+                    continue
 
         return suggestions
 
@@ -138,10 +145,10 @@ class EndToEndProver:
 
         self.tac_time += time.monotonic() - t0
 
-        logger.debug(f'Running {suggestions}, goals: {goals}')
 
         for goal, tactic in suggestions:
             t0 = time.monotonic()
+            logger.debug(f'Running {tactic}, goal: {goal}')
             response = env.run_tactic(goal, tactic)
             self.env_time += time.monotonic() - t0
 
@@ -163,7 +170,8 @@ class EndToEndProver:
             except Exception as e:
                 logger.warning(f'Environment error {e}')
                 # will only be raised if there is no valid root from search (e.g. error loading environment)
-                self.search_model.__init__(self.search_model.goal_model)
+                # self.search_model.__init__(self.search_model.goal_model)
+                self.search_model.__init__()
                 self.search_model.root = ErrorNode(EnvironmentError(str(e)))
                 self.log_error(str(e), env.thm.full_name)
 
@@ -193,6 +201,7 @@ class EndToEndProver:
                         # todo make env timeout error
                         if not (self.env_time >= self.timeout):
                             logger.warning(f"Exception not timeout: {e}")
+                            traceback.print_exc()
                             root.status = Status.FAILED
 
                     self.total_time = time.monotonic() - time_start
@@ -243,10 +252,10 @@ class DistributedProver:
 
         if not self.distributed:
             with_gpus = True
-            self.num_gpus = 4
-            self.cpus_per_gpu = 1
+            self.num_gpus = 1
+            self.cpus_per_gpu = 8
 
-            ray.init(num_gpus=2)
+            ray.init(num_gpus=1)
 
             device = torch.device("cuda") if with_gpus else torch.device("cpu")
 
@@ -261,14 +270,16 @@ class DistributedProver:
                     assert indexed_corpus_path is not None
                     tac_gen.retriever.load_corpus(indexed_corpus_path)
 
-                goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
+                # goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
 
                 # todo best way to parameterise resource allocation
-                tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
+                tac_model = ray.remote(num_gpus=0.45)(ReProverTacGen).remote(tac_model=tac_gen)
 
-                goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
+                # goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
 
-                search_model = UpDown(goal_model)
+                # search_model = UpDown(goal_model)
+
+                search_model = BestFS()
 
                 prover_pool.extend([ray.remote(num_gpus=0.01)(EndToEndProver).remote(
                     tac_model=tac_model, search_model=search_model, timeout=timeout, directory=log_dir
