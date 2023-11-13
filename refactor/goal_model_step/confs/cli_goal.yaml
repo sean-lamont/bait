@@ -15,6 +15,7 @@ trainer:
   num_sanity_val_steps: 1
   # need this to reload ray dataloader
   reload_dataloaders_every_n_epochs: 1
+#  val_check_interval: 300
   callbacks:
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args: 
@@ -30,7 +31,7 @@ trainer:
 #        mode: max
     - class_path: pytorch_lightning.callbacks.EarlyStopping
       init_args:
-        patience: 3
+        patience: 5
         verbose: true
         monitor: val_score
         # monitor: val_acc

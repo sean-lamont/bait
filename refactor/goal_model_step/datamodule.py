@@ -82,9 +82,13 @@ class GoalStepDataModule(pl.LightningDataModule):
             self.ds_val = ds
 
     def train_dataloader(self):
+        # logger.warning(f'reloading train dataloader {self.ds_train.count()}')
+
         return self.ds_train.iter_torch_batches(collate_fn=self.collate_fn, batch_size=self.batch_size)
 
     def val_dataloader(self):
+        # logger.warning(f'reloading val dataloader {self.ds_val.count()}')
+
         return self.ds_val.iter_torch_batches(collate_fn=self.collate_fn, batch_size=self.eval_batch_size)
 
     def collate_fn(self, examples) -> Batch:
@@ -128,20 +132,27 @@ class GoalStepDataModule(pl.LightningDataModule):
 
         return batch
 
-# if __name__ == '__main__':
-#     module = GoalStepDataModule(model_name='kaiyuy/leandojo-lean3-tacgen-byt5-small',
-#                                 batch_size=2,
-#                                 eval_batch_size=4,
-#                                 max_seq_len=2300,
-#                                 num_workers=2,
-#                                 critic_tok='<extra_id_0>',
-#                                 bucket_toks=['<extra_id_1>', '<extra_id_2>', '<extra_id_3>', '<extra_id_4>',
-#                                              '<extra_id_5>', '<extra_id_6>',
-#                                              '<extra_id_7>', '<extra_id_8>', '<extra_id_9>',
-#                                              '<extra_id_10>', '<extra_id_11>'])
-#
-#     module.setup()
-#
-#     train_loader = module.train_dataloader()
-#
-#
+if __name__ == '__main__':
+    module = GoalStepDataModule(model_name='kaiyuy/leandojo-lean3-tacgen-byt5-small',
+                                batch_size=2,
+                                eval_batch_size=4,
+                                max_seq_len=2300,
+                                num_workers=2,
+                                critic_tok='<extra_id_0>',
+                                bucket_toks=['<extra_id_1>', '<extra_id_2>', '<extra_id_3>', '<extra_id_4>',
+                                             '<extra_id_5>', '<extra_id_6>',
+                                             '<extra_id_7>', '<extra_id_8>', '<extra_id_9>',
+                                             '<extra_id_10>', '<extra_id_11>'])
+
+    module.setup()
+
+    train_loader = module.train_dataloader()
+
+    data = []
+    for i, batch in enumerate(train_loader):
+        data.append(batch)
+
+    print (data[0])
+    # print (len(set(goal_data)))
+
+

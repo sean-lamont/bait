@@ -215,7 +215,7 @@ class StepGoalModel(GoalModel, pl.LightningModule):
         preds = torch.max(filtered_logits, dim=1)[1]
         targets = batch['target_ids'][:, 0]
 
-        # print (f'{preds}, {targets}')
+        print (f'{preds}, {targets}')
 
         acc = torch.sum((preds == targets) / (preds == targets).shape[0])
 
@@ -244,7 +244,7 @@ class StepGoalModel(GoalModel, pl.LightningModule):
 
         # print(f'score {score}, preds {preds}, actual {targets}')
 
-        # print(f'score {score} targets {(targets - 260) / (len(self.bucket_ids) - 1)}')
+        print(f'score {score} targets {(targets - 260) / (len(self.bucket_ids) - 1)}')
 
         self.log(
             "val_score",
