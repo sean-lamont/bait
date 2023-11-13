@@ -17,6 +17,7 @@ styles = {
     }
 }
 
+
 def render_full_trace(trace):
     siblings = []
 
@@ -72,7 +73,6 @@ def render_full_trace(trace):
         {'data': {'id': str(node_map[trace.tree.goal]), 'goal': trace.tree.goal, 'parent': 'root',
                   'label': node_map[trace.tree.goal]}})
 
-
     # todo add edges in order of execution
     # todo self loops when cluster repeated?
     for i, (sib, edge) in enumerate(siblings):
@@ -83,11 +83,12 @@ def render_full_trace(trace):
         new_nodes = [s for s in dst if s not in processed_nodes]
 
         if new_nodes:
-            cluster_nodes.append({'data': {'id': str(src) + tactic, 'label': '', 'tactic': tactic}})
+            cluster_nodes.append({'data': {'id': str(src) + str(i) + tactic, 'label': '', 'tactic': tactic}})
             for s in dst:
                 if s not in processed_nodes:
                     child_nodes.append(
-                        {'data': {'id': str(s), 'goal': trace.nodes[rev_map[s]].goal, 'parent': str(src) + tactic,
+                        {'data': {'id': str(s), 'goal': trace.nodes[rev_map[s]].goal,
+                                  'parent': str(src) + str(i) + tactic,
                                   'label': str(s)}})
 
                     processed_nodes = processed_nodes | {s}
@@ -95,29 +96,30 @@ def render_full_trace(trace):
                 else:
                     # If newly seen set of subgoals, with one goal already seen, just connect to source for now
                     edges.append(
-                        {'data': {'target': str(s), 'source': str(src) + tactic, 'tactic': tactic},  'classes': 'nodes'})
+                        {'data': {'target': str(s), 'source': str(src) + str(i) + tactic, 'tactic': tactic},
+                         'classes': 'nodes'})
 
             if edge.distance_to_proof() < math.inf:
-                    edges.append({'data': {'source': str(src), 'target': str(src) + tactic, 'tactic': tactic}, 'classes': 'clusters proven'})
+                edges.append({'data': {'source': str(src), 'target': str(src) + str(i) + tactic, 'tactic': tactic},
+                              'classes': 'clusters proven'})
             else:
-                edges.append({'data': {'source': str(src), 'target': str(src) + tactic, 'tactic': tactic},
+                edges.append({'data': {'source': str(src), 'target': str(src) + str(i) + tactic, 'tactic': tactic},
                               'classes': 'clusters'})
 
         # add all edges (only if proven)?
         # else:
         #     for s in dst:
-                # if edge.distance_to_proof() < math.inf:
-                #     edges.append({'data': {'source': str(src), 'target': str(s), 'tactic': tactic},
-                #                   'classes': 'dupes proven'})
-                # else:
-                #     edges.append({'data': {'source': str(src), 'target': str(s), 'tactic': tactic},
-                #                   'classes': 'dupes'})
-
+        #         if edge.distance_to_proof() < math.inf:
+        #             edges.append({'data': {'source': str(src), 'target': str(s), 'tactic': tactic},
+        #                           'classes': 'dupes proven'})
+        #         else:
+        #             edges.append({'data': {'source': str(src), 'target': str(s), 'tactic': tactic},
+        #                           'classes': 'dupes'})
+        #
 
     for node in child_nodes:
         if trace.nodes[node['data']['goal']].status == Status.PROVED:
             node['classes'] = "proven"
-
 
     elements = cluster_nodes + child_nodes + edges
     return elements
@@ -140,7 +142,7 @@ if __name__ == '__main__':
 
 
     traces = get_traces('../experiments/runs/eval_loop/leandojo_eval_2023_11_10/12_32_48/traces/*')
-    elements = render_full_trace(traces[22])
+    elements = render_full_trace(traces[0])
 
     app = Dash(__name__)
 
@@ -193,7 +195,6 @@ if __name__ == '__main__':
                     'selector': '.dupes',
                     'style': {'line-style': 'dashed'}
 
-
                 },
                 {
                     'selector': '.proven',
@@ -201,7 +202,6 @@ if __name__ == '__main__':
                               'line-color': 'green'}
 
                 },
-
 
             ],
             elements=elements

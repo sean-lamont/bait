@@ -5,7 +5,7 @@ defaults:
 
 
 exp_config:
-  name: leandojo_eval
+  name: bestfs_1_expansion
   experiment: eval_loop
 #  directory: experiments/runs/eval_loop/leandojo_eval_2023_11_02/15_53_50
 #  resume: True
@@ -17,7 +17,7 @@ exp_config:
 
 logging_config:
   project: leandoj_eval
-  offline: True
+  offline: true
 
 
 data_path: data/leandojo/data/leandojo_benchmark/random/
@@ -34,6 +34,6 @@ num_sampled_tactics: 64
 timeout: 600
 num_cpus: 4
 with_gpus: True
-verbose: False
+verbose: true
 
 

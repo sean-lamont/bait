@@ -20,8 +20,8 @@ class MongoModule(lightning.LightningDataModule):
         self.ds_ = ds
 
     def setup(self, stage: str) -> None:
-        # self.ds = self.ds_.split(4, equal=True)[3]
-        self.ds = self.ds_
+        self.ds = self.ds_.split(self.trainer.world_size, equal=True)[self.trainer.global_rank]
+        # self.ds = self.ds_
 
     def train_dataloader(self):
         return self.ds.iter_torch_batches(collate_fn=self.collate_fn)
@@ -30,11 +30,12 @@ class MongoModule(lightning.LightningDataModule):
         # print (self.trainer.node_rank, self.trainer.global_rank, self.trainer.local_rank, self.trainer.world_size)
         # it = islice(self.ds.iter_torch_batches(collate_fn=self.collate_fn), self.trainer.local_rank, None, self.trainer.world_size + 1)
         it = self.ds.iter_torch_batches(collate_fn=self.collate_fn)
-        # print (next(it))
+        print (next(it))
         return it
 
     def collate_fn(self, batch):
-        return (np.copy(batch['goal']), np.copy(batch['tactic']), torch.from_numpy(np.copy(batch['distance_to_proof'])))
+        return (np.copy(batch['goal']), torch.from_numpy(np.copy(batch['target'])))
+        # return (np.copy(batch['goal']), np.copy(batch['tactic']), torch.from_numpy(np.copy(batch['distance_to_proof'])))
 
 
 class TestModule(lightning.LightningModule):
@@ -60,21 +61,26 @@ if __name__ == '__main__':
     client = MongoClient()
 
     db = client['lean_dojo']
-    col = db['edge_data']
-
-    # def collate_fn(batch):
-    #     return [torch.from_numpy(np.copy(array)) for array in batch['edge_attr']]
+    collection = 'goal_len_task'
+    col = db[collection]
 
     data = []
+
+    goal_fields = {"_id": 0, "goal": 1, "target": 1}
 
     ds = ray.data.read_mongo(
         uri='localhost:27017',
         database='lean_dojo',
-        collection='edge_data',
+        collection=collection,
         # sort by random index so data is shuffled, and constant between cursors
-        pipeline=[{"$sort": {'rand_idx': 1}},
-                  {"$project": {"_id": 0, "goal": 1, "tactic": 1, "distance_to_proof": 1}}],
+        pipeline=[{'$match': {'rand_idx': {'$lt': 0.9}}},
+                  {"$sort": {'rand_idx': 1}},
+                  {'$project': goal_fields},
+                  ],
+
     )
+
+    # tac_fields = {"_id": 0, "goal": 1, "winner": 1, "winner_prob": 1, "loser": 1, "loser_prob": 1}
 
     data_module = MongoModule(ds)
 

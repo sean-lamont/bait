@@ -1,7 +1,8 @@
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+
+import pytorch_lightning as pl
 
 from loguru import logger
 
@@ -11,6 +12,10 @@ from refactor.proof_node import *
 class TacModel:
     @abstractmethod
     def get_tactics(self, goals, premises):
+        return
+
+    @abstractmethod
+    def train(self):
         return
 
 
@@ -35,6 +40,10 @@ class ReProverTacGen(TacModel):
         logger.debug(f"Tactic suggestions: {tactics}")
         return tactics
 
+
+# Takes a generative tactic model, training with DPO from tactic rankings
+class TacGenDPOTrain(pl.LightningModule):
+    pass
 
 # DPO loss from paper,
 

@@ -374,7 +374,8 @@ class Edge:
     tactic: str
     src: InternalNode = field(repr=False)
     dst: List[Node] = field(repr=False)
-    logprob: float
+    tac_logprob: float
+    goal_logprob: float
     time: float
 
     def distance_to_proof(self) -> float:

@@ -2,16 +2,34 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import heapq
+import pytorch_lightning as pl
 
 import ray
 
 from refactor.proof_node import *
 
 
+class GoalModel:
+    def __init__(self, model):
+        self.model = model
+
+    def run(self, goals):
+        scores = self.model.batch_generate(goals)
+        return scores
+
+
+# Trains goal model based on binary proven/unproven loss
+class BinaryGoalModel(pl.LightningModule):
+    pass
+
+
+# Trains goal model based on proof length objective based on Polu et al.
+class ProofLengthGoalModel(pl.LightningModule):
+    pass
+
+
 class Search:
     def __init__(self):
-        self.search_trace = []
         self.nodes = {}
         self.root = None
 
@@ -26,15 +44,6 @@ class Search:
     @abstractmethod
     def process_response(self, response: Edge):
         return
-
-
-class GoalModel:
-    def __init__(self, model):
-        self.model = model
-
-    def run(self, goals):
-        scores = self.model.batch_generate(goals)
-        return scores
 
 
 class UpDown(Search):
@@ -78,16 +87,12 @@ class UpDown(Search):
                 best_score = score
                 best_node = node
 
+        # todo find fringe for selected node by choosing all goals with the same score.
+
         if best_node:
-            self.search_trace.append((best_node.goal, best_score))
+            return [(best_node, best_score)]
         else:
-            self.search_trace.append((None, -math.inf))
             return []
-
-        # todo pass whole fringe for running (need to get argmax context)
-        # return [best_node] + [self.nodes[ctx] for ctx in best_node.context]
-
-        return [best_node]
 
     def _up_step(self, node):
         if node.out_edges:
@@ -106,7 +111,7 @@ class UpDown(Search):
 
             up_score = max(node.provable_score, best_score)
 
-            # todo scale breadth as it's explored
+            # todo scale breadth as it's explored?
             if up_score != node.up_score:
                 node.up_score = up_score
                 parents = set([edge.src for edge in node.in_edges])
@@ -144,6 +149,7 @@ class UpDown(Search):
 
 
 # based on cumulative logprob, maintain priority queue, pop for get_goals, populate in process_response
+# currently only permits goals to be expanded once
 class BestFS(Search):
     def __init__(self):
         super().__init__()
@@ -162,10 +168,9 @@ class BestFS(Search):
             # if node was set to explored since being added (e.g. if ancestor was proven)
             if search_node.is_explored:
                 return self.get_goals()
-            self.search_trace.append((search_node.goal, search_node.cumulative_logprob))
-            return [search_node]
+
+            return [(search_node, search_node.cumulative_logprob)]
         else:
-            self.search_trace.append((None, -math.inf))
             return None
 
     def process_response(self, response: Edge):
@@ -205,11 +210,88 @@ class BFS(Search):
 
 
 class HTPS(Search):
+    def __init__(self, goal_model: GoalModel, exploration_constant=1):
+        super().__init__()
+        self.goal_model = goal_model
+        self.exploration_constant = exploration_constant
+
     def reset(self, root):
-        pass
+        self.__init__(self.goal_model)
+        self.root = root
+        self.nodes[root.goal] = root
 
+        # todo move to model
+        node_goals = ['<extra_id_0>' + self.root.goal]
+        # Initialise scores for root
+        scores = ray.get(self.goal_model.run.remote(node_goals))
+
+        self.root.provable_score = scores[0]
+        self.root.up_score = scores[0]
+
+    def uct(self, edge):
+        return edge.logprob + self.exploration_constant * (
+                self.scores[(edge.src, edge.tactic)] / edge.visit_count())  # ...
+
+    # given a node, decide which edge to take according to search policy
+    # todo update visit counts
+    def expand_node(self, node):
+        # if leaf, return node
+        if not node.is_explored:
+            return [node]
+
+        best_score = -math.inf
+        best_edge = None
+        for edge in node.out_edges:
+            edge_score = self.uct(edge)
+            if edge_score > best_score:
+                best_score = edge_score
+                best_edge = edge
+
+        ret = []
+        for d in best_edge.dst:
+            ret.extend(self.expand_node(d))
+
+        return ret
+
+    # construct a hypertree from root, until we find leaves not explored
     def get_goals(self):
-        pass
+        return self.expand_node(self.root)
 
+    # compute scores for new goals, and update value estimates for tree
     def process_response(self, response):
-        pass
+        search_node = response.src
+        result = response.dst
+
+        # find new nodes from response, and compute their provable score
+        new_nodes = []
+        for result_node in result:
+            if isinstance(result_node, InternalNode):
+                if result_node.goal not in self.nodes:
+                    new_nodes.append(result_node)
+                    self.nodes[result_node.goal] = result_node
+
+        if new_nodes:
+            # todo move to model
+            node_goals = ['<extra_id_0>' + node_.goal for node_ in new_nodes]
+
+            scores = ray.get(self.goal_model.run.remote(node_goals))
+
+            # Initialise provable_score/up_score for new internal nodes
+            for i, node_ in enumerate(new_nodes):
+                node_.provable_score = scores[i]
+                node_.up_score = node_.provable_score
+                assert self.nodes[node_.goal] is node_
+
+        self.propagate(search_node, response)
+
+    def propagate(self, node, response):
+        result = response.dst
+        score = 0
+        for result_node in result:
+            score += result_node.up_score
+            node.visit_count += 1
+
+        node.up_score += score
+
+        for edge in node.in_edges:
+            self.propagate(edge.src, edge)

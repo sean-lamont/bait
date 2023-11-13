@@ -21,8 +21,5 @@ class SearchResult:
     num_expansions: int
     num_nodes: int
 
-    # Search trace to reconstruct state+selected goals+probs
-    search_trace: Any = field(repr=False)
-
-    # Tac gen trace
+    # ordered trace of edges, includes selected goal, outcome, tactic prob and goal probs
     tac_trace: Any = field(repr=False)

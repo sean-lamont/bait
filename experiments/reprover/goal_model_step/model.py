@@ -1,19 +1,16 @@
-"""Lightning module for the tactic generator."""
+"""Lightning module for goal model."""
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple
 
 import einops
 import pytorch_lightning as pl
 import torch
-from lean_dojo import Pos
 from loguru import logger
 from torch import Tensor
-from transformers import T5ForConditionalGeneration, AutoTokenizer, NoBadWordsLogitsProcessor
 from torch.nn import CrossEntropyLoss
+from transformers import T5ForConditionalGeneration, AutoTokenizer, NoBadWordsLogitsProcessor
 
 from experiments.reprover.common import (
-    zip_strict,
-    remove_marks,
     get_optimizers,
     load_checkpoint,
 )
@@ -21,10 +18,6 @@ from experiments.reprover.common import (
 torch.set_float32_matmul_precision("medium")
 
 mseloss = torch.nn.MSELoss()
-
-from torchmetrics.classification import BinaryAccuracy
-
-metric = BinaryAccuracy()
 
 
 class GoalModel(ABC):
@@ -66,12 +59,12 @@ class StepGoalModel(GoalModel, pl.LightningModule):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.generator = T5ForConditionalGeneration.from_pretrained(model_name)
 
-        logger.debug(f'bucket toks: {bucket_toks}')
+        logger.debug(f'Bucket Tokens: {bucket_toks}')
 
         # ignore last token as EOS
         self.bucket_ids = self.tokenizer.encode(bucket_toks)[:-1]
 
-        logger.debug(f'bucket ids: {self.bucket_ids}')
+        logger.debug(f'Bucket IDs: {self.bucket_ids}')
 
         # restrict output to be only step buckets
         self.bad_ids = [[i] for i in range(len(self.tokenizer)) if i not in self.bucket_ids]
@@ -79,10 +72,7 @@ class StepGoalModel(GoalModel, pl.LightningModule):
 
         weights = torch.zeros(384)
 
-        # [3.97018182e-01, 1.98509091e+02, 9.92545455e+02, 9.92545455e+02,
-        #  9.92545455e+02, 1.98509091e+02, 2.36320346e+01, 1.48141113e+01,
-        #  3.12121212e+00, 6.04105572e-01, 1.56676473e-01]
-
+        # todo take as parameter
         weights[260:271] = torch.Tensor(
             [0.39694545454545455,
              90.21487603305785,
@@ -120,12 +110,6 @@ class StepGoalModel(GoalModel, pl.LightningModule):
 
         filtered_logits = self.logits_processor(state_ids, output.logits)
 
-        # assert target_ids.shape[1] == filtered_logits.shape[1] == 2
-
-        # calculate loss ignoring the EOS at the end
-        # loss = self.ce_loss(filtered_logits[:, 0], target_ids[:, 0])
-
-
         # get probs for the buckets
         filtered_logits = filtered_logits[:, 0, self.bucket_ids]
         buckets = torch.Tensor(self.bucket_ids).bfloat16().to(self.device)
@@ -136,9 +120,10 @@ class StepGoalModel(GoalModel, pl.LightningModule):
 
         buckets = einops.repeat(buckets, 'd -> n d', n=batch_size).bfloat16()
 
-        score = torch.sum(probs * (buckets - 260), dim=1) #/ torch.LongTensor((len(self.bucket_ids) - 1)).to(self.device)
+        score = torch.sum(probs * (buckets - 260),
+                          dim=1) / torch.LongTensor((len(self.bucket_ids) - 1)).to(self.device)
 
-        targ_score = (target_ids[:, 0] - 260).bfloat16() #/ (len(self.bucket_ids) - 1)
+        targ_score = (target_ids[:, 0] - 260).bfloat16() / (len(self.bucket_ids) - 1)
 
         loss = self.mseloss(score, targ_score)
 
@@ -147,14 +132,6 @@ class StepGoalModel(GoalModel, pl.LightningModule):
         # print (f'score {score} targets {(targets - 260) / (len(self.bucket_ids) - 1)}')
 
         return loss
-
-        # return (
-        #
-        #     self.generator(
-        #     input_ids=state_ids,
-        #     attention_mask=state_mask,
-        #     labels=target_ids,
-        # ).loss)
 
     ############
     # Training #
@@ -283,9 +260,6 @@ class StepGoalModel(GoalModel, pl.LightningModule):
             prog_bar=True
         )
 
-    # def on_validation_epoch_end(self) -> None:
-    #     pass
-
     ##############
     # Prediction #
     ##############
@@ -329,4 +303,4 @@ class StepGoalModel(GoalModel, pl.LightningModule):
         buckets = einops.repeat(buckets, 'd -> n d', n=batch_size)
         score = torch.sum(probs * (buckets - 260), dim=1) / (len(self.bucket_ids) - 1)
 
-        return torch.log(score)  # .tolist()
+        return torch.log(score)

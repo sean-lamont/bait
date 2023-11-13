@@ -56,7 +56,7 @@ class EndToEndProver:
         self.env_time = 0
         self.num_expansions = 0
 
-        self.trace = []
+        self.tac_trace = []
 
         self.dir = directory + '/traces'
         self.error_dir = directory + '/error_logs'
@@ -66,6 +66,7 @@ class EndToEndProver:
     def _process_trace(self, theorem):
         root = self.search_model.root
         nodes = self.search_model.nodes
+        traces = self.search_model.search_trace
 
         if root.status == Status.PROVED:
             proof = [e.tactic for e in root.extract_proof()]
@@ -83,7 +84,8 @@ class EndToEndProver:
             search_time=self.search_time,
             env_time=self.env_time,
             num_expansions=self.num_expansions,
-            trace=self.trace,
+            tac_trace=self.tac_trace,
+            search_trace=traces,
             num_nodes=len(nodes)
         )
 
@@ -119,37 +121,18 @@ class EndToEndProver:
 
         return suggestions
 
-    def _step(self, env):
-        t0 = time.monotonic()
-        goals = self.search_model.get_goals()
-        self.search_time += time.monotonic() - t0
+    def _step(self, env, goal, tactic):
+        goal = goal
 
-        t0 = time.monotonic()
-
-        if not goals:
-            raise Exception("No valid goals")
-
-        premises = env.premises
-
-        suggestions = self.get_tactics(goals, premises)
+        suggestions = tactic
 
         if not suggestions:
             return
 
-        self.tac_time += time.monotonic() - t0
+        logger.debug(f'Running {tactic}, goal: {goal}')
+        response = env.run_tactic(goal, tactic)
 
-        for goal, tactic in suggestions:
-            t0 = time.monotonic()
-            logger.debug(f'Running {tactic}, goal: {goal}')
-            response = env.run_tactic(goal, tactic)
-            self.env_time += time.monotonic() - t0
-
-            self.trace.append(response)
-            self.num_expansions += 1
-
-            t0 = time.monotonic()
-            self.search_model.process_response(response)
-            self.search_time += time.monotonic() - t0
+        self.search_model.process_response(response)
 
     def log_error(self, msg, theorem):
         with open(f"{self.error_dir}/{theorem}", "a") as f:
@@ -162,32 +145,33 @@ class EndToEndProver:
             except Exception as e:
                 logger.warning(f'Environment error {e}')
                 # will only be raised if there is no valid root from search (e.g. error loading environment)
+                # self.search_model.__init__(self.search_model.goal_model)
+                self.search_model.__init__()
+                self.search_model.root = ErrorNode(EnvironmentError(str(e)))
                 self.log_error(str(e), env.thm.full_name)
-
-                root = ErrorNode(EnvironmentError(str(e)))
-                self.search_model.reset(root)
 
         result = self._process_trace(env.thm.full_name)
 
         return result
 
-    def _search(self, env) -> None:
+    def replay(self, env, trace) -> None:
         try:
-            root = None
+            root = trace.tree
             self.search_time = 0
             self.tac_time = 0
             self.env_time = 0
             self.num_expansions = 0
-            self.trace = []
+            tac_trace = trace.tac_trace
+            search_trace = trace.search_trace
 
             with env as (env, root):
                 time_start = time.monotonic()
                 self.search_model.reset(root)
                 logger.info(f'Attempting to prove {root}')
 
-                while True:
+                for i in range(len(tac_trace)):
                     try:
-                        self._step(env)
+                        self._step(env, search_trace[i], tac_trace[i])
                     except Exception as e:
                         # todo make env timeout error
                         if not (self.env_time >= self.timeout):
@@ -393,13 +377,11 @@ def main(config) -> None:
     # todo add end-to-end training
     # todo add tac/search model train functions, which can be lightning data modules
     # self.process_result(results, config) (e.g. process and add results to mongodb)
-
     # if self.tac_train:
-    #   self.tac_trainer = Trainer()
-    #   self.tac_trainer.fit(self.tac_model, self.tac_datamodule)
-
-    # (likewise for goal_model)
+    # self.tac_model.train (take recently updated database, and retrain tac_model)
     # also would update retriever e.g. refresh embedding generation
+    # if self.goal.train:
+    # self.goal_model.train (likewise for goal_model)
 
 
 if __name__ == '__main__':

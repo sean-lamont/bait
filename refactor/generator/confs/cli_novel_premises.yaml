@@ -11,8 +11,8 @@ trainer:
       cpu_checkpointing: false
   gradient_clip_val: 1.0
   max_steps: 500000
-  check_val_every_n_epoch: 1
-  num_sanity_val_steps: 1
+  check_val_every_n_epoch: 2
+  num_sanity_val_steps: 0
   callbacks:
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args: 
@@ -22,32 +22,34 @@ trainer:
         verbose: true
         save_top_k: 1
         save_last: true
-        monitor: val_acc
+        monitor: Pass@1_val
         mode: max
     - class_path: pytorch_lightning.callbacks.EarlyStopping
       init_args:
-        monitor: val_acc
+        monitor: Pass@1_val
         patience: 3
         mode: max
         verbose: true
 
 model:
-  model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
-#  model_name: google/byt5-small
+  model_name: google/byt5-small
   lr: 5e-4
-  warmup_steps: 200
-  provable_tok: '<extra_id_1>'
-  unprovable_tok: '<extra_id_2>'
-
+  warmup_steps: 2000
+  num_beams: 1
+  length_penalty: 0.0
+  ret_ckpt_path: null
+  eval_num_retrieved: 100
+  eval_num_cpus: 12
+  eval_num_theorems: 200
 
 data:
-  data_path: goal_data.pk
-  val_data_path: goal_data_val.pk
-  batch_size: 2  # effective_batch_size == batch_size * accumulate_grad_batches * devices
-  eval_batch_size: 4
+  data_path: data/leandojo_benchmark/novel_premises/
+  corpus_path: data/leandojo_benchmark/corpus.jsonl
+  keep_marks: true
+  preds_path: null
+  batch_size: 8
+  eval_batch_size: 64
   max_seq_len: 2300
+  p_drop: 0.5
+  normalize_tactics: true
   num_workers: 2
-  visit_threshold: 256
-  critic_tok: '<extra_id_0>'
-  provable_tok: '<extra_id_1>'
-  unprovable_tok: '<extra_id_2>'

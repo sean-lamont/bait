@@ -13,6 +13,8 @@ trainer:
   max_steps: 500000
   check_val_every_n_epoch: 1
   num_sanity_val_steps: 1
+  # need this to reload ray dataloader
+  reload_dataloaders_every_n_epochs: 1
   callbacks:
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args: 
@@ -43,8 +45,6 @@ model:
 
 
 data:
-  data_path: goal_step_data.pk
-  val_data_path: goal_step_data_val.pk
   batch_size: 2  # effective_batch_size == batch_size * accumulate_grad_batches * devices
   eval_batch_size: 4
   max_seq_len: 2300

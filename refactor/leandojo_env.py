@@ -77,10 +77,12 @@ class LeanDojoEnv:
         return path, self.thm, self.pos
 
     # todo move some of this to search model?
-    def run_tactic(self, node: InternalNode, tactic: Tuple[str, float]):  # -> Tuple[Edge, List]:
+    def run_tactic(self, node: Tuple[InternalNode, float], tactic: Tuple[str, float]):  # -> Tuple[Edge, List]:
         t0 = time.monotonic()
 
-        tactic, logprob = tactic
+        tactic, tac_logprob = tactic
+
+        node, goal_logprob = node
 
         goal_num, state, _ = self.node_map[node.goal]
 
@@ -160,7 +162,7 @@ class LeanDojoEnv:
                     else:
                         result_node = InternalNode(
                             goal=goal,
-                            cumulative_logprob=logprob + node.cumulative_logprob,
+                            cumulative_logprob=tac_logprob + node.cumulative_logprob,
                             depth=node.depth + 1
                         )
 
@@ -191,7 +193,8 @@ class LeanDojoEnv:
 
         # Build an edge connecting these nodes.
         # Will be added to the source node externally.
-        edge = Edge(tactic=tactic, src=node, dst=result, logprob=logprob, time=elapsed)
+        edge = Edge(tactic=tactic, src=node, dst=result, tac_logprob=tac_logprob, goal_logprob=goal_logprob,
+                    time=elapsed)
 
         if node.out_edges:
             node.out_edges = node.out_edges + [edge]
