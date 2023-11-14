@@ -92,9 +92,9 @@ class EndToEndProver:
 
         return result
 
-    def get_tactics(self, goals, premises, tacs_per_goal=64):
+    def get_tactics(self, goals, premises, tacs_per_goal=1):
         suggestions = []
-        for search_node in goals:
+        for search_node, prob in goals:
             assert not search_node.is_explored
             ts = search_node.goal
 
@@ -112,7 +112,7 @@ class EndToEndProver:
             for _ in range(tacs_per_goal):
                 if remaining_tacs:
                     tactic, logprob = remaining_tacs.pop()
-                    suggestions.append((search_node, (tactic, logprob)))
+                    suggestions.append(((search_node, prob), (tactic, logprob)))
                 else:
                     search_node.is_explored = True
                     continue
@@ -243,10 +243,10 @@ class DistributedProver:
 
         if not self.distributed:
             with_gpus = True
-            self.num_gpus = 1
-            self.cpus_per_gpu = 8
+            self.num_gpus = 4
+            self.cpus_per_gpu = 1
 
-            ray.init(num_gpus=1)
+            ray.init(num_gpus=2)
 
             device = torch.device("cuda") if with_gpus else torch.device("cpu")
 
@@ -261,16 +261,16 @@ class DistributedProver:
                     assert indexed_corpus_path is not None
                     tac_gen.retriever.load_corpus(indexed_corpus_path)
 
-                # goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
+                goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
 
                 # todo best way to parameterise resource allocation
-                tac_model = ray.remote(num_gpus=0.45)(ReProverTacGen).remote(tac_model=tac_gen)
+                tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
 
-                # goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
+                goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
 
-                # search_model = UpDown(goal_model)
+                search_model = UpDown(goal_model)
 
-                search_model = BestFS()
+                # search_model = BestFS()
 
                 prover_pool.extend([ray.remote(num_gpus=0.01)(EndToEndProver).remote(
                     tac_model=tac_model, search_model=search_model, timeout=timeout, directory=log_dir
@@ -301,7 +301,7 @@ class DistributedProver:
                 logger.info(f'Result: {res}')
                 if res.proof:
                     proven += 1
-                    wandb.log({'Step': i + 1, 'Proven': proven, 'Iteration': iteration})
+                wandb.log({'Step': i + 1, 'Proven': proven, 'Iteration': iteration})
 
             return results
 

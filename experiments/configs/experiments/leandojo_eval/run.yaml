@@ -5,7 +5,7 @@ defaults:
 
 
 exp_config:
-  name: bestfs_1_expansion
+  name: updown_full_fringe
   experiment: eval_loop
 #  directory: experiments/runs/eval_loop/leandojo_eval_2023_11_02/15_53_50
 #  resume: True
@@ -17,7 +17,7 @@ exp_config:
 
 logging_config:
   project: leandoj_eval
-  offline: true
+  offline: false
 
 
 data_path: data/leandojo/data/leandojo_benchmark/random/
@@ -27,13 +27,13 @@ full_name: null
 num_theorems: null
 name_filter: null
 name: null
-ckpt_path: gen.ckpt
+ckpt_path: last.ckpt
 goal_path: goal_step.ckpt
 indexed_corpus_path: null
 num_sampled_tactics: 64
 timeout: 600
 num_cpus: 4
-with_gpus: True
-verbose: true
+with_gpus: true
+verbose: false
 
 

@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from loguru import logger
 import pytorch_lightning as pl
 
 import ray
@@ -54,23 +55,24 @@ class UpDown(Search):
     def reset(self, root):
         self.__init__(self.goal_model)
         self.root = root
-        self.nodes[root.goal] = root
+        if root:
+            self.nodes[root.goal] = root
 
-        # todo move to model
-        node_goals = ['<extra_id_0>' + self.root.goal]
-        # Initialise scores for root
-        scores = ray.get(self.goal_model.run.remote(node_goals))
+            # todo move to model
+            node_goals = ['<extra_id_0>' + self.root.goal]
+            # Initialise scores for root
+            scores = ray.get(self.goal_model.run.remote(node_goals))
 
-        self.root.provable_score = scores[0]
-        self.root.up_score = scores[0]
+            self.root.provable_score = scores[0]
+            self.root.up_score = scores[0]
 
     # todo sample?
-    # todo return goal plus the context (i.e. best fringe)?
-    # todo take as parameter # of goals?
+    # todo take as parameter # of goals/fringes
     def get_goals(self):
         best_score = -math.inf
         best_node = None
 
+        node_scores = {}
         for goal, node in self.nodes.items():
             if node.is_explored:
                 continue
@@ -83,16 +85,23 @@ class UpDown(Search):
             else:
                 score = node.provable_score
 
+            node_scores[node.goal] = score
             if score > best_score:
                 best_score = score
                 best_node = node
 
-        # todo find fringe for selected node by choosing all goals with the same score.
-
-        if best_node:
-            return [(best_node, best_score)]
-        else:
+        if not best_node:
             return []
+
+        # find fringe for selected node by choosing all goals with the same score.
+        # (may include other goals with same score not in fringe)
+        best_fringe = []
+
+        for goal, score in node_scores.items():
+            if score == best_score:
+                best_fringe.append((self.nodes[goal], best_score))
+
+        return best_fringe
 
     def _up_step(self, node):
         if node.out_edges:
@@ -139,7 +148,7 @@ class UpDown(Search):
 
             # Initialise provable_score/up_score for new internal nodes
             for i, node_ in enumerate(new_nodes):
-                node_.provable_score = (scores[i] + (node_.depth * math.log(0.95))).item()
+                node_.provable_score = (scores[i] + (node_.depth * math.log(0.99))).item()
                 node_.up_score = node_.provable_score
                 assert self.nodes[node_.goal] is node_
 
@@ -158,8 +167,9 @@ class BestFS(Search):
     def reset(self, root):
         self.__init__()
         self.root = root
-        self.priority_queue = [root]
-        self.nodes[root.goal] = root
+        if root:
+            self.priority_queue = [root]
+            self.nodes[root.goal] = root
 
     def get_goals(self):
         self.priority_queue = sorted(self.priority_queue, key=lambda x: x.cumulative_logprob)

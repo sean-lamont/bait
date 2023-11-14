@@ -91,21 +91,12 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
             attention_mask=state_mask,
             labels=target_ids)
 
-
         filtered_logits = self.logits_processor(state_ids, output.logits)
 
         # calculate loss ignoring the EOS at the end
         assert target_ids.shape[1] == filtered_logits.shape[1] == 2
         loss = ce_loss(filtered_logits[:, 0], target_ids[:, 0])
         return loss
-
-        # return (
-        #
-        #     self.generator(
-        #     input_ids=state_ids,
-        #     attention_mask=state_mask,
-        #     labels=target_ids,
-        # ).loss)
 
     ############
     # Training #

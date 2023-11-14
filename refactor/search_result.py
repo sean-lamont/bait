@@ -22,4 +22,4 @@ class SearchResult:
     num_nodes: int
 
     # ordered trace of edges, includes selected goal, outcome, tactic prob and goal probs
-    tac_trace: Any = field(repr=False)
+    trace: Any = field(repr=False)
