@@ -17,8 +17,8 @@ from lean_dojo import (
     DojoInitError,
     DojoCrashError,
     DojoHardTimeoutError,
-    # TacticError,
-    LeanError,
+    TacticError,
+    # LeanError,
     TimeoutError,
     TacticState,
     ProofGivenUp
@@ -101,8 +101,8 @@ class LeanDojoEnv:
         result_node = []
 
         if type(response) in (
-                # TacticError,
-                LeanError,
+                TacticError,
+                # LeanError,
                 TimeoutError,
                 ProofGivenUp,
         ):

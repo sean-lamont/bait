@@ -1,4 +1,4 @@
-seed_everything: 3407  # https://arxiv.org/abs/2109.08203
+#seed_everything: 3407  # https://arxiv.org/abs/2109.08203
 trainer:
   accelerator: gpu
   devices: 1
@@ -10,9 +10,11 @@ trainer:
       offload_optimizer: false
       cpu_checkpointing: false
   gradient_clip_val: 1.0
-  max_steps: 500000
+#  max_steps: 500000
+  max_steps: 50000
   check_val_every_n_epoch: 1
   num_sanity_val_steps: 1
+  val_check_interval: 1000
   callbacks:
     - class_path: pytorch_lightning.callbacks.LearningRateMonitor
       init_args: 
@@ -27,26 +29,27 @@ trainer:
     - class_path: pytorch_lightning.callbacks.EarlyStopping
       init_args:
         monitor: val_acc
-        patience: 3
+        patience: 10
         mode: max
         verbose: true
 
 model:
   model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
 #  model_name: google/byt5-small
-  lr: 5e-4
+#  lr: 5e-4
+  lr: 1e-5 # 1e-4 best so far
   warmup_steps: 200
   provable_tok: '<extra_id_1>'
   unprovable_tok: '<extra_id_2>'
 
 
 data:
-  data_path: goal_data.pk
-  val_data_path: goal_data_val.pk
+  data_path: train_goal.pk
+  val_data_path: val_goal.pk
   batch_size: 2  # effective_batch_size == batch_size * accumulate_grad_batches * devices
   eval_batch_size: 4
   max_seq_len: 2300
-  num_workers: 2
+  num_workers: 0
   visit_threshold: 256
   critic_tok: '<extra_id_0>'
   provable_tok: '<extra_id_1>'

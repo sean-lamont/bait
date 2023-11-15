@@ -92,7 +92,7 @@ def transform_goal(goal_datum, max_len=10, visit_threshold=2048):
 
 
 # binary proven/unproven classification task, approach from HTPS
-def transform_goal_proven(goal_datum, visit_threshold=2048):
+def transform_goal_proven(goal_datum, visit_threshold=256):
     proof_len = goal_datum['distance_to_proof']
     if proof_len < math.inf:
         return {'goal': goal_datum['goal'], 'target': 1}
@@ -197,24 +197,35 @@ if __name__ == '__main__':
                 goal_collection.insert_one(step_datum)
 
         # add full trace data
-        trace_collection.insert_many(full_trace_data(trace))
+        # trace_collection.insert_many(full_trace_data(trace))
 
         # add edge ranking data for DPO
-        for node in nodes.values():
-            if node.out_edges:
-                rank_edges(goal=node.goal, edges=node.out_edges)
-
+        # for node in nodes.values():
+        #     if node.out_edges:
+        #         rank_edges(goal=node.goal, edges=node.out_edges)
+    #
     # add processed data for goal models
+    goal_data = []
     for datum in tqdm(goal_collection.find()):
-        len_data = transform_goal(datum)
-        if len_data:
-            goal_len_collection.insert_one(len_data)
 
-        proven_data = transform_goal_proven(datum)
-        if proven_data:
-            goal_proven_task.insert_one(proven_data)
+        goal_data.append({'goal': datum['goal'],
+                          'full_visit_count': datum['visits'],
+                          'proved': datum['distance_to_proof'] < math.inf})
+
+    with open('../train_goal.pk', 'wb') as f:
+        pickle.dump(goal_data[:int(0.9 * len(goal_data))], f)
+    with open('../val_goal.pk', 'wb') as f:
+        pickle.dump(goal_data[int(0.9 * len(goal_data)):], f)
+
+        # len_data = transform_goal(datum)
+        # if len_data:
+        #     goal_len_collection.insert_one(len_data)
+        #
+        # proven_data = transform_goal_proven(datum)
+        # if proven_data:
+        #     goal_proven_task.insert_one(proven_data)
 
     # add random index for collections used in training (ensures shuffled and ordered data for distributed training)
-    add_rand_idx(goal_len_collection)
-    add_rand_idx(goal_proven_task)
-    add_rand_idx(rank_collection)
+    # add_rand_idx(goal_len_collection)
+    # add_rand_idx(goal_proven_task)
+    # add_rand_idx(rank_collection)

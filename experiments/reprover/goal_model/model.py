@@ -18,11 +18,12 @@ from experiments.reprover.common import (
 
 torch.set_float32_matmul_precision("medium")
 
-ce_loss = CrossEntropyLoss(ignore_index=1)
-
+from torchmetrics.classification import BinaryConfusionMatrix
 from torchmetrics.classification import BinaryAccuracy
 
-metric = BinaryAccuracy()
+bcm = BinaryConfusionMatrix(normalize='true').cuda()
+
+metric = BinaryAccuracy().cuda()
 
 
 class GoalModel(ABC):
@@ -74,6 +75,12 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
 
         self.logits_processor = NoBadWordsLogitsProcessor(bad_words_ids=self.bad_ids, eos_token_id=None)
 
+        weights = torch.zeros(len(self.tokenizer))
+        # bias towards provable
+        weights[self.provable_id] = 2
+        weights[self.unprovable_id] = 1
+        self.ce_loss = CrossEntropyLoss(ignore_index=1, weight=weights)
+
     @classmethod
     def load(
             cls, ckpt_path: str, device, freeze: bool
@@ -91,12 +98,11 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
             attention_mask=state_mask,
             labels=target_ids)
 
-
         filtered_logits = self.logits_processor(state_ids, output.logits)
 
         # calculate loss ignoring the EOS at the end
         assert target_ids.shape[1] == filtered_logits.shape[1] == 2
-        loss = ce_loss(filtered_logits[:, 0], target_ids[:, 0])
+        loss = self.ce_loss(filtered_logits[:, 0], target_ids[:, 0])
         return loss
 
         # return (
@@ -117,6 +123,7 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
             batch["state_mask"],
             batch["target_ids"],
         )
+
         self.log(
             "loss_train",
             loss,
@@ -182,8 +189,12 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
 
         # Take the highest of <provable>, <unprovable> as the prediction
 
-        preds = torch.max(filtered_logits, dim=1)[1]
+        inds, preds = torch.max(filtered_logits, dim=1)
         targets = batch['target_ids'][:, 0]
+        confusion = bcm(torch.abs(preds - 261).to(self.device), torch.abs(targets - 261).to(self.device))
+        # print(f'preds: {preds}, targets: {targets}, probs: {torch.softmax(filtered_logits, dim=1)[:, self.provable_id]}')
+        # print(f'bcm: {confusion}')
+
 
         acc = torch.sum((preds == targets) / (preds == targets).shape[0])
 
@@ -195,6 +206,25 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
             batch_size=len(batch),
             prog_bar=True
         )
+
+        self.log(
+            "false_negs",
+            confusion[1][0],
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
+        )
+
+        self.log(
+            "true_pos",
+            confusion[1][1],
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
+        )
+
 
     # def on_validation_epoch_end(self) -> None:
     #     pass

@@ -55,7 +55,7 @@ class UpDown(Search):
     def reset(self, root):
         self.__init__(self.goal_model)
         self.root = root
-        if root:
+        if isinstance(root, InternalNode):
             self.nodes[root.goal] = root
 
             # todo move to model
@@ -167,7 +167,7 @@ class BestFS(Search):
     def reset(self, root):
         self.__init__()
         self.root = root
-        if root:
+        if isinstance(root, InternalNode):
             self.priority_queue = [root]
             self.nodes[root.goal] = root
 

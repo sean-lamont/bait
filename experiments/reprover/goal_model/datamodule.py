@@ -1,5 +1,6 @@
 """Data module for the tactic generator."""
 import pickle
+import random
 from typing import Optional, List
 
 import pytorch_lightning as pl
@@ -45,7 +46,9 @@ class GoalDataset(Dataset):
         neg_data = [d for d in data if d['proved'] == 0 and d['full_visit_count'] > self.visit_threshold]
         pos_data = [d for d in data if d['proved'] == 1]
         data = pos_data + neg_data
+        random.shuffle(data)
         logger.info(f"{len(data)} examples after filtering")
+        logger.info(f"{len(pos_data), len(neg_data)} positive/negative samples")
 
         return data
 

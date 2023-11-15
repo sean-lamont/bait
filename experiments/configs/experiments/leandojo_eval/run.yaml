@@ -27,8 +27,8 @@ full_name: null
 num_theorems: null
 name_filter: null
 name: null
-ckpt_path: last.ckpt
-goal_path: goal_step.ckpt
+ckpt_path: gen.ckpt
+goal_path: goal_model.ckpt
 indexed_corpus_path: null
 num_sampled_tactics: 64
 timeout: 600

@@ -3,8 +3,8 @@ import os
 from loguru import logger
 from pytorch_lightning.cli import LightningCLI
 
-from goal_model.datamodule import GoalDataModule
-from goal_model.model import SimpleGoalModel
+from experiments.reprover.goal_model.datamodule import GoalDataModule
+from experiments.reprover.goal_model.model import SimpleGoalModel
 
 
 class CLI(LightningCLI):
