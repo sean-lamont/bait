@@ -30,6 +30,7 @@ from experiments.reprover.common import set_logger
 from experiments.reprover.common import zip_strict
 from experiments.reprover.generator.model import RetrievalAugmentedGenerator
 from experiments.reprover.goal_model_step.model import StepGoalModel
+from experiments.reprover.goal_model.model import SimpleGoalModel
 from refactor.get_lean_theorems import _get_theorems
 from refactor.leandojo_env import LeanDojoEnv
 from refactor.proof_node import *
@@ -261,7 +262,8 @@ class DistributedProver:
                     assert indexed_corpus_path is not None
                     tac_gen.retriever.load_corpus(indexed_corpus_path)
 
-                goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
+                # goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
+                goal_model = SimpleGoalModel.load(goal_path, device=device, freeze=True)
 
                 # todo best way to parameterise resource allocation
                 # tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
