@@ -5,6 +5,8 @@ from random import random
 from typing import Optional, List
 
 import numpy as np
+import time
+from pymongo import MongoClient
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
 import ray
@@ -129,14 +131,6 @@ class GoalProvableDataModule(pl.LightningDataModule):
         return batch
 
 
-def worker_init_fn(_):
-    worker_info = torch.utils.data.get_worker_info()
-    dataset = worker_info.dataset
-    worker_id = worker_info.id
-    dataset.num_workers = worker_info.num_workers
-    dataset.worker_id = worker_id
-
-
 class CursorIter(torch.utils.data.IterableDataset):
     def __init__(self, cursor, fields, buf_size=4096):
         super(CursorIter).__init__()
@@ -152,7 +146,7 @@ class CursorIter(torch.utils.data.IterableDataset):
     def __next__(self):
         if self.remaining == 0:
             self.curr_batches = next(self.batches)
-            random.shuffle(self.curr_batches)
+            # random.shuffle(self.curr_batches)
             self.remaining = len(self.curr_batches)
         self.remaining -= 1
         if self.remaining >= 0:
@@ -160,14 +154,17 @@ class CursorIter(torch.utils.data.IterableDataset):
             return {field: ret[field] for field in self.fields}
 
 
+# datamodule can pass query which already filters
 class GoalStreamDataset(torch.utils.data.IterableDataset):
-    def __init__(self, collection, query, fields, buf_size=4096):
+    def __init__(self, db, col_name, fields, range, buf_size=4096):
         super(GoalStreamDataset).__init__()
-        # todo can set query based on worker id or global rank, e.g. take rand_idx < 0.1 if 10 workers/nodes
-        cursor = collection.find(query)
-        len = collection.count_documents(query)
-        self.ds = itertools.cycle(CursorIter(cursor, fields=fields, buf_size=buf_size))
-        self.length = len
+
+        self.db = db
+        self.col_name = col_name
+        self.range = range
+        self.fields = fields
+        self.buf_size = buf_size
+        self.setup()
 
     def __len__(self):
         return self.length
@@ -178,32 +175,89 @@ class GoalStreamDataset(torch.utils.data.IterableDataset):
     def __next__(self):
         return next(self.ds)
 
+    def setup(self):
+        self.collection = MongoClient()[self.db][self.col_name]
+
+        # run through once to get the length of cursor
+        self.query = [{'$match': {'rand_idx': {'$gt': self.range[0], '$lt': self.range[1]}}},
+                      {'$sort': {'rand_idx': 1}},
+                      {'$project': {v: 1 for v in self.fields}}]
+
+        if 'id' not in self.fields:
+            self.query[-1]['$project']['_id'] = 0
+
+        self.length = list(self.collection.aggregate(
+            [{'$match': {'rand_idx': {'$gt': self.range[0], '$lt': self.range[1]}}}, {'$count': 'length'}]))[0][
+            'length']
+
+        self.cursor = self.collection.aggregate(self.query)
+
+        self.ds = itertools.cycle(CursorIter(self.cursor, fields=self.fields, buf_size=self.buf_size))
+
+
+def worker_init_fn(_):
+    worker_info = torch.utils.data.get_worker_info()
+    dataset = worker_info.dataset
+    worker_id = worker_info.id
+    num_workers = worker_info.num_workers
+
+    start, stop = dataset.range
+    size = stop - start
+
+    stop = start + (((worker_id + 1) / num_workers) * size)
+    start = start + ((worker_id / num_workers) * size)
+
+    dataset.range = (start, stop)
+    dataset.setup()
+
+
+# todo test with datamodule
+# prevent Lightning to inject DDSampler
+# Trainer(replace_sampler_ddp=False)
+
 
 # split dataset from trainer world size in module, then pass ray dataset as input for iterable dataset?
 if __name__ == '__main__':
-    module = GoalProvableDataModule(model_name='kaiyuy/leandojo-lean3-tacgen-byt5-small',
-                                    batch_size=2,
-                                    eval_batch_size=4,
-                                    num_workers=2,
-                                    max_seq_len=2300,
-                                    critic_tok='<extra_id_0>',
-                                    provable_tok='<extra_id_1>',
-                                    unprovable_tok='<extra_id_2>',
-                                    )
+    # module = GoalProvableDataModule(model_name='kaiyuy/leandojo-lean3-tacgen-byt5-small',
+    #                                 batch_size=2,
+    #                                 eval_batch_size=4,
+    #                                 num_workers=2,
+    #                                 max_seq_len=2300,
+    #                                 critic_tok='<extra_id_0>',
+    #                                 provable_tok='<extra_id_1>',
+    #                                 unprovable_tok='<extra_id_2>',
+    #                                 )
+    #
+    # module.setup()
+    # ray_ds = module.ds_train
+    #
+    # # mongo_iter = GoalStreamDataset(data=ray_ds.streaming_split(1))
+    # mongo_iter = GoalStreamDataset(data=ray_ds)
+    #
+    # # loader1 = DataLoader(mongo_iter, batch_size=2, num_workers=0, worker_init_fn=worker_init_fn)
+    # loader1 = DataLoader(mongo_iter, batch_size=2, pin_memory=True)  # , num_workers=0, worker_init_fn=worker_init_fn)
+    #
+    # data_ = []
+    # for a in tqdm(iter(loader1)):
+    #     data_.append(a)
 
-    module.setup()
-    ray_ds = module.ds_train
+    db = 'hol4'
+    col = 'split_data'
+    ds = GoalStreamDataset(db=db,
+                           col_name=col,
+                           buf_size=2048,
+                           fields=['split', 'stmt'],
+                           range=(0, 0.5),
+                           )
 
-    # mongo_iter = GoalStreamDataset(data=ray_ds.streaming_split(1))
-    mongo_iter = GoalStreamDataset(data=ray_ds)
+    loader = DataLoader(ds, worker_init_fn=worker_init_fn, num_workers=8, batch_size=2)
+    t0 = time.monotonic()
 
-    # loader1 = DataLoader(mongo_iter, batch_size=2, num_workers=0, worker_init_fn=worker_init_fn)
-    loader1 = DataLoader(mongo_iter, batch_size=2, pin_memory=True)  # , num_workers=0, worker_init_fn=worker_init_fn)
+    data = []
+    for i in tqdm(loader):
+        data.extend(i)
 
-    data_ = []
-    for a in tqdm(iter(loader1)):
-        data_.append(a)
-
+    print('total time: {t0}, size: {len(data)}')
 # class GoalStreamDataset(torch.utils.data.IterableDataset):
 #     def __init__(self, data):
 #         super().__init__()

@@ -244,10 +244,10 @@ class DistributedProver:
 
         if not self.distributed:
             with_gpus = True
-            self.num_gpus = 1
-            self.cpus_per_gpu = 8
+            self.num_gpus = 4
+            self.cpus_per_gpu = 1
 
-            ray.init(num_gpus=1)
+            ray.init(num_gpus=2)
 
             device = torch.device("cuda") if with_gpus else torch.device("cpu")
 
@@ -262,14 +262,14 @@ class DistributedProver:
                     assert indexed_corpus_path is not None
                     tac_gen.retriever.load_corpus(indexed_corpus_path)
 
-                # goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
-                goal_model = SimpleGoalModel.load(goal_path, device=device, freeze=True)
+                goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
+                # goal_model = SimpleGoalModel.load(goal_path, device=device, freeze=True)
 
                 # todo best way to parameterise resource allocation
                 # tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
-                tac_model = ray.remote(num_gpus=0.45)(ReProverTacGen).remote(tac_model=tac_gen)
+                tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
 
-                goal_model = ray.remote(num_gpus=0.45)(GoalModel).remote(goal_model)
+                goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
                 # goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
 
                 search_model = UpDown(goal_model)

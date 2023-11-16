@@ -5,7 +5,7 @@ defaults:
 
 
 exp_config:
-  name: updown_full_fringe
+  name: updown_proof_len
   experiment: eval_loop
 #  directory: experiments/runs/eval_loop/leandojo_eval_2023_11_02/15_53_50
 #  resume: True
@@ -27,8 +27,8 @@ full_name: null
 num_theorems: null
 name_filter: null
 name: null
-ckpt_path: gen.ckpt
-goal_path: goal_model.ckpt
+ckpt_path: last.ckpt
+goal_path: goal_step.ckpt
 indexed_corpus_path: null
 num_sampled_tactics: 64
 timeout: 600
