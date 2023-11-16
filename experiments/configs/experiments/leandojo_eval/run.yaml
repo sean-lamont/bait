@@ -7,8 +7,8 @@ defaults:
 exp_config:
   name: updown_proof_len
   experiment: eval_loop
-  directory: experiments/runs/eval_loop/updown_proof_len_2023_11_16/09_07_22
-  resume: true
+#  directory: experiments/runs/eval_loop/updown_proof_len_2023_11_16/09_07_22
+#  resume: true
 
 #model_config:
 #  model_type: ???
@@ -18,7 +18,7 @@ exp_config:
 logging_config:
   project: leandoj_eval
   offline: false
-  id: rne83gt5
+#  id: rne83gt5
 
 
 data_path: data/leandojo/data/leandojo_benchmark/random/
@@ -36,5 +36,3 @@ timeout: 600
 num_cpus: 4
 with_gpus: true
 verbose: false
-
-

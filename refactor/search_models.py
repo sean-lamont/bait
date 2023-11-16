@@ -63,8 +63,8 @@ class UpDown(Search):
             # Initialise scores for root
             scores = ray.get(self.goal_model.run.remote(node_goals))
 
-            self.root.provable_score = scores[0]
-            self.root.up_score = scores[0]
+            self.root.provable_score = scores[0].item()
+            self.root.up_score = self.root.provable_score
 
     # todo sample?
     # todo take as parameter # of goals/fringes

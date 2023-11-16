@@ -93,7 +93,7 @@ class EndToEndProver:
 
         return result
 
-    def get_tactics(self, goals, premises, tacs_per_goal=1):
+    def get_tactics(self, goals, premises, tacs_per_goal=64):
         suggestions = []
         for search_node, prob in goals:
             assert not search_node.is_explored
@@ -301,19 +301,19 @@ class DistributedProver:
                 zip_strict(theorems, positions),
             )
 
-            results_table = wandb.Table(columns=["theorem", "goal", "status", "proof"])
+            results_table = wandb.run.Table(columns=["theorem", "goal", "status", "proof"])
 
             proven = prev_proofs
             for i, res in enumerate(results):
                 logger.info(f'Result: {res}')
                 if res.proof:
                     proven += 1
-                wandb.log({'Step': i + 1 + prev_thm_idx, 'Proven': proven, 'Iteration': iteration})
+                wandb.run.log({'Step': i + 1 + prev_thm_idx, 'Proven': proven, 'Iteration': iteration})
                 results_table.add_data(res.theorem, res.tree.goal, str(res.status),
                                        ', '.join(res.proof) if res.proof else 'None')
 
-                if i % 100 == 0:
-                    wandb.log({'Results': results_table})
+                # if i % 100 == 0:
+                wandb.run.log({'Results': results_table})
 
             return results
 
@@ -394,7 +394,7 @@ def main(config) -> None:
             prev_results.append(pickle.load(f))
 
     results = prover.search_unordered(repo, theorems, positions, iteration=0, prev_thm_idx=len(prev_theorems),
-                                      prev_proofs=len([p.tree.status == Status.PROVED for p in prev_results]))
+                                      prev_proofs=sum([p.tree.status == Status.PROVED for p in prev_results]))
 
     # todo add end-to-end training
     # todo add tac/search model train functions, which can be lightning data modules

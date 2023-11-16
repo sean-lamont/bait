@@ -19,11 +19,7 @@ from experiments.reprover.common import (
 torch.set_float32_matmul_precision("medium")
 
 from torchmetrics.classification import BinaryConfusionMatrix
-from torchmetrics.classification import BinaryAccuracy
 
-bcm = BinaryConfusionMatrix(normalize='true').cuda()
-
-metric = BinaryAccuracy().cuda()
 
 
 class GoalModel(ABC):
@@ -80,6 +76,7 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
         weights[self.provable_id] = 2
         weights[self.unprovable_id] = 1
         self.ce_loss = CrossEntropyLoss(ignore_index=1, weight=weights)
+        self.bcm = BinaryConfusionMatrix(normalize='true')
 
     @classmethod
     def load(
@@ -183,7 +180,7 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
 
         inds, preds = torch.max(filtered_logits, dim=1)
         targets = batch['target_ids'][:, 0]
-        confusion = bcm(torch.abs(preds - 261).to(self.device), torch.abs(targets - 261).to(self.device))
+        confusion = self.bcm(torch.abs(preds - 261).to(self.device), torch.abs(targets - 261).to(self.device))
         # print(f'preds: {preds}, targets: {targets}, probs: {torch.softmax(filtered_logits, dim=1)[:, self.provable_id]}')
         # print(f'bcm: {confusion}')
 

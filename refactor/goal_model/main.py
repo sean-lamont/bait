@@ -1,7 +1,7 @@
 """Script for training the goal model."""
 import os
 
-from refactor.goal_model.datamodule import GoalProvableDataModule, GoalStreamModule
+from refactor.goal_model.datamodule import GoalProvableDataModule
 from refactor.goal_model.model import SimpleGoalModel
 from loguru import logger
 from pytorch_lightning.cli import LightningCLI
@@ -15,7 +15,7 @@ class CLI(LightningCLI):
 
 def main() -> None:
     logger.info(f"PID: {os.getpid()}")
-    cli = CLI(SimpleGoalModel, GoalStreamModule)
+    cli = CLI(SimpleGoalModel, GoalProvableDataModule)
     print("Configuration: \n", cli.config)
 
 
