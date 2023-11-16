@@ -266,11 +266,11 @@ class DistributedProver:
                 # goal_model = SimpleGoalModel.load(goal_path, device=device, freeze=True)
 
                 # todo best way to parameterise resource allocation
-                # tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
-                tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
+                # tac_model = ray.remote(num_gpus=0.45)(ReProverTacGen).remote(tac_model=tac_gen)
+                # goal_model = ray.remote(num_gpus=0.45)(GoalModel).remote(goal_model)
 
+                tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
                 goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
-                # goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
 
                 search_model = UpDown(goal_model)
 
@@ -288,7 +288,8 @@ class DistributedProver:
     #  different)
 
     def search_unordered(
-            self, repo: LeanGitRepo, theorems: List[Theorem], positions: List[Pos], iteration=0
+            self, repo: LeanGitRepo, theorems: List[Theorem], positions: List[Pos], iteration=0, prev_thm_idx=0,
+            prev_proofs=0
     ) -> Any:
 
         """Parallel proof search for `theorems`. The order of the results is not guaranteed to match the order of the
@@ -300,12 +301,19 @@ class DistributedProver:
                 zip_strict(theorems, positions),
             )
 
-            proven = 0
+            results_table = wandb.Table(columns=["theorem", "goal", "status", "proof"])
+
+            proven = prev_proofs
             for i, res in enumerate(results):
                 logger.info(f'Result: {res}')
                 if res.proof:
                     proven += 1
-                wandb.log({'Step': i + 1, 'Proven': proven, 'Iteration': iteration})
+                wandb.log({'Step': i + 1 + prev_thm_idx, 'Proven': proven, 'Iteration': iteration})
+                results_table.add_data(res.theorem, res.tree.goal, str(res.status),
+                                       ', '.join(res.proof) if res.proof else 'None')
+
+                if i % 100 == 0:
+                    wandb.log({'Results': results_table})
 
             return results
 
@@ -325,6 +333,7 @@ def main(config) -> None:
     # todo make this system agnostic
     repo, theorems, positions = _get_theorems(config)
 
+    prev_theorems = []
     if config.exp_config.resume:
         wandb.init(project=config.logging_config.project,
                    name=config.exp_config.name,
@@ -337,7 +346,9 @@ def main(config) -> None:
 
         # Remove proven theorems if resuming
         prev_theorems = glob.glob(config.exp_config.directory + '/traces/*')
+        prev_theorems = [p.split('/')[-1] for p in prev_theorems]
 
+        logger.info(f'Resuming from proof {len(prev_theorems)}')
         final_theorems = []
         final_positions = []
 
@@ -377,22 +388,13 @@ def main(config) -> None:
         log_dir=config.exp_config.directory
     )
 
-    results = prover.search_unordered(repo, theorems, positions, iteration=0)
+    prev_results = []
+    for trace in glob.glob(config.exp_config.directory + '/traces/*'):
+        with open(trace, "rb") as f:
+            prev_results.append(pickle.load(f))
 
-    # Calculate the result statistics.
-    num_proved = num_failed = num_discarded = 0
-    for r in results:
-        if r is None:
-            num_discarded += 1
-        elif r.status == Status.PROVED:
-            num_proved += 1
-        else:
-            num_failed += 1
-
-    logger.info(
-        f"Iteration done! {num_proved} theorems proved, {num_failed} theorems failed, {num_discarded} non-theorems discarded"
-    )
-    logger.info(f"Pass@1: {num_proved / (num_proved + num_failed)}")
+    results = prover.search_unordered(repo, theorems, positions, iteration=0, prev_thm_idx=len(prev_theorems),
+                                      prev_proofs=len([p.tree.status == Status.PROVED for p in prev_results]))
 
     # todo add end-to-end training
     # todo add tac/search model train functions, which can be lightning data modules

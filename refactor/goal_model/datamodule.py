@@ -156,7 +156,7 @@ class CursorIter(torch.utils.data.IterableDataset):
 
 # datamodule can pass query which already filters
 class GoalStreamDataset(torch.utils.data.IterableDataset):
-    def __init__(self, db, col_name, fields, range, buf_size=4096):
+    def __init__(self, db, col_name, fields, range, buf_size=4096, shard_field='rand_idx'):
         super(GoalStreamDataset).__init__()
 
         self.db = db
@@ -164,6 +164,7 @@ class GoalStreamDataset(torch.utils.data.IterableDataset):
         self.range = range
         self.fields = fields
         self.buf_size = buf_size
+        self.shard_field = shard_field
         self.setup()
 
     def __len__(self):
@@ -179,15 +180,15 @@ class GoalStreamDataset(torch.utils.data.IterableDataset):
         self.collection = MongoClient()[self.db][self.col_name]
 
         # run through once to get the length of cursor
-        self.query = [{'$match': {'rand_idx': {'$gt': self.range[0], '$lt': self.range[1]}}},
-                      {'$sort': {'rand_idx': 1}},
+        self.query = [{'$match': {self.shard_field: {'$gt': self.range[0], '$lt': self.range[1]}}},
+                      {'$sort': {self.shard_field: 1}},
                       {'$project': {v: 1 for v in self.fields}}]
 
-        if 'id' not in self.fields:
+        if '_id' not in self.fields:
             self.query[-1]['$project']['_id'] = 0
 
         self.length = list(self.collection.aggregate(
-            [{'$match': {'rand_idx': {'$gt': self.range[0], '$lt': self.range[1]}}}, {'$count': 'length'}]))[0][
+            [{'$match': {self.shard_field: {'$gt': self.range[0], '$lt': self.range[1]}}}, {'$count': 'length'}]))[0][
             'length']
 
         self.cursor = self.collection.aggregate(self.query)
