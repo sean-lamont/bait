@@ -226,6 +226,7 @@ class GoalProvableDataModule(pl.LightningDataModule):
             return_tensors="pt",
         )
 
+        # values set to -100 ignored in HuggingFace loss
         target_ids = tokenized_target.input_ids
         target_ids[target_ids == self.tokenizer.pad_token_id] = -100
 

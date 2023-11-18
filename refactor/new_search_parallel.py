@@ -26,11 +26,10 @@ from loguru import logger
 from omegaconf import OmegaConf
 from ray.util.actor_pool import ActorPool
 
-from experiments.reprover.common import set_logger
-from experiments.reprover.common import zip_strict
-from experiments.reprover.generator.model import RetrievalAugmentedGenerator
-from experiments.reprover.goal_model_step.model import StepGoalModel
-from experiments.reprover.goal_model.model import SimpleGoalModel
+from refactor.common import set_logger
+from refactor.common import zip_strict
+from refactor.generator.model import RetrievalAugmentedGenerator
+from refactor.goal_model.model import SimpleGoalModel
 from refactor.get_lean_theorems import _get_theorems
 from refactor.leandojo_env import LeanDojoEnv
 from refactor.proof_node import *
@@ -74,7 +73,7 @@ class EndToEndProver:
             proof = None
 
         result = SearchResult(
-            theorem=f'{theorem}',
+            theorem=theorem,
             status=root.status,
             proof=proof,
             tree=root,
@@ -88,7 +87,7 @@ class EndToEndProver:
             num_nodes=len(nodes)
         )
 
-        with open(f"{self.dir}/{theorem}", "wb") as f:
+        with open(f"{self.dir}/{theorem.full_name}", "wb") as f:
             pickle.dump(result, f)
 
         return result
@@ -168,7 +167,7 @@ class EndToEndProver:
                 root = ErrorNode(EnvironmentError(str(e)))
                 self.search_model.reset(root)
 
-        result = self._process_trace(env.thm.full_name)
+        result = self._process_trace(env.thm)
 
         return result
 
@@ -244,10 +243,10 @@ class DistributedProver:
 
         if not self.distributed:
             with_gpus = True
-            self.num_gpus = 4
-            self.cpus_per_gpu = 1
+            self.num_gpus = 1
+            self.cpus_per_gpu = 4
 
-            ray.init(num_gpus=2)
+            ray.init(num_gpus=1)
 
             device = torch.device("cuda") if with_gpus else torch.device("cpu")
 
@@ -255,6 +254,7 @@ class DistributedProver:
 
             for _ in range(self.num_gpus):
                 # todo test performance loading these before and passing object reference
+                # todo unfreeze
                 tac_gen = RetrievalAugmentedGenerator.load(
                     ckpt_path, device=device, freeze=True
                 )
@@ -262,15 +262,15 @@ class DistributedProver:
                     assert indexed_corpus_path is not None
                     tac_gen.retriever.load_corpus(indexed_corpus_path)
 
-                goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
-                # goal_model = SimpleGoalModel.load(goal_path, device=device, freeze=True)
+                # goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
+                goal_model = SimpleGoalModel.load(goal_path, device=device, freeze=True)
 
                 # todo best way to parameterise resource allocation
-                # tac_model = ray.remote(num_gpus=0.45)(ReProverTacGen).remote(tac_model=tac_gen)
-                # goal_model = ray.remote(num_gpus=0.45)(GoalModel).remote(goal_model)
+                # tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
+                tac_model = ray.remote(num_gpus=0.45)(ReProverTacGen).remote(tac_model=tac_gen)
 
-                tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
-                goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
+                goal_model = ray.remote(num_gpus=0.45)(GoalModel).remote(goal_model)
+                # goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
 
                 search_model = UpDown(goal_model)
 
@@ -288,8 +288,7 @@ class DistributedProver:
     #  different)
 
     def search_unordered(
-            self, repo: LeanGitRepo, theorems: List[Theorem], positions: List[Pos], iteration=0, prev_thm_idx=0,
-            prev_proofs=0
+            self, repo: LeanGitRepo, theorems: List[Theorem], positions: List[Pos], iteration=0
     ) -> Any:
 
         """Parallel proof search for `theorems`. The order of the results is not guaranteed to match the order of the
@@ -301,19 +300,12 @@ class DistributedProver:
                 zip_strict(theorems, positions),
             )
 
-            results_table = wandb.run.Table(columns=["theorem", "goal", "status", "proof"])
-
-            proven = prev_proofs
+            proven = 0
             for i, res in enumerate(results):
                 logger.info(f'Result: {res}')
                 if res.proof:
                     proven += 1
-                wandb.run.log({'Step': i + 1 + prev_thm_idx, 'Proven': proven, 'Iteration': iteration})
-                results_table.add_data(res.theorem, res.tree.goal, str(res.status),
-                                       ', '.join(res.proof) if res.proof else 'None')
-
-                # if i % 100 == 0:
-                wandb.run.log({'Results': results_table})
+                wandb.log({'Step': i + 1, 'Proven': proven, 'Iteration': iteration})
 
             return results
 
@@ -333,7 +325,6 @@ def main(config) -> None:
     # todo make this system agnostic
     repo, theorems, positions = _get_theorems(config)
 
-    prev_theorems = []
     if config.exp_config.resume:
         wandb.init(project=config.logging_config.project,
                    name=config.exp_config.name,
@@ -348,7 +339,6 @@ def main(config) -> None:
         prev_theorems = glob.glob(config.exp_config.directory + '/traces/*')
         prev_theorems = [p.split('/')[-1] for p in prev_theorems]
 
-        logger.info(f'Resuming from proof {len(prev_theorems)}')
         final_theorems = []
         final_positions = []
 
@@ -388,13 +378,22 @@ def main(config) -> None:
         log_dir=config.exp_config.directory
     )
 
-    prev_results = []
-    for trace in glob.glob(config.exp_config.directory + '/traces/*'):
-        with open(trace, "rb") as f:
-            prev_results.append(pickle.load(f))
+    results = prover.search_unordered(repo, theorems, positions, iteration=0)
 
-    results = prover.search_unordered(repo, theorems, positions, iteration=0, prev_thm_idx=len(prev_theorems),
-                                      prev_proofs=sum([p.tree.status == Status.PROVED for p in prev_results]))
+    # Calculate the result statistics.
+    num_proved = num_failed = num_discarded = 0
+    for r in results:
+        if r is None:
+            num_discarded += 1
+        elif r.status == Status.PROVED:
+            num_proved += 1
+        else:
+            num_failed += 1
+
+    logger.info(
+        f"Iteration done! {num_proved} theorems proved, {num_failed} theorems failed, {num_discarded} non-theorems discarded"
+    )
+    logger.info(f"Pass@1: {num_proved / (num_proved + num_failed)}")
 
     # todo add end-to-end training
     # todo add tac/search model train functions, which can be lightning data modules

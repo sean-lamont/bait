@@ -150,6 +150,7 @@ class InternalNode(Node):
         default=math.inf, init=False, compare=False, repr=False
     )
 
+    # todo move to search model?
     # Scores based on the intrinsic probability of proving a goal, and the best available path from children
     provable_score = -math.inf
     up_score = -math.inf

@@ -5,20 +5,15 @@ defaults:
 
 
 exp_config:
-  name: updown_proof_len
+  name: goal_model
   experiment: eval_loop
-#  directory: experiments/runs/eval_loop/updown_proof_len_2023_11_16/09_07_22
-#  resume: true
-
-#model_config:
-#  model_type: ???
-#  model_attributes:
-#    vocab_size: 1500
+  directory: experiments/runs/eval_loop/goal_model_2023_11_17/18_11_05
+  resume: true
 
 logging_config:
   project: leandoj_eval
-  offline: false
-#  id: rne83gt5
+  offline: true
+  id: 82u2u2zp
 
 
 data_path: data/leandojo/data/leandojo_benchmark/random/
@@ -28,11 +23,13 @@ full_name: null
 num_theorems: null
 name_filter: null
 name: null
-ckpt_path: last.ckpt
-goal_path: goal_step.ckpt
+ckpt_path: gen.ckpt
+goal_path: goal_model.ckpt
 indexed_corpus_path: null
 num_sampled_tactics: 64
 timeout: 600
 num_cpus: 4
 with_gpus: true
 verbose: false
+
+

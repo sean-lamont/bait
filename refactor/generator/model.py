@@ -347,8 +347,10 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
             output_text = []
             output_score = []
 
+            # delegate removal of marks to environment
             for j in range(i * num_samples, (i + 1) * num_samples):
-                t = remove_marks(raw_output_text[j])
+                # t = remove_marks(raw_output_text[j])
+                t = raw_output_text[j]
                 if t not in output_text:
                     output_text.append(t)
                     output_score.append(raw_scores[j])

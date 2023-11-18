@@ -1,4 +1,5 @@
 import glob
+from loguru import logger
 import math
 import pickle
 
@@ -40,7 +41,7 @@ def full_trace_data(trace):
         datum = {
             'iteration': 0,
             'step': i,
-            'top_goal': trace.theorem,
+            'top_goal': trace.theorem.full_name,
             'goal': edge.src.goal,
             'tactic': edge.tactic,
             'goal_prob': edge.goal_logprob.item() if isinstance(edge.goal_logprob, torch.Tensor) else edge.goal_logprob,
@@ -169,7 +170,7 @@ if __name__ == '__main__':
     # Rankings within proof could also change, if shorter proof from children is found
     # Seems small/unlikely for this to make much of a difference. Worst case is a longer proof is ranked better than a shorter/slower one
 
-    traces = get_traces('../experiments/runs/eval_loop/updown_proof_len_2023_11_16/11_47_01/traces/*')
+    traces = get_traces('../experiments/runs/eval_loop/goal_model_2023_11_17/18_11_05/traces/*')
 
     rank_collection = db['tac_ranks']
     goal_collection = db['goal_data']
@@ -177,6 +178,7 @@ if __name__ == '__main__':
     goal_proven_task = db['goal_proven_task']
     trace_collection = db['edge_data']
 
+    logger.info(f'Adding proof data from traces..')
     for trace in tqdm(traces):
         if isinstance(trace.tree, ErrorNode):
             continue
@@ -203,7 +205,8 @@ if __name__ == '__main__':
         for node in nodes.values():
             if node.out_edges:
                 rank_edges(goal=node.goal, edges=node.out_edges)
-    #
+
+    logger.info(f'Adding processed goal data..')
     # add processed data for goal models
     goal_data = []
     for datum in tqdm(goal_collection.find()):
@@ -226,6 +229,7 @@ if __name__ == '__main__':
         if proven_data:
             goal_proven_task.insert_one(proven_data)
 
+    logger.info(f'Adding random field to enable shuffled, streamed dataloading..')
     # add random index for collections used in training (ensures shuffled and ordered data for distributed training)
     add_rand_idx(goal_len_collection)
     add_rand_idx(goal_proven_task)

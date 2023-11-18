@@ -7,7 +7,7 @@ from refactor.proof_node import *
 @dataclass(frozen=True)
 class SearchResult:
     """The result of attempting to prove a theorem."""
-    theorem: str
+    theorem: Any
     status: Status
     proof: Optional[List[str]]
     tree: Node

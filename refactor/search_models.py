@@ -66,8 +66,6 @@ class UpDown(Search):
             self.root.provable_score = scores[0].item()
             self.root.up_score = self.root.provable_score
 
-    # todo sample?
-    # todo take as parameter # of goals/fringes
     def get_goals(self):
         best_score = -math.inf
         best_node = None
@@ -92,6 +90,9 @@ class UpDown(Search):
 
         if not best_node:
             return []
+
+        # todo take as parameter # of fringes then sample? Would take set of all scores, then sample from the set and
+        # choose fringe with the score as below
 
         # find fringe for selected node by choosing all goals with the same score.
         # (may include other goals with same score not in fringe)
@@ -219,11 +220,17 @@ class BFS(Search):
         pass
 
 
+# implement as in paper, assuming n sequential expansions per goal
 class HTPS(Search):
     def __init__(self, goal_model: GoalModel, exploration_constant=1):
         super().__init__()
         self.goal_model = goal_model
         self.exploration_constant = exploration_constant
+
+        # map edges to visit counts, virtual counts, current Q estimates
+        self.scores = {}
+
+        self.node_scores = {}
 
     def reset(self, root):
         self.__init__(self.goal_model)
@@ -238,36 +245,61 @@ class HTPS(Search):
         self.root.provable_score = scores[0]
         self.root.up_score = scores[0]
 
-    def uct(self, edge):
-        return edge.logprob + self.exploration_constant * (
-                self.scores[(edge.src, edge.tactic)] / edge.visit_count())  # ...
+        self.scores = {}
 
-    # given a node, decide which edge to take according to search policy
-    # todo update visit counts
-    def expand_node(self, node):
-        # if leaf, return node
-        if not node.is_explored:
-            return [node]
+    def p_uct(self, edge):
+        edge_data = self.scores[(edge.src.goal, edge.tactic)]
 
-        best_score = -math.inf
-        best_edge = None
-        for edge in node.out_edges:
-            edge_score = self.uct(edge)
-            if edge_score > best_score:
-                best_score = edge_score
-                best_edge = edge
+        w_score = edge_data['w_score']
+        visit_count = edge_data['visit_count']
+        virtual_count = edge_data['virtual_count']
 
-        ret = []
-        for d in best_edge.dst:
-            ret.extend(self.expand_node(d))
+        total_visits = visit_count + virtual_count
+        policy_score = edge.tac_logprob
+        node_visits = sum([self.scores[(edge.src.goal, edge_.tac)]['visit_count'] for edge_ in edge.src.out_edges])
 
-        return ret
+        # define value estimate
+        if visit_count == 0:
+            q_score = 0.5 / (max(1, total_visits))
+        elif edge.distance_to_proof() < math.inf:
+            q_score = max(1, visit_count) / max(1, total_visits)
+        else:
+            q_score = w_score / total_visits
+
+        return q_score + self.exploration_constant * policy_score * (math.sqrt(node_visits) / (1 + total_visits))
 
     # construct a hypertree from root, until we find leaves not explored
     def get_goals(self):
-        return self.expand_node(self.root)
+        to_explore = [self.root]
+        self.T = []
+        leaves = []
+        # (note: cycles are automatically ignored in tree construction)
+        while to_explore:
+            g = to_explore.pop()
+            # leaf node
+            if not g.out_edges:
+                leaves.append(g)
+                continue
 
-    # compute scores for new goals, and update value estimates for tree
+            # todo expandable?
+            if isinstance(g, InternalNode) and g.status == Status.OPEN:
+                best_score = -math.inf
+                best_edge = None
+                for edge in g.out_edges:
+                    edge_score = self.p_uct(edge)
+                    if edge_score > best_score:
+                        best_score = edge_score
+                        best_edge = edge
+
+                self.scores[(g.goal, best_edge.tactic)]['virtual_count'] += 1
+
+                self.T.append(best_edge)
+
+                to_explore.extend(best_edge.dst)
+
+        return self.T
+
+    # we assume here that all leaves have been expanded
     def process_response(self, response):
         search_node = response.src
         result = response.dst
@@ -294,14 +326,20 @@ class HTPS(Search):
 
         self.propagate(search_node, response)
 
-    def propagate(self, node, response):
-        result = response.dst
-        score = 0
-        for result_node in result:
-            score += result_node.up_score
-            node.visit_count += 1
+    def propagate(self, node, edge):
+        siblings = edge.dst
+        to_update = 0
 
-        node.up_score += score
+        # addition, as we are using logprob (todo make sure logprob is considered everywhere)
+        for child in siblings:
+            to_update += child.up_score
+
+        self.scores[(node.goal, edge.tactic)]['visit_count'] += 1
+        self.scores[(node.goal, edge.tactic)]['virtual_count'] -= 1
+        self.scores[(node.goal, edge.tactic)]['w_score'] += to_update
+
+        # todo don't know if this is correct..
+        node.up_score = sum([self.scores[(node.goal, edge_.tactic)]['w_score'] for edge_ in node.out_edges])
 
         for edge in node.in_edges:
             self.propagate(edge.src, edge)

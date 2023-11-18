@@ -6,6 +6,8 @@ from typing import Tuple
 from loguru import logger
 
 from lean_dojo.constants import LEAN3_DEPS_DIR, LEAN4_DEPS_DIR
+
+from refactor.common import remove_marks
 from refactor.proof_node import *
 
 from lean_dojo import (
@@ -17,8 +19,8 @@ from lean_dojo import (
     DojoInitError,
     DojoCrashError,
     DojoHardTimeoutError,
-    # TacticError,
-    LeanError,
+    TacticError,
+    # LeanError,
     TimeoutError,
     TacticState,
     ProofGivenUp
@@ -82,15 +84,16 @@ class LeanDojoEnv:
 
         tactic, tac_logprob = tactic
 
+
         node, goal_logprob = node
 
         goal_num, state, _ = self.node_map[node.goal]
 
         if goal_num != 0:
             # ensure the tactic is applied to the correct goal in the surrogate state
-            tactic_ = f'tactic.rotate_left {goal_num}, ' + tactic
+            tactic_ = f'tactic.rotate_left {goal_num}, ' + remove_marks(tactic)
         else:
-            tactic_ = tactic
+            tactic_ = remove_marks(tactic)
 
         response = self.dojo.run_tac(state, tactic_)
 
@@ -101,8 +104,8 @@ class LeanDojoEnv:
         result_node = []
 
         if type(response) in (
-                # TacticError,
-                LeanError,
+                TacticError,
+                # LeanError,
                 TimeoutError,
                 ProofGivenUp,
         ):
