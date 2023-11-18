@@ -43,7 +43,7 @@ class Search:
         return
 
     @abstractmethod
-    def process_response(self, response: Edge):
+    def process_responses(self, response: List[Edge]):
         return
 
 
@@ -129,31 +129,32 @@ class UpDown(Search):
                     self._up_step(parent)
 
     # Assume response is a single edge in this case
-    def process_response(self, response: Edge):
-        search_node = response.src
-        result = response.dst
+    def process_response(self, responses: List[Edge]):
+        for response in responses:
+            search_node = response.src
+            result = response.dst
 
-        # find new nodes from response, and compute their provable score
-        new_nodes = []
-        for result_node in result:
-            if isinstance(result_node, InternalNode):
-                if result_node.goal not in self.nodes:
-                    new_nodes.append(result_node)
-                    self.nodes[result_node.goal] = result_node
+            # find new nodes from response, and compute their provable score
+            new_nodes = []
+            for result_node in result:
+                if isinstance(result_node, InternalNode):
+                    if result_node.goal not in self.nodes:
+                        new_nodes.append(result_node)
+                        self.nodes[result_node.goal] = result_node
 
-        if new_nodes:
-            # todo move to model
-            node_goals = ['<extra_id_0>' + node_.goal for node_ in new_nodes]
+            if new_nodes:
+                # todo move to model
+                node_goals = ['<extra_id_0>' + node_.goal for node_ in new_nodes]
 
-            scores = ray.get(self.goal_model.run.remote(node_goals))
+                scores = ray.get(self.goal_model.run.remote(node_goals))
 
-            # Initialise provable_score/up_score for new internal nodes
-            for i, node_ in enumerate(new_nodes):
-                node_.provable_score = (scores[i] + (node_.depth * math.log(0.99))).item()
-                node_.up_score = node_.provable_score
-                assert self.nodes[node_.goal] is node_
+                # Initialise provable_score/up_score for new internal nodes
+                for i, node_ in enumerate(new_nodes):
+                    node_.provable_score = (scores[i] + (node_.depth * math.log(0.99))).item()
+                    node_.up_score = node_.provable_score
+                    assert self.nodes[node_.goal] is node_
 
-        self._up_step(search_node)
+            self._up_step(search_node)
 
         return
 
@@ -184,15 +185,16 @@ class BestFS(Search):
         else:
             return None
 
-    def process_response(self, response: Edge):
-        result = response.dst
+    def process_responses(self, responses: List[Edge]):
+        for response in responses:
+            result = response.dst
 
-        for result_node in result:
-            # Don't search proved/explored/queued nodes
-            if isinstance(result_node,
-                          InternalNode) and result_node not in self.priority_queue and not result_node.is_explored:
-                self.nodes[result_node.goal] = result_node
-                self.priority_queue.append(result_node)
+            for result_node in result:
+                # Don't search proved/explored/queued nodes
+                if isinstance(result_node,
+                              InternalNode) and result_node not in self.priority_queue and not result_node.is_explored:
+                    self.nodes[result_node.goal] = result_node
+                    self.priority_queue.append(result_node)
 
         return
 
@@ -202,7 +204,7 @@ class FringeSearch(Search):
     def get_goals(self):
         pass
 
-    def process_response(self, response):
+    def process_responses(self, response):
         pass
 
     def reset(self, root):
@@ -216,7 +218,7 @@ class BFS(Search):
     def get_goals(self):
         pass
 
-    def process_response(self, response):
+    def process_responses(self, response):
         pass
 
 
@@ -230,7 +232,8 @@ class HTPS(Search):
         # map edges to visit counts, virtual counts, current Q estimates
         self.scores = {}
 
-        self.node_scores = {}
+        # keep track of current HyperTree, refreshed after every expansion
+        self.T = {}
 
     def reset(self, root):
         self.__init__(self.goal_model)
@@ -271,7 +274,7 @@ class HTPS(Search):
     # construct a hypertree from root, until we find leaves not explored
     def get_goals(self):
         to_explore = [self.root]
-        self.T = []
+        self.T = {}
         leaves = []
         # (note: cycles are automatically ignored in tree construction)
         while to_explore:
@@ -281,7 +284,7 @@ class HTPS(Search):
                 leaves.append(g)
                 continue
 
-            # todo expandable?
+            # todo check for expandable goals?
             if isinstance(g, InternalNode) and g.status == Status.OPEN:
                 best_score = -math.inf
                 best_edge = None
@@ -293,53 +296,50 @@ class HTPS(Search):
 
                 self.scores[(g.goal, best_edge.tactic)]['virtual_count'] += 1
 
-                self.T.append(best_edge)
+                self.T[g.goal] = {'edge': best_edge, 'parent': best_edge.src.goal,
+                                  'is_prop': False, 'v_score': -math.inf}
 
                 to_explore.extend(best_edge.dst)
 
         return self.T
 
-    # we assume here that all leaves have been expanded
-    def process_response(self, response):
-        search_node = response.src
-        result = response.dst
+    # assume as done in the paper that all leaves have been expanded
+    def process_responses(self, responses: List[Edge]):
+        for response in responses:
+            result = response.dst
+            # find new nodes from response
+            new_nodes = []
+            for result_node in result:
+                if isinstance(result_node, InternalNode):
+                    if result_node.goal not in self.nodes:
+                        new_nodes.append(result_node)
+                        self.nodes[result_node.goal] = result_node
 
-        # find new nodes from response, and compute their provable score
-        new_nodes = []
-        for result_node in result:
-            if isinstance(result_node, InternalNode):
-                if result_node.goal not in self.nodes:
-                    new_nodes.append(result_node)
-                    self.nodes[result_node.goal] = result_node
+        self.propagate_values([g.src.goal for g in responses])
 
-        if new_nodes:
+    def propagate_values(self, leaf_nodes):
+        to_backup = []
+        for g in leaf_nodes:
             # todo move to model
-            node_goals = ['<extra_id_0>' + node_.goal for node_ in new_nodes]
+            node_goal = ['<extra_id_0>' + g]
+            self.T[g]['v_score'] = ray.get(self.goal_model.run.remote(node_goal))
+            to_backup.append(g)
 
-            scores = ray.get(self.goal_model.run.remote(node_goals))
+        while to_backup:
+            g = to_backup.pop()
+            edge = self.T[g]['edge']
+            parent = self.T[g]['parent']
 
-            # Initialise provable_score/up_score for new internal nodes
-            for i, node_ in enumerate(new_nodes):
-                node_.provable_score = scores[i]
-                node_.up_score = node_.provable_score
-                assert self.nodes[node_.goal] is node_
+            to_update = 0
+            for child in edge.dst:
+                to_update += self.T[child.goal]['v_score']
 
-        self.propagate(search_node, response)
+            self.scores[(g, edge.tactic)]['w_score'] += to_update
+            self.scores[(g, edge.tactic)]['visit_count'] += 1
+            self.scores[(g, edge.tactic)]['virtual_count'] -= 1
 
-    def propagate(self, node, edge):
-        siblings = edge.dst
-        to_update = 0
+            self.T[g]['v_score'] = to_update
+            self.T[g]['is_prop'] = True
 
-        # addition, as we are using logprob (todo make sure logprob is considered everywhere)
-        for child in siblings:
-            to_update += child.up_score
-
-        self.scores[(node.goal, edge.tactic)]['visit_count'] += 1
-        self.scores[(node.goal, edge.tactic)]['virtual_count'] -= 1
-        self.scores[(node.goal, edge.tactic)]['w_score'] += to_update
-
-        # todo don't know if this is correct..
-        node.up_score = sum([self.scores[(node.goal, edge_.tactic)]['w_score'] for edge_ in node.out_edges])
-
-        for edge in node.in_edges:
-            self.propagate(edge.src, edge)
+            if all([self.T[child.goal]['is_prop'] for child in self.T[parent]['edge'].dst]):
+                to_backup.append(parent)

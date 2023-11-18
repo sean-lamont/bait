@@ -96,6 +96,8 @@ class GoalStreamDataset(torch.utils.data.IterableDataset):
 
         self.setup()
 
+        print(f'first: {next(self.ds)}')
+
     def __len__(self):
         return self.length
 

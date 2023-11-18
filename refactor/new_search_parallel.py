@@ -138,6 +138,7 @@ class EndToEndProver:
 
         self.tac_time += time.monotonic() - t0
 
+        responses = []
         for goal, tactic in suggestions:
             t0 = time.monotonic()
             logger.debug(f'Running {tactic}, goal: {goal}')
@@ -145,11 +146,12 @@ class EndToEndProver:
             self.env_time += time.monotonic() - t0
 
             self.trace.append(response)
+            responses.append(response)
             self.num_expansions += 1
 
-            t0 = time.monotonic()
-            self.search_model.process_response(response)
-            self.search_time += time.monotonic() - t0
+        t0 = time.monotonic()
+        self.search_model.process_response(responses)
+        self.search_time += time.monotonic() - t0
 
     def log_error(self, msg, theorem):
         with open(f"{self.error_dir}/{theorem}", "a") as f:
