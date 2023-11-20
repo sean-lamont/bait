@@ -1,19 +1,26 @@
 """Lightning module for the tactic generator."""
-from abc import ABC, abstractmethod
+
 from typing import List, Dict, Any, Tuple
 
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 from loguru import logger
+from peft import LoraConfig, get_peft_model
 from transformers import T5ForConditionalGeneration, AutoTokenizer
 
 from experiments.reprover.common import (
     get_optimizers,
     load_checkpoint,
 )
+from refactor.common import zip_strict, format_augmented_state
 
 torch.set_float32_matmul_precision("medium")
+
+
+# todo better abstract tactic generation class, with eval, generate, batch_generate
+
+# todo run evaluation (similar to generator eval)
 
 
 class DPOTrainModule(pl.LightningModule):
@@ -24,18 +31,44 @@ class DPOTrainModule(pl.LightningModule):
             warmup_steps: int,
             max_seq_len: int,
             beta: float,
+            num_beams=64,
+            eval_num_retrieved=100,
+            eval_num_cpus=1,
+            eval_num_theorems=200,
+            length_penalty: float = 0.0,
+            ret_ckpt_path=None,
 
     ) -> None:
         super().__init__()
 
         self.save_hyperparameters()
+
+        self.num_beams = num_beams
+        self.eval_num_retrieved = eval_num_retrieved
+        self.eval_num_cpus = eval_num_cpus
+        self.eval_num_theorems = eval_num_theorems
+        self.length_penalty = length_penalty
+        self.ret_ckpt_path = ret_ckpt_path
         self.lr = lr
         self.beta = beta
         self.warmup_steps = warmup_steps
         self.max_seq_len = max_seq_len
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.generator = T5ForConditionalGeneration.from_pretrained(model_name)
+        generator = T5ForConditionalGeneration.from_pretrained(model_name)
+
+        target_modules = ['q', 'k', 'v', 'o', 'wo', 'lm_head']
+        config = LoraConfig(
+            task_type="SEQ_2_SEQ_LM",
+            r=16,
+            lora_alpha=16,
+            target_modules=target_modules,
+            lora_dropout=0.01,
+        )
+        self.generator = get_peft_model(generator, config)
+        logger.info(f"LoRA: ")
+        self.generator.print_trainable_parameters()
+        self.retriever = None
 
     @classmethod
     def load(
@@ -132,11 +165,6 @@ class DPOTrainModule(pl.LightningModule):
         )
 
     def on_fit_start(self) -> None:
-        ckpt_path = f"{self.trainer.log_dir}/checkpoints/last.ckpt"
-        self.trainer.save_checkpoint(ckpt_path)
-
-        logger.info(f"Saved checkpoint to {ckpt_path}")
-
         if self.logger is not None:
             self.logger.log_hyperparams(self.hparams)
             assert self.trainer is not None
@@ -145,6 +173,7 @@ class DPOTrainModule(pl.LightningModule):
     ##############
     # Validation #
     ##############
+
     def validation_step(self, batch, batch_idx):
         state_ids = batch['state_ids']
         state_mask = batch['state_mask']
@@ -180,11 +209,96 @@ class DPOTrainModule(pl.LightningModule):
         # when difference is > 0, winner_probs is greater
         preferred = sum((winner_pi_probs - loser_pi_probs) > 0) / winner_pi_probs.shape[0]
 
+        logger.info(
+            f'{torch.cat([winner_pi_probs, batch["winner_ref_probs"], loser_pi_probs, batch["loser_ref_probs"]], dim=0)}')
+
         self.log(
-            "winner_preferred",
+            "win_rate",
             preferred,
             on_epoch=True,
             sync_dist=True,
             batch_size=winner_pi_probs.shape[0],
             prog_bar=True
         )
+
+    ##############
+    # Prediction #
+    ##############
+
+    def generate(
+            self,
+            state: str,
+            retriever_args: dict,
+            num_samples: int,
+    ) -> List[Tuple[str, float]]:
+        return self.batch_generate(
+            [state], retriever_args, num_samples
+        )[0]
+
+    def batch_generate(
+            self,
+            state: List[str],
+            retriever_args: dict,
+            num_samples: int,
+    ) -> List[List[Tuple[str, float]]]:
+
+        logger.debug(state)
+
+        if self.retriever is not None:
+            retrieved_premises, _ = self.retriever.retrieve(
+                state=state,
+                **retriever_args,
+                # self.eval_num_retrieved,
+            )
+            state = [
+                format_augmented_state(s, premises, self.max_seq_len, p_drop=0.0)
+                for s, premises in zip_strict(state, retrieved_premises)
+            ]
+
+        tokenized_state = self.tokenizer(
+            state,
+            padding="longest",
+            max_length=self.max_seq_len,
+            truncation=True,
+            return_tensors="pt",
+        )
+
+        state_ids = tokenized_state.input_ids.to(self.device)
+        state_mask = tokenized_state.attention_mask.to(self.device)
+
+        # Generate tactic candidates using beam search.
+        output = self.generator.generate(
+            input_ids=state_ids,
+            attention_mask=state_mask,
+            max_length=self.max_seq_len,
+            num_beams=num_samples,
+            length_penalty=self.length_penalty,
+            do_sample=False,
+            num_return_sequences=num_samples,
+            early_stopping=False,
+            output_scores=True,
+            return_dict_in_generate=True,
+        )
+
+        # Return the output.
+        raw_output_text = self.tokenizer.batch_decode(
+            output.sequences, skip_special_tokens=True
+        )
+        raw_scores = output.sequences_scores.tolist()
+        tactics_with_scores = []
+
+        for i in range(len(state)):
+            output_text = []
+            output_score = []
+
+            # delegate removal of marks to environment
+            for j in range(i * num_samples, (i + 1) * num_samples):
+                # t = remove_marks(raw_output_text[j])
+                t = raw_output_text[j]
+                if t not in output_text:
+                    output_text.append(t)
+                    output_score.append(raw_scores[j])
+
+            tactics_with_scores.append(list(zip_strict(output_text, output_score)))
+
+        return tactics_with_scores

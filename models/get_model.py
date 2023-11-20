@@ -12,6 +12,7 @@ from models.transformer.transformer_encoder_model import TransformerWrapper
 from models.holist_models.gnn.gnn_encoder import GNNEncoder
 from models.holist_models.transformer.transformer_encoder_model import TransformerWrapper as HOListTransformer
 from models.ensemble.ensemble import EnsembleEmbedder
+from refactor.dpo.model import DPOTrainModule
 
 '''
 Utility function to fetch model given a configuration dict
@@ -19,6 +20,8 @@ Utility function to fetch model given a configuration dict
 
 
 def get_model(model_config):
+    if model_config.model_type == 'tac_gen':
+        return DPOTrainModule
     if model_config.model_type == 'sat':
         return GraphTransformer(in_size=model_config.model_attributes['vocab_size'],
                                 num_class=2,

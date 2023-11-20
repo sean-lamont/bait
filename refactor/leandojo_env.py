@@ -39,14 +39,12 @@ Environment Wrapper over LeanDojo. Adds premise retrieval and processing of proo
 
 
 class LeanDojoEnv:
-    def __init__(self, repo, thm, pos, timeout):
+    def __init__(self, thm, timeout):
         self.timeout = timeout
         self.environment_time = 0
         # dictionary mapping goals to their state
         self.node_map = {}
-        self.thm = thm
-        self.repo = repo
-        self.pos = pos
+        self.thm, self.repo, self.pos = thm
 
         self.premises = self.retrieve_premises()
 
@@ -83,7 +81,6 @@ class LeanDojoEnv:
         t0 = time.monotonic()
 
         tactic, tac_logprob = tactic
-
 
         node, goal_logprob = node
 

@@ -1,19 +1,12 @@
 """Data module for the tactic generator."""
-import copy
-import itertools
 from itertools import islice
-import random
-from typing import Optional, List
+from typing import Optional
 
+import pytorch_lightning as pl
+import torch
 from loguru import logger
-import numpy as np
-import time
 from pymongo import MongoClient
 from torch.utils.data import Dataset, DataLoader
-import pytorch_lightning as pl
-import ray
-import torch
-from tqdm import tqdm
 from transformers import AutoTokenizer
 
 from refactor.common import (
@@ -44,8 +37,7 @@ class CursorIter(torch.utils.data.IterableDataset):
             return {field: ret[field] for field in self.fields}
 
 
-# datamodule can pass query which already filters
-# todo dpo reloading dataset every 38912??
+# todo reloading dataset every 38912??
 class GoalStreamDataset(torch.utils.data.IterableDataset):
     def __init__(self,
                  db,
@@ -73,6 +65,7 @@ class GoalStreamDataset(torch.utils.data.IterableDataset):
         self.num_gpus = num_gpus
         self.start_idx = start_idx
 
+        # todo query should be parameter e.g. val_set or range as below. Keep sort, but only if chosen as a parameter
         self.query = [{'$match': {self.shard_field: {'$gt': self.range[0], '$lt': self.range[1]}}},
                       {'$sort': {self.shard_field: 1}},
                       {'$project': {v: 1 for v in self.fields}},
@@ -95,8 +88,6 @@ class GoalStreamDataset(torch.utils.data.IterableDataset):
         self.cursor_iter = CursorIter(cursor, fields=self.fields, buf_size=self.buf_size)
 
         self.setup()
-
-        print(f'first: {next(self.ds)}')
 
     def __len__(self):
         return self.length
@@ -169,6 +160,16 @@ class DPODataModule(pl.LightningDataModule):
         self.fields = ["goal", "winner", "winner_prob", "loser", "loser_prob"]
         self.collection = collection
         self.database = database
+        self.current_train_batch_index = 0
+
+    def state_dict(self):
+        self.current_train_batch_index = self.ds_train.start_idx
+        state = {"current_train_batch_index": self.current_train_batch_index}
+        return state
+
+    def load_state_dict(self, state_dict):
+        self.current_train_batch_index = state_dict["current_train_batch_index"]
+        self.setup()
 
     def setup(self, stage: Optional[str] = None) -> None:
         # 90/10 train/val ratio
@@ -182,6 +183,7 @@ class DPODataModule(pl.LightningDataModule):
                                               range=(train_range[0], train_range[1]),
                                               gpu_id=self.trainer.global_rank,
                                               num_gpus=self.trainer.num_devices,
+                                              start_idx=self.current_train_batch_index
                                               )
 
         if stage in (None, "fit", "validate"):

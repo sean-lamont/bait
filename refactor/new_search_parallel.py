@@ -17,11 +17,6 @@ import hydra
 import ray
 import torch
 import wandb
-from lean_dojo import (
-    Pos,
-    Theorem,
-    LeanGitRepo,
-)
 from loguru import logger
 from omegaconf import OmegaConf
 from ray.util.actor_pool import ActorPool
@@ -29,11 +24,11 @@ from ray.util.actor_pool import ActorPool
 from refactor.common import set_logger
 from refactor.common import zip_strict
 from refactor.generator.model import RetrievalAugmentedGenerator
-from refactor.goal_model.model import SimpleGoalModel
 from refactor.get_lean_theorems import _get_theorems
+from refactor.goal_model.model import SimpleGoalModel
 from refactor.leandojo_env import LeanDojoEnv
 from refactor.proof_node import *
-from refactor.search_models import UpDown, GoalModel, BestFS
+from refactor.search_models import UpDown, GoalModel
 from refactor.search_result import SearchResult
 from refactor.tac_models import ReProverTacGen
 
@@ -100,10 +95,7 @@ class EndToEndProver:
 
             # Get full set of suggestions for goal if it hasn't been computed already
             if ts not in self.remaining_tacs:
-                logger.debug(f'Generating tacs for {ts}')
                 tacs = ray.get(self.tac_model.get_tactics.remote(ts, premises))
-                if len(tacs) < tacs_per_goal:
-                    logger.debug(f'Fewer than max tactics generated for {search_node.goal}')
                 tacs.reverse()
                 self.remaining_tacs[ts] = tacs
 
@@ -228,69 +220,63 @@ class DistributedProver:
     A distributed prover that uses Ray to parallelize the proof search.
     """
 
-    # todo more agnostic, loaded from config
-    def __init__(
-            self,
-            ckpt_path: str,
-            goal_path: str,
-            indexed_corpus_path: Optional[str],
-            num_cpus: int,
-            with_gpus: bool,
-            timeout: int,
-            log_dir: str
-    ) -> None:
+    def __init__(self, config) -> None:
 
-        # self.distributed = num_cpus > 1
-        self.distributed = False
+        self.goal_path = config.goal_path
+        self.indexed_corpus_path = config.indexed_corpus_path
+        self.num_cpus = config.num_cpus
+        self.with_gpus = config.with_gpus
+        self.timeout = config.timeout
+        self.log_dir = config.log_dir
+        self.with_gpus = config.with_gpus
+        self.num_gpus = config.num_gpus
+        self.logical_gpus = config.logical_gpus
+        self.cpus_per_gpu = config.cpus_per_gpu
+        self.gpu_processes = config.gpu_processes
 
-        if not self.distributed:
-            with_gpus = True
-            self.num_gpus = 1
-            self.cpus_per_gpu = 4
+        ray.init(self.num_gpus)
 
-            ray.init(num_gpus=1)
+        device = torch.device("cuda") if self.with_gpus else torch.device("cpu")
 
-            device = torch.device("cuda") if with_gpus else torch.device("cpu")
+        prover_pool = []
 
-            prover_pool = []
+        for _ in range(self.logical_gpus):
+            tac_gen = RetrievalAugmentedGenerator.load(
+                self.ckpt_path, device=device, freeze=True
+            )
+            if tac_gen.retriever is not None:
+                assert self.indexed_corpus_path is not None
+                tac_gen.retriever.load_corpus(self.indexed_corpus_path)
 
-            for _ in range(self.num_gpus):
-                # todo test performance loading these before and passing object reference
-                # todo unfreeze
-                tac_gen = RetrievalAugmentedGenerator.load(
-                    ckpt_path, device=device, freeze=True
-                )
-                if tac_gen.retriever is not None:
-                    assert indexed_corpus_path is not None
-                    tac_gen.retriever.load_corpus(indexed_corpus_path)
+            # goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
+            goal_model = SimpleGoalModel.load(self.goal_path, device=device, freeze=True)
+            search_model = UpDown(goal_model)
 
-                # goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
-                goal_model = SimpleGoalModel.load(goal_path, device=device, freeze=True)
+            # search_model = BestFS()
 
-                # todo best way to parameterise resource allocation
-                # tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
-                tac_model = ray.remote(num_gpus=0.45)(ReProverTacGen).remote(tac_model=tac_gen)
+            # todo best way to parameterise resource allocation?
+            tac_model = ray.remote(num_gpus=0.45)(ReProverTacGen).remote(tac_model=tac_gen)
+            goal_model = ray.remote(num_gpus=0.45)(GoalModel).remote(goal_model)
+            # tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
+            # goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
 
-                goal_model = ray.remote(num_gpus=0.45)(GoalModel).remote(goal_model)
-                # goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
+            # todo integrate into something like this:
+            # tac_model = get_model(self.config.tac_model)(**config.tac_model.args)
+            # search_model = get_search(self.config.search)(**config.search.args)
 
-                search_model = UpDown(goal_model)
+            prover_pool.extend([ray.remote(num_gpus=0.01)(EndToEndProver).remote(
+                tac_model=tac_model, search_model=search_model, timeout=self.timeout, directory=self.log_dir
+            ) for _ in range(self.cpus_per_gpu)])
 
-                # search_model = BestFS()
+        self.prover_pool = ActorPool(prover_pool)
 
-                prover_pool.extend([ray.remote(num_gpus=0.01)(EndToEndProver).remote(
-                    tac_model=tac_model, search_model=search_model, timeout=timeout, directory=log_dir
-                ) for _ in range(self.cpus_per_gpu)])
-
-            self.prover_pool = ActorPool(prover_pool)
-
-            return
+        return
 
     # todo get env / theorems from config (e.g. HOListEnv, then theorems/positions and arguments to env will be
     #  different)
 
     def search_unordered(
-            self, repo: LeanGitRepo, theorems: List[Theorem], positions: List[Pos], iteration=0
+            self, theorems, iteration=0
     ) -> Any:
 
         """Parallel proof search for `theorems`. The order of the results is not guaranteed to match the order of the
@@ -298,8 +284,8 @@ class DistributedProver:
 
         try:
             results = self.prover_pool.map_unordered(
-                lambda p, x: p.search.remote(LeanDojoEnv(repo, x[0], x[1], 6000)),
-                zip_strict(theorems, positions),
+                lambda p, thm: p.search.remote(LeanDojoEnv(thm, self.timeout)),
+                theorems,
             )
 
             proven = 0
@@ -370,17 +356,11 @@ def main(config) -> None:
     # todo loop over iterations
     # for i in range(len(self.num_iterations)): ...
     # Search for proofs using multiple concurrent provers.
-    prover = DistributedProver(
-        config.ckpt_path,
-        config.goal_path,
-        config.indexed_corpus_path,
-        num_cpus=config.num_cpus,
-        with_gpus=config.with_gpus,
-        timeout=config.timeout,
-        log_dir=config.exp_config.directory
-    )
+    prover = DistributedProver(config)
 
-    results = prover.search_unordered(repo, theorems, positions, iteration=0)
+    theorems = zip_strict([repo] * len(theorems), theorems, positions)
+
+    results = prover.search_unordered(theorems, iteration=0)
 
     # Calculate the result statistics.
     num_proved = num_failed = num_discarded = 0
@@ -398,6 +378,7 @@ def main(config) -> None:
     logger.info(f"Pass@1: {num_proved / (num_proved + num_failed)}")
 
     # todo add end-to-end training
+    # todo unfreeze before training
     # todo add tac/search model train functions, which can be lightning data modules
     # self.process_result(results, config) (e.g. process and add results to mongodb)
 

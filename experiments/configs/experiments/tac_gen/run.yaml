@@ -1,0 +1,64 @@
+# @package _global_
+defaults:
+  - /base/logging_config@_here_
+  - /base/exp_config@_here_
+
+exp_config:
+  name: initial
+  experiment: lean_dojo_dpo
+  directory: experiments/runs/lean_dojo_dpo/initial_2023_11_20/18_10_54
+  resume: true
+
+logging_config:
+  project: leandoj_eval
+  offline: false
+  id: zso46x4d
+
+trainer:
+  accelerator: gpu
+  devices: 1
+  precision: bf16-mixed
+  strategy:
+    _target_: pytorch_lightning.strategies.DeepSpeedStrategy
+    stage: 2
+    offload_optimizer: false
+    cpu_checkpointing: false
+    logging_batch_size_per_gpu: 1
+  gradient_clip_val: 1.0
+  max_steps: 50000000
+  val_check_interval: 10000
+  limit_val_batches: 2000
+  callbacks:
+    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+      logging_interval: step
+    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+      verbose: true
+      save_top_k: 3
+      save_last: true
+      monitor: win_rate
+      mode: max
+      dirpath: ${exp_config.directory}/checkpoints
+      auto_insert_metric_name: true
+      filename: "{epoch}-{step}-{win_rate:.2f}"
+#    - class_path: pytorch_lightning.callbacks.EarlyStopping
+#      init_args:
+#        monitor: win_rate
+#        patience: 25
+#        mode: max
+#        verbose: true
+
+model_config:
+  model_type: 'tac_gen'
+  args:
+    model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
+    lr: 5e-6
+    warmup_steps: 200
+    beta: 0.5
+    max_seq_len: 2300
+
+data_config:
+  batch_size: 1  # effective_batch_size == batch_size * accumulate_grad_batches * devices
+  model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
+  eval_batch_size: 4
+  max_seq_len: 2300
+  num_workers: 0

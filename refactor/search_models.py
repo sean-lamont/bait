@@ -236,7 +236,7 @@ class HTPS(Search):
         self.T = {}
 
     def reset(self, root):
-        self.__init__(self.goal_model)
+        self.__init__(self.goal_model, self.exploration_constant)
         self.root = root
         self.nodes[root.goal] = root
 

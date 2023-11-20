@@ -19,9 +19,6 @@ from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
 from typing import Optional, List, Dict, Any, Tuple, Generator
 from pytorch_lightning.strategies.deepspeed import DeepSpeedStrategy
 
-
-
-
 Example = Dict[str, Any]
 Batch = Dict[str, Any]
 
@@ -48,10 +45,10 @@ class Context:
         assert isinstance(self.theorem_full_name, str)
         assert isinstance(self.theorem_pos, Pos)
         assert (
-            isinstance(self.state, str)
-            and "⊢" in self.state
-            and MARK_START_SYMBOL not in self.state
-            and MARK_END_SYMBOL not in self.state
+                isinstance(self.state, str)
+                and "⊢" in self.state
+                and MARK_START_SYMBOL not in self.state
+                and MARK_END_SYMBOL not in self.state
         )
 
     def serialize(self) -> str:
@@ -87,9 +84,9 @@ class Premise:
         assert isinstance(self.path, str)
         assert isinstance(self.full_name, str)
         assert (
-            isinstance(self.start, Pos)
-            and isinstance(self.end, Pos)
-            and self.start <= self.end
+                isinstance(self.start, Pos)
+                and isinstance(self.end, Pos)
+                and self.start <= self.end
         )
         assert isinstance(self.code, str) and self.code != ""
 
@@ -134,7 +131,7 @@ class PremiseSet:
 
     def __contains__(self, p: Premise) -> bool:
         return (
-            p.path in self.path2premises and p.full_name in self.path2premises[p.path]
+                p.path in self.path2premises and p.full_name in self.path2premises[p.path]
         )
 
     def __len__(self) -> int:
@@ -294,15 +291,15 @@ class Corpus:
             i
             for i, p in enumerate(self.all_premises)
             if (p.path == path and p.end <= pos)
-            or self.transitive_dep_graph.has_edge(path, p.path)
+               or self.transitive_dep_graph.has_edge(path, p.path)
         ]
 
     def get_nearest_premises(
-        self,
-        premise_embeddings: torch.FloatTensor,
-        batch_context: List[Context],
-        batch_context_emb: torch.Tensor,
-        k: int,
+            self,
+            premise_embeddings: torch.FloatTensor,
+            batch_context: List[Context],
+            batch_context_emb: torch.Tensor,
+            k: int,
     ) -> Tuple[List[List[Premise]], List[List[float]]]:
         """Perform a batch of nearest neighbour search."""
         similarities = batch_context_emb @ premise_embeddings.t()
@@ -374,22 +371,22 @@ def format_tactic(annot_tac: str, provenances, normalize: bool) -> str:
 
     for i, (m, prov) in enumerate(zip_strict(marks, provenances)):
         last_end = marks[i - 1].end() if i > 0 else 0
-        tac += annot_tac[last_end : m.start()] + "<a>" + prov["full_name"] + "</a>"
+        tac += annot_tac[last_end: m.start()] + "<a>" + prov["full_name"] + "</a>"
 
-    tac += annot_tac[marks[-1].end() :]
+    tac += annot_tac[marks[-1].end():]
     return tac
 
 
 def format_state(s: str) -> str:
     m = re.match(r"\d+ goals", s)
     if m is not None:
-        return s[m.end() :].strip()
+        return s[m.end():].strip()
     else:
         return s
 
 
 def format_augmented_state(
-    s: str, premises: List[Premise], max_len: int, p_drop: float
+        s: str, premises: List[Premise], max_len: int, p_drop: float
 ) -> str:
     """Format a state with retrieved premises and drop some of them with probability ``p_drop``."""
     s = format_state(s)
@@ -413,7 +410,7 @@ def format_augmented_state(
 
 
 def get_optimizers(
-    parameters, trainer: pl.Trainer, lr: float, warmup_steps: int
+        parameters, trainer: pl.Trainer, lr: float, warmup_steps: int
 ) -> Dict[str, Any]:
     """Return an AdamW optimizer with cosine warmup learning rate schedule."""
     strategy = trainer.strategy
@@ -434,9 +431,9 @@ def get_optimizers(
     else:
         assert trainer.max_epochs is not None
         max_steps = (
-            trainer.max_epochs
-            * len(trainer.datamodule.train_dataloader())
-            // trainer.accumulate_grad_batches
+                trainer.max_epochs
+                * len(trainer.datamodule.train_dataloader())
+                // trainer.accumulate_grad_batches
         )
 
     scheduler = get_cosine_schedule_with_warmup(
@@ -484,6 +481,7 @@ def log_to_file(file, msg):
     with open(file, 'a') as f:
         f.write(msg)
 
+
 def set_logger(verbose: bool) -> None:
     """
     Set the logging level of loguru.
@@ -500,14 +498,13 @@ def set_logger(verbose: bool) -> None:
         # logger.add(lambda msg: log_to_file('log.log', msg),  level="INFO")
 
 
-
 def cpu_checkpointing_enabled(pl_module) -> bool:
     try:
         trainer = pl_module.trainer
         return (
-            trainer.strategy is not None
-            and isinstance(trainer.strategy, DeepSpeedStrategy)
-            and trainer.strategy.config["activation_checkpointing"]["cpu_checkpointing"]
+                trainer.strategy is not None
+                and isinstance(trainer.strategy, DeepSpeedStrategy)
+                and trainer.strategy.config["activation_checkpointing"]["cpu_checkpointing"]
         )
     except RuntimeError:
         return False
