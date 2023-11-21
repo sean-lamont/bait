@@ -1,8 +1,11 @@
 """Lightning module for the tactic generator."""
+from subprocess import CalledProcessError
+from typing import Dict, Any
 
-from typing import List, Dict, Any, Tuple
-
+import time
+import re
 import pytorch_lightning as pl
+from lean_dojo.utils import execute
 import torch
 import torch.nn.functional as F
 from loguru import logger
@@ -13,16 +16,12 @@ from experiments.reprover.common import (
     get_optimizers,
     load_checkpoint,
 )
-from refactor.common import zip_strict, format_augmented_state
 
 torch.set_float32_matmul_precision("medium")
 
 
 # todo better abstract tactic generation class, with eval, generate, batch_generate
-
 # todo run evaluation (similar to generator eval)
-
-
 class DPOTrainModule(pl.LightningModule):
     def __init__(
             self,
@@ -221,84 +220,38 @@ class DPOTrainModule(pl.LightningModule):
             prog_bar=True
         )
 
-    ##############
-    # Prediction #
-    ##############
+    #########################
+    # End to End Validation #
+    #########################
 
-    def generate(
-            self,
-            state: str,
-            retriever_args: dict,
-            num_samples: int,
-    ) -> List[Tuple[str, float]]:
-        return self.batch_generate(
-            [state], retriever_args, num_samples
-        )[0]
+    def on_validation_epoch_end(self) -> None:
+        ckpt_path = f"{self.trainer.log_dir}/checkpoints/last.ckpt"
+        self.trainer.save_checkpoint(ckpt_path)
+        logger.info(f"Saved checkpoint to {ckpt_path}")
 
-    def batch_generate(
-            self,
-            state: List[str],
-            retriever_args: dict,
-            num_samples: int,
-    ) -> List[List[Tuple[str, float]]]:
+        cmd = f"python -m refactor.new_search_parallel --config-name=leandojo_eval/run num_theorems={self.eval_num_theorems}" \
+              f" shuffle=true timeout=60"
 
-        logger.debug(state)
+        logger.info(f'Running evaluation with {cmd}')
 
-        if self.retriever is not None:
-            retrieved_premises, _ = self.retriever.retrieve(
-                state=state,
-                **retriever_args,
-                # self.eval_num_retrieved,
-            )
-            state = [
-                format_augmented_state(s, premises, self.max_seq_len, p_drop=0.0)
-                for s, premises in zip_strict(state, retrieved_premises)
-            ]
+        wait_time = 3600
+        while True:
+            try:
+                # todo better/live output: https://stackoverflow.com/questions/4417546/constantly-print-subprocess-output-while-process-is-runningk
+                _, err = execute(cmd, capture_output=True)
+                break
+            except CalledProcessError as ex:
+                logger.error(ex)
+                logger.error(
+                    f"Failed to evaluate. Retrying in {wait_time / 3600} hour..."
+                )
+                time.sleep(wait_time)
+                wait_time *= 2
 
-        tokenized_state = self.tokenizer(
-            state,
-            padding="longest",
-            max_length=self.max_seq_len,
-            truncation=True,
-            return_tensors="pt",
-        )
+        m = re.search(r"Pass@1: (\S+)", err)
+        assert m is not None, err
+        acc = float(m.group(1))
+        self.log("Pass@1_val", acc, on_step=False, on_epoch=True)
+        logger.info(f"Pass@1: {acc}")
 
-        state_ids = tokenized_state.input_ids.to(self.device)
-        state_mask = tokenized_state.attention_mask.to(self.device)
-
-        # Generate tactic candidates using beam search.
-        output = self.generator.generate(
-            input_ids=state_ids,
-            attention_mask=state_mask,
-            max_length=self.max_seq_len,
-            num_beams=num_samples,
-            length_penalty=self.length_penalty,
-            do_sample=False,
-            num_return_sequences=num_samples,
-            early_stopping=False,
-            output_scores=True,
-            return_dict_in_generate=True,
-        )
-
-        # Return the output.
-        raw_output_text = self.tokenizer.batch_decode(
-            output.sequences, skip_special_tokens=True
-        )
-        raw_scores = output.sequences_scores.tolist()
-        tactics_with_scores = []
-
-        for i in range(len(state)):
-            output_text = []
-            output_score = []
-
-            # delegate removal of marks to environment
-            for j in range(i * num_samples, (i + 1) * num_samples):
-                # t = remove_marks(raw_output_text[j])
-                t = raw_output_text[j]
-                if t not in output_text:
-                    output_text.append(t)
-                    output_score.append(raw_scores[j])
-
-            tactics_with_scores.append(list(zip_strict(output_text, output_score)))
-
-        return tactics_with_scores
+    # todo parameterise generation (e.g shared function which takes generation config, and outputs tactic with scores)

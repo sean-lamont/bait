@@ -2,7 +2,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from refactor.generator.model import RetrievalAugmentedGenerator
 from refactor.proof_node import *
+import ray
 
 
 class TacModel:
@@ -33,3 +35,19 @@ class ReProverTacGen(TacModel):
                             'theorem_pos': position}
         )
         return tactics
+
+
+def get_tac_model(config, device):
+    if config.model == 'reprover':
+        tac_gen = RetrievalAugmentedGenerator.load(
+            config.ckpt_path, device=device, freeze=True
+        )
+        if tac_gen.retriever is not None:
+            assert config.indexed_corpus_path is not None
+            tac_gen.retriever.load_corpus(config.indexed_corpus_path)
+
+        if config.distributed:
+            return ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(ReProverTacGen).remote(
+                tac_model=tac_gen)
+        else:
+            return ReProverTacGen(tac_model=tac_gen)

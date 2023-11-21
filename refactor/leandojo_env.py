@@ -44,7 +44,7 @@ class LeanDojoEnv:
         self.environment_time = 0
         # dictionary mapping goals to their state
         self.node_map = {}
-        self.thm, self.repo, self.pos = thm
+        self.repo, self.thm, self.pos = thm
 
         self.premises = self.retrieve_premises()
 

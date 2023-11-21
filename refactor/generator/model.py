@@ -7,6 +7,7 @@ import pickle
 from lean_dojo import Pos
 from loguru import logger
 import pytorch_lightning as pl
+from peft import LoraConfig, get_peft_model
 from torchmetrics import Metric
 from lean_dojo.utils import execute
 from abc import ABC, abstractmethod
@@ -56,23 +57,13 @@ class TacticGenerator(ABC):
 
     @abstractmethod
     def generate(
-            self,
-            state: str,
-            file_path: str,
-            theorem_full_name: str,
-            theorem_pos: Pos,
-            num_samples: int,
+            self, **kwargs
     ) -> List[Tuple[str, float]]:
         raise NotImplementedError
 
     @abstractmethod
     def batch_generate(
-            self,
-            state: List[str],
-            file_path: List[str],
-            theorem_full_name: List[str],
-            theorem_pos: List[Pos],
-            num_samples: int,
+            self, **kwargs
     ) -> List[List[Tuple[str, float]]]:
         raise NotImplementedError
 
@@ -112,7 +103,18 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
             )
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+
         self.generator = T5ForConditionalGeneration.from_pretrained(model_name)
+
+        # target_modules = ['q', 'k', 'v', 'o', 'wo', 'lm_head']
+        # config = LoraConfig(
+        #     task_type="SEQ_2_SEQ_LM",
+        #     r=16,
+        #     lora_alpha=16,
+        #     target_modules=target_modules,
+        #     lora_dropout=0.01,
+        # )
+        # self.generator = get_peft_model(generator, config)
 
         self.topk_accuracies = dict()
         for k in range(1, num_beams + 1):
@@ -276,34 +278,25 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
     # Prediction #
     ##############
 
-    def generate(
-            self,
-            state: str,
-            file_path: str,
-            theorem_full_name: str,
-            theorem_pos: Pos,
-            num_samples: int,
-    ) -> List[Tuple[str, float]]:
+    def generate(self, state: str, retriever_args: dict, num_samples: int) -> List[Tuple[str, float]]:
         return self.batch_generate(
-            [state], [file_path], [theorem_full_name], [theorem_pos], num_samples
+            [state], retriever_args, num_samples
         )[0]
 
-    # todo remove file path
+    # todo parameterise generation
     def batch_generate(
             self,
             state: List[str],
-            file_path: List[str],
-            theorem_full_name: List[str],
-            theorem_pos: List[Pos],
+            retriever_args: dict,
             num_samples: int,
     ) -> List[List[Tuple[str, float]]]:
         logger.debug(state)
         if self.retriever is not None:
             retrieved_premises, _ = self.retriever.retrieve(
                 state,
-                file_path,
-                theorem_full_name,
-                theorem_pos,
+                retriever_args['file_path'],
+                retriever_args['theorem_full_name'],
+                retriever_args['theorem_pos'],
                 self.eval_num_retrieved,
             )
             state = [
@@ -323,39 +316,72 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
         state_mask = tokenized_state.attention_mask.to(self.device)
 
         # Generate tactic candidates using beam search.
+        # output = self.generator.generate(
+        #     input_ids=state_ids,
+        #     attention_mask=state_mask,
+        #     max_length=self.max_seq_len,
+        #     num_beams=num_samples,
+        #     length_penalty=self.length_penalty,
+        #     do_sample=False,
+        #     num_return_sequences=num_samples,
+        #     early_stopping=False,
+        #     output_scores=True,
+        #     return_dict_in_generate=True,
+        # )
+        #
         output = self.generator.generate(
             input_ids=state_ids,
             attention_mask=state_mask,
             max_length=self.max_seq_len,
-            num_beams=num_samples,
-            length_penalty=self.length_penalty,
-            do_sample=False,
+            do_sample=True,
             num_return_sequences=num_samples,
-            early_stopping=False,
             output_scores=True,
             return_dict_in_generate=True,
+            top_p=0.95,
+            temperature=2.0
         )
 
+        transitions = self.generator.compute_transition_scores(output.sequences, output.scores,
+                                                               normalize_logits=True)
         # Return the output.
         raw_output_text = self.tokenizer.batch_decode(
             output.sequences, skip_special_tokens=True
         )
-        raw_scores = output.sequences_scores.tolist()
+
+        # score for nucleus sampling
         tactics_with_scores = []
 
         for i in range(len(state)):
             output_text = []
             output_score = []
 
-            # delegate removal of marks to environment
-            for j in range(i * num_samples, (i + 1) * num_samples):
+            for j in range(num_samples):
+                # delegate removal of marks to environment
                 # t = remove_marks(raw_output_text[j])
                 t = raw_output_text[j]
                 if t not in output_text:
                     output_text.append(t)
-                    output_score.append(raw_scores[j])
+                    score = torch.sum(transitions[j][transitions[j] != -torch.inf]).item()
+                    output_score.append(score)
 
             tactics_with_scores.append(list(zip_strict(output_text, output_score)))
+
+        # raw_scores = output.sequences_scores.tolist()
+        # tactics_with_scores = []
+        #
+        # for i in range(len(state)):
+        #     output_text = []
+        #     output_score = []
+        #
+        #     # delegate removal of marks to environment
+        #     for j in range(i * num_samples, (i + 1) * num_samples):
+        #         # t = remove_marks(raw_output_text[j])
+        #         t = raw_output_text[j]
+        #         if t not in output_text:
+        #             output_text.append(t)
+        #             output_score.append(raw_scores[j])
+        #
+        #     tactics_with_scores.append(list(zip_strict(output_text, output_score)))
 
         return tactics_with_scores
 

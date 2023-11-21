@@ -6,13 +6,13 @@ defaults:
 exp_config:
   name: initial
   experiment: lean_dojo_dpo
-  directory: experiments/runs/lean_dojo_dpo/initial_2023_11_20/18_10_54
-  resume: true
+#  directory: experiments/runs/lean_dojo_dpo/initial_2023_11_20/18_10_54
+#  resume: true
 
 logging_config:
   project: leandoj_eval
-  offline: false
-  id: zso46x4d
+  offline: true
+#  id: zso46x4d
 
 trainer:
   accelerator: gpu
@@ -26,8 +26,8 @@ trainer:
     logging_batch_size_per_gpu: 1
   gradient_clip_val: 1.0
   max_steps: 50000000
-  val_check_interval: 10000
-  limit_val_batches: 2000
+  val_check_interval: 1000
+  limit_val_batches: 100
   callbacks:
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
       logging_interval: step
@@ -53,7 +53,7 @@ model_config:
     model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
     lr: 5e-6
     warmup_steps: 200
-    beta: 0.5
+    beta: 0.99
     max_seq_len: 2300
 
 data_config:

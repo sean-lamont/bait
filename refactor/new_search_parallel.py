@@ -1,6 +1,3 @@
-"""Script for evaluating the prover on theorems extracted by LeanDojo.
-"""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -8,6 +5,7 @@ from __future__ import print_function
 import glob
 import os
 import pickle
+import random
 import sys
 import time
 import traceback
@@ -23,14 +21,12 @@ from ray.util.actor_pool import ActorPool
 
 from refactor.common import set_logger
 from refactor.common import zip_strict
-from refactor.generator.model import RetrievalAugmentedGenerator
 from refactor.get_lean_theorems import _get_theorems
-from refactor.goal_model.model import SimpleGoalModel
 from refactor.leandojo_env import LeanDojoEnv
 from refactor.proof_node import *
-from refactor.search_models import UpDown, GoalModel
+from refactor.search_models import get_search_model
 from refactor.search_result import SearchResult
-from refactor.tac_models import ReProverTacGen
+from refactor.tac_models import get_tac_model
 
 
 def config_to_dict(conf):
@@ -96,6 +92,8 @@ class EndToEndProver:
             # Get full set of suggestions for goal if it hasn't been computed already
             if ts not in self.remaining_tacs:
                 tacs = ray.get(self.tac_model.get_tactics.remote(ts, premises))
+                # if len(tacs) < tacs_per_goal:
+                #     logger.warning(f'fewer tacs than max: {len(tacs)}')
                 tacs.reverse()
                 self.remaining_tacs[ts] = tacs
 
@@ -142,7 +140,7 @@ class EndToEndProver:
             self.num_expansions += 1
 
         t0 = time.monotonic()
-        self.search_model.process_response(responses)
+        self.search_model.process_responses(responses)
         self.search_time += time.monotonic() - t0
 
     def log_error(self, msg, theorem):
@@ -221,52 +219,23 @@ class DistributedProver:
     """
 
     def __init__(self, config) -> None:
+        self.total_timeout = config.total_timeout
 
-        self.goal_path = config.goal_path
-        self.indexed_corpus_path = config.indexed_corpus_path
-        self.num_cpus = config.num_cpus
-        self.with_gpus = config.with_gpus
-        self.timeout = config.timeout
-        self.log_dir = config.log_dir
-        self.with_gpus = config.with_gpus
-        self.num_gpus = config.num_gpus
-        self.logical_gpus = config.logical_gpus
-        self.cpus_per_gpu = config.cpus_per_gpu
-        self.gpu_processes = config.gpu_processes
+        ray.init(num_gpus=config.num_gpus, num_cpus=config.num_cpus)
 
-        ray.init(self.num_gpus)
-
-        device = torch.device("cuda") if self.with_gpus else torch.device("cpu")
+        device = torch.device("cuda") if config.with_gpus else torch.device("cpu")
 
         prover_pool = []
 
-        for _ in range(self.logical_gpus):
-            tac_gen = RetrievalAugmentedGenerator.load(
-                self.ckpt_path, device=device, freeze=True
-            )
-            if tac_gen.retriever is not None:
-                assert self.indexed_corpus_path is not None
-                tac_gen.retriever.load_corpus(self.indexed_corpus_path)
+        for _ in range(config.logical_gpus):
+            tac_model = get_tac_model(config.tac_model, device)
+            search_model = get_search_model(config.search_model, device)
 
-            # goal_model = StepGoalModel.load(goal_path, device=device, freeze=True)
-            goal_model = SimpleGoalModel.load(self.goal_path, device=device, freeze=True)
-            search_model = UpDown(goal_model)
-
-            # search_model = BestFS()
-
-            # todo best way to parameterise resource allocation?
-            tac_model = ray.remote(num_gpus=0.45)(ReProverTacGen).remote(tac_model=tac_gen)
-            goal_model = ray.remote(num_gpus=0.45)(GoalModel).remote(goal_model)
-            # tac_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(ReProverTacGen).remote(tac_model=tac_gen)
-            # goal_model = ray.remote(num_gpus=0.225, num_cpus=0.5)(GoalModel).remote(goal_model)
-
-            # todo integrate into something like this:
-            # tac_model = get_model(self.config.tac_model)(**config.tac_model.args)
-            # search_model = get_search(self.config.search)(**config.search.args)
-
-            prover_pool.extend([ray.remote(num_gpus=0.01)(EndToEndProver).remote(
-                tac_model=tac_model, search_model=search_model, timeout=self.timeout, directory=self.log_dir
-            ) for _ in range(self.cpus_per_gpu)])
+            prover_pool.extend(
+                [ray.remote(num_gpus=config.gpu_per_prover, num_cpus=config.cpu_per_prover)(EndToEndProver).remote(
+                    tac_model=tac_model, search_model=search_model, timeout=config.env_timeout,
+                    directory=config.exp_config.directory
+                ) for _ in range(config.provers_per_gpu)])
 
         self.prover_pool = ActorPool(prover_pool)
 
@@ -274,7 +243,6 @@ class DistributedProver:
 
     # todo get env / theorems from config (e.g. HOListEnv, then theorems/positions and arguments to env will be
     #  different)
-
     def search_unordered(
             self, theorems, iteration=0
     ) -> Any:
@@ -284,7 +252,7 @@ class DistributedProver:
 
         try:
             results = self.prover_pool.map_unordered(
-                lambda p, thm: p.search.remote(LeanDojoEnv(thm, self.timeout)),
+                lambda p, thm: p.search.remote(LeanDojoEnv(thm, self.total_timeout)),
                 theorems,
             )
 
@@ -358,7 +326,12 @@ def main(config) -> None:
     # Search for proofs using multiple concurrent provers.
     prover = DistributedProver(config)
 
-    theorems = zip_strict([repo] * len(theorems), theorems, positions)
+    theorems = list(zip_strict([repo] * len(theorems), theorems, positions))
+
+    if config.shuffle:
+        random.shuffle(theorems)
+
+    theorems = theorems[:config.num_theorems]
 
     results = prover.search_unordered(theorems, iteration=0)
 

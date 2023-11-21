@@ -7,6 +7,7 @@ import pytorch_lightning as pl
 
 import ray
 
+from refactor.goal_model.model import SimpleGoalModel
 from refactor.proof_node import *
 
 
@@ -129,7 +130,7 @@ class UpDown(Search):
                     self._up_step(parent)
 
     # Assume response is a single edge in this case
-    def process_response(self, responses: List[Edge]):
+    def process_responses(self, responses: List[Edge]):
         for response in responses:
             search_node = response.src
             result = response.dst
@@ -343,3 +344,23 @@ class HTPS(Search):
 
             if all([self.T[child.goal]['is_prop'] for child in self.T[parent]['edge'].dst]):
                 to_backup.append(parent)
+
+
+def get_search_model(config, device):
+    if config.search == 'bestfs':
+        return BestFS()
+        pass
+    elif config.search == 'bfs':
+        pass
+    elif config.search == 'updown':
+        goal_model = SimpleGoalModel.load(config.ckpt_path, device=device, freeze=True)
+        if config.distributed:
+            goal_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(GoalModel).remote(
+                goal_model)
+        else:
+            goal_model = GoalModel(goal_model)
+        return UpDown(goal_model)
+    elif config.search == 'htps':
+        pass
+    else:
+        raise NotImplementedError(f'Search approach {config.search} not implemented')
