@@ -18,8 +18,6 @@ from refactor.common import format_augmented_state, zip_strict, remove_marks, ge
 torch.set_float32_matmul_precision("medium")
 
 
-# todo separate into train and gen models?
-# train is pl module, gen is just generate + batch_generate
 class GenTacModel(pl.LightningModule):
     def __init__(self, config) -> None:
         super().__init__()
@@ -31,8 +29,13 @@ class GenTacModel(pl.LightningModule):
         self.lr = config.lr
         self.warmup_steps = config.warmup_steps
         self.max_seq_len = config.max_seq_len
+
+        # todo more general
         self.tokenizer = AutoTokenizer.from_pretrained(config.model_name)
         generator = T5ForConditionalGeneration.from_pretrained(config.model_name)
+
+        # todo
+        self.retriever = None
 
         if config.lora_config:
             config = LoraConfig(
@@ -47,8 +50,6 @@ class GenTacModel(pl.LightningModule):
             self.generator.print_trainable_parameters()
         else:
             self.generator = generator
-        # todo
-        self.retriever = None
 
     @classmethod
     def load(cls, ckpt_path: str, device, freeze: bool):
