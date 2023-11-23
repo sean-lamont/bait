@@ -457,6 +457,7 @@ def _is_deepspeed_checkpoint(path: str):
     return os.path.isdir(path) and os.path.exists(os.path.join(path, "zero_to_fp32.py"))
 
 
+# todo load from huggingface?
 def load_checkpoint(model_cls, ckpt_path: str, device, freeze: bool):
     """Handle DeepSpeed checkpoints in model loading."""
     if not _is_deepspeed_checkpoint(ckpt_path):

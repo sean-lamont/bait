@@ -251,17 +251,19 @@ class DistributedProver:
         input."""
 
         try:
-            results = self.prover_pool.map_unordered(
+            results_ = self.prover_pool.map_unordered(
                 lambda p, thm: p.search.remote(LeanDojoEnv(thm, self.total_timeout)),
                 theorems,
             )
 
             proven = 0
-            for i, res in enumerate(results):
+            results = []
+            for i, res in enumerate(results_):
                 logger.info(f'Result: {res}')
                 if res.proof:
                     proven += 1
                 wandb.log({'Step': i + 1, 'Proven': proven, 'Iteration': iteration})
+                results.append(res)
 
             return results
 

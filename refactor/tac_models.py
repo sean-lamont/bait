@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from refactor.generator.model import RetrievalAugmentedGenerator
+from refactor.dpo.model import RetrievalAugmentedGenerator, DPOTrainModule
 from refactor.proof_node import *
 import ray
 
@@ -51,3 +51,5 @@ def get_tac_model(config, device):
                 tac_model=tac_gen)
         else:
             return ReProverTacGen(tac_model=tac_gen)
+
+    # todo DPO trained model

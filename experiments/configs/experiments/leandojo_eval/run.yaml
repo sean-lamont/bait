@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: nucleus_sample_p=0.95_t=2
+  name: nucleus_sample_new_p=0.95_t=1.0
   experiment: eval_loop
 #  directory: experiments/runs/eval_loop/goal_model_2023_11_17/18_11_05
 #  resume: true
@@ -20,7 +20,7 @@ split: test
 file_path: null
 full_name: null
 num_theorems: 2000
-shuffle: false
+shuffle: true
 name_filter: null
 name: null
 indexed_corpus_path: null
@@ -29,19 +29,19 @@ total_timeout: 6000
 env_timeout: 600
 with_gpus: true
 verbose: false
-logical_gpus: 1
-num_gpus: 1
-num_cpus: 16
+logical_gpus: 4
+num_gpus: 2
+num_cpus: 8
 gpu_per_prover: 0.01
 cpu_per_prover: 1
-provers_per_gpu: 8
+provers_per_gpu: 1
 
 tac_model:
   model: reprover
-  ckpt_path: gen.ckpt
+  ckpt_path: last.ckpt
   distributed: true
-  gpu_per_process: 0.45 #0.225
-  cpu_per_process: 1 # 0.5
+  gpu_per_process: 0.225 # 0.45
+  cpu_per_process: 0.5 #1 #
 
 search_model:
   search: bestfs

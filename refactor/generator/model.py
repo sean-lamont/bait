@@ -74,6 +74,7 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
             model_name: str,
             lr: float,
             warmup_steps: int,
+
             num_beams: int,
             eval_num_retrieved: int,
             eval_num_cpus: int,
@@ -315,73 +316,44 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
         state_ids = tokenized_state.input_ids.to(self.device)
         state_mask = tokenized_state.attention_mask.to(self.device)
 
-        # Generate tactic candidates using beam search.
-        # output = self.generator.generate(
-        #     input_ids=state_ids,
-        #     attention_mask=state_mask,
-        #     max_length=self.max_seq_len,
-        #     num_beams=num_samples,
-        #     length_penalty=self.length_penalty,
-        #     do_sample=False,
-        #     num_return_sequences=num_samples,
-        #     early_stopping=False,
-        #     output_scores=True,
-        #     return_dict_in_generate=True,
-        # )
-        #
-        output = self.generator.generate(
-            input_ids=state_ids,
-            attention_mask=state_mask,
-            max_length=self.max_seq_len,
-            do_sample=True,
-            num_return_sequences=num_samples,
-            output_scores=True,
-            return_dict_in_generate=True,
-            top_p=0.95,
-            temperature=2.0
-        )
-
-        transitions = self.generator.compute_transition_scores(output.sequences, output.scores,
-                                                               normalize_logits=True)
-        # Return the output.
-        raw_output_text = self.tokenizer.batch_decode(
-            output.sequences, skip_special_tokens=True
-        )
-
         # score for nucleus sampling
         tactics_with_scores = []
 
+        output_text = []
+        output_score = []
         for i in range(len(state)):
-            output_text = []
-            output_score = []
+            gen_step = 0
+            # keep sampling, flattening distribution until num_samples are generated
+            while len(output_text) < num_samples:
+                output = self.generator.generate(
+                    input_ids=state_ids,
+                    attention_mask=state_mask,
+                    max_length=self.max_seq_len,
+                    do_sample=True,
+                    num_return_sequences=num_samples,
+                    output_scores=True,
+                    return_dict_in_generate=True,
+                    top_p=min(1.0, 0.95 + (gen_step * 0.01)),
+                    temperature=1.0 + (gen_step * 0.5)
+                )
 
-            for j in range(num_samples):
-                # delegate removal of marks to environment
-                # t = remove_marks(raw_output_text[j])
-                t = raw_output_text[j]
-                if t not in output_text:
-                    output_text.append(t)
-                    score = torch.sum(transitions[j][transitions[j] != -torch.inf]).item()
-                    output_score.append(score)
+                transitions = self.generator.compute_transition_scores(output.sequences, output.scores,
+                                                                       normalize_logits=True)
+                # Return the output.
+                raw_output_text = self.tokenizer.batch_decode(
+                    output.sequences, skip_special_tokens=True
+                )
 
-            tactics_with_scores.append(list(zip_strict(output_text, output_score)))
+                for j in range(num_samples):
+                    t = raw_output_text[j]
+                    if t not in output_text:
+                        output_text.append(t)
+                        score = torch.sum(transitions[j][transitions[j] != -torch.inf]).item()
+                        output_score.append(score)
 
-        # raw_scores = output.sequences_scores.tolist()
-        # tactics_with_scores = []
-        #
-        # for i in range(len(state)):
-        #     output_text = []
-        #     output_score = []
-        #
-        #     # delegate removal of marks to environment
-        #     for j in range(i * num_samples, (i + 1) * num_samples):
-        #         # t = remove_marks(raw_output_text[j])
-        #         t = raw_output_text[j]
-        #         if t not in output_text:
-        #             output_text.append(t)
-        #             output_score.append(raw_scores[j])
-        #
-        #     tactics_with_scores.append(list(zip_strict(output_text, output_score)))
+                gen_step += 1
+
+        tactics_with_scores.append(list(zip_strict(output_text, output_score)))
 
         return tactics_with_scores
 

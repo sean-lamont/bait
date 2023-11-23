@@ -16,18 +16,18 @@ logging_config:
 
 trainer:
   accelerator: gpu
-  devices: 1
+  devices: 2
   precision: bf16-mixed
   strategy:
     _target_: pytorch_lightning.strategies.DeepSpeedStrategy
     stage: 2
     offload_optimizer: false
     cpu_checkpointing: false
-    logging_batch_size_per_gpu: 1
+    logging_batch_size_per_gpu: 4
   gradient_clip_val: 1.0
   max_steps: 50000000
-  val_check_interval: 1000
-  limit_val_batches: 100
+  val_check_interval: 10
+  limit_val_batches: 10
   callbacks:
     - _target_: pytorch_lightning.callbacks.LearningRateMonitor
       logging_interval: step
@@ -35,11 +35,11 @@ trainer:
       verbose: true
       save_top_k: 3
       save_last: true
-      monitor: win_rate
+      monitor: Pass@1_val
       mode: max
       dirpath: ${exp_config.directory}/checkpoints
       auto_insert_metric_name: true
-      filename: "{epoch}-{step}-{win_rate:.2f}"
+      filename: "{epoch}-{step}-{Pass@1_val:.2f}"
 #    - class_path: pytorch_lightning.callbacks.EarlyStopping
 #      init_args:
 #        monitor: win_rate
@@ -49,15 +49,27 @@ trainer:
 
 model_config:
   model_type: 'tac_gen'
-  args:
-    model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
-    lr: 5e-6
-    warmup_steps: 200
-    beta: 0.99
-    max_seq_len: 2300
+  model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
+  lr: 5e-6
+  warmup_steps: 200
+  beta: 0.99
+  max_seq_len: 2300
+  gen_config:
+    strategy: sample
+  eval_config:
+    eval_num_theorems: 200
+    shuffle: true
+    timeout: 60
+  lora_config:
+    target_modules: ['q', 'k', 'v', 'o', 'wo', 'lm_head']
+    task_type: "SEQ_2_SEQ_LM"
+    r: 16
+    lora_alpha: 16
+    lora_dropout: 0.01
+
 
 data_config:
-  batch_size: 1  # effective_batch_size == batch_size * accumulate_grad_batches * devices
+  batch_size: 4  # effective_batch_size == batch_size * accumulate_grad_batches * devices
   model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
   eval_batch_size: 4
   max_seq_len: 2300
