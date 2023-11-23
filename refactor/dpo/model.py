@@ -385,11 +385,8 @@ class TopkAccuracy(Metric):
 # todo retriever
 class RetrievalAugmentedGenerator(GenTacModel):
     def __init__(self, config) -> None:
-        super().__init__()
+        super().__init__(config)
         self.save_hyperparameters()
-        self.lr = config.lr
-        self.warmup_steps = config.warmup_steps
-        self.max_seq_len = config.max_seq_len
         self.num_beams = config.num_beams
         self.length_penalty = config.length_penalty
         ret_ckpt_path = config.ret_ckpt_path

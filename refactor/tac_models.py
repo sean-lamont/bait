@@ -39,9 +39,10 @@ class ReProverTacGen(TacModel):
 
 def get_tac_model(config, device):
     if config.model == 'reprover':
-        tac_gen = RetrievalAugmentedGenerator.load(
-            config.ckpt_path, device=device, freeze=True
-        )
+        # tac_gen = RetrievalAugmentedGenerator.load(
+        #     config.ckpt_path, device=device, freeze=True
+        # )
+        tac_gen = RetrievalAugmentedGenerator(config.config)
         if tac_gen.retriever is not None:
             assert config.indexed_corpus_path is not None
             tac_gen.retriever.load_corpus(config.indexed_corpus_path)
