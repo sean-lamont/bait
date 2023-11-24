@@ -23,6 +23,7 @@ from refactor.common import set_logger
 from refactor.common import zip_strict
 from refactor.get_lean_theorems import _get_theorems
 from refactor.leandojo_env import LeanDojoEnv
+from refactor.process_traces import get_traces
 from refactor.proof_node import *
 from refactor.search_models import get_search_model
 from refactor.search_result import SearchResult
@@ -75,7 +76,8 @@ class EndToEndProver:
             env_time=self.env_time,
             num_expansions=self.num_expansions,
             trace=self.trace,
-            num_nodes=len(nodes)
+            num_nodes=len(nodes),
+            data={'search_trace': self.search_model.search_trace} if hasattr(self.search_model, 'search_trace') else {}
         )
 
         with open(f"{self.dir}/{theorem.full_name}", "wb") as f:
@@ -92,8 +94,6 @@ class EndToEndProver:
             # Get full set of suggestions for goal if it hasn't been computed already
             if ts not in self.remaining_tacs:
                 tacs = ray.get(self.tac_model.get_tactics.remote(ts, premises))
-                # if len(tacs) < tacs_per_goal:
-                #     logger.warning(f'fewer tacs than max: {len(tacs)}')
                 tacs.reverse()
                 self.remaining_tacs[ts] = tacs
 
@@ -244,7 +244,7 @@ class DistributedProver:
     # todo get env / theorems from config (e.g. HOListEnv, then theorems/positions and arguments to env will be
     #  different)
     def search_unordered(
-            self, theorems, iteration=0
+            self, theorems, iteration=0, resume_proven=0, resume_step=0
     ) -> Any:
 
         """Parallel proof search for `theorems`. The order of the results is not guaranteed to match the order of the
@@ -256,13 +256,13 @@ class DistributedProver:
                 theorems,
             )
 
-            proven = 0
+            proven = resume_proven
             results = []
             for i, res in enumerate(results_):
                 logger.info(f'Result: {res}')
                 if res.proof:
                     proven += 1
-                wandb.log({'Step': i + 1, 'Proven': proven, 'Iteration': iteration})
+                wandb.log({'Step': i + 1 + resume_step, 'Proven': proven, 'Iteration': iteration})
                 results.append(res)
 
             return results
@@ -283,6 +283,9 @@ def main(config) -> None:
     # todo make this system agnostic
     repo, theorems, positions = _get_theorems(config)
 
+    prev_theorems = []
+    prev_proven = 0
+    results = []
     if config.exp_config.resume:
         wandb.init(project=config.logging_config.project,
                    name=config.exp_config.name,
@@ -294,14 +297,13 @@ def main(config) -> None:
                    )
 
         # Remove proven theorems if resuming
-        prev_theorems = glob.glob(config.exp_config.directory + '/traces/*')
-        prev_theorems = [p.split('/')[-1] for p in prev_theorems]
-
         final_theorems = []
         final_positions = []
 
+        prev_theorems = get_traces(config.exp_config.directory + '/traces/*')
+
         for i, theorem in enumerate(theorems):
-            if theorem.full_name in prev_theorems:
+            if theorem.full_name in [t.theorem.full_name for t in prev_theorems]:
                 continue
             else:
                 final_theorems.append(theorem)
@@ -310,6 +312,9 @@ def main(config) -> None:
         theorems = final_theorems
         positions = final_positions
 
+        prev_proven = sum([1 if g.proof else 0 for g in prev_theorems])
+        results = prev_theorems
+        logger.info(f'Resuming from {prev_proven} proofs')
     else:
         wandb.init(project=config.logging_config.project,
                    name=config.exp_config.name,
@@ -335,7 +340,8 @@ def main(config) -> None:
 
     theorems = theorems[:config.num_theorems]
 
-    results = prover.search_unordered(theorems, iteration=0)
+    logger.info(f'Attempting {len(theorems)} proofs..')
+    results.append(prover.search_unordered(theorems, iteration=0, resume_step=len(prev_theorems), resume_proven=prev_proven))
 
     # Calculate the result statistics.
     num_proved = num_failed = num_discarded = 0

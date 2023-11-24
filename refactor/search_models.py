@@ -59,10 +59,8 @@ class UpDown(Search):
         if isinstance(root, InternalNode):
             self.nodes[root.goal] = root
 
-            # todo move to model
-            node_goals = ['<extra_id_0>' + self.root.goal]
             # Initialise scores for root
-            scores = ray.get(self.goal_model.run.remote(node_goals))
+            scores = ray.get(self.goal_model.run.remote([self.root.goal]))
 
             self.root.provable_score = scores[0].item()
             self.root.up_score = self.root.provable_score
@@ -144,10 +142,7 @@ class UpDown(Search):
                         self.nodes[result_node.goal] = result_node
 
             if new_nodes:
-                # todo move to model
-                node_goals = ['<extra_id_0>' + node_.goal for node_ in new_nodes]
-
-                scores = ray.get(self.goal_model.run.remote(node_goals))
+                scores = ray.get(self.goal_model.run.remote([g.goal for g in new_nodes]))
 
                 # Initialise provable_score/up_score for new internal nodes
                 for i, node_ in enumerate(new_nodes):
@@ -231,36 +226,34 @@ class HTPS(Search):
         self.exploration_constant = exploration_constant
 
         # map edges to visit counts, virtual counts, current Q estimates
-        self.scores = {}
+        self.edge_data = {}
 
         # keep track of current HyperTree, refreshed after every expansion
         self.T = {}
 
+        # record the state of the hypergraph every step for further analysis
+        self.search_trace = []
+
     def reset(self, root):
         self.__init__(self.goal_model, self.exploration_constant)
         self.root = root
-        self.nodes[root.goal] = root
+        if isinstance(root, InternalNode):
+            self.nodes[root.goal] = root
 
-        # todo move to model
-        node_goals = ['<extra_id_0>' + self.root.goal]
-        # Initialise scores for root
-        scores = ray.get(self.goal_model.run.remote(node_goals))
+        # Initialise edge_data for root
+        self.edge_data = {}
 
-        self.root.provable_score = scores[0]
-        self.root.up_score = scores[0]
-
-        self.scores = {}
-
-    def p_uct(self, edge):
-        edge_data = self.scores[(edge.src.goal, edge.tactic)]
-
+    # node score can be found by taking maximum over all edges for a given goal
+    def p_uct(self, edge_data):
         w_score = edge_data['w_score']
         visit_count = edge_data['visit_count']
         virtual_count = edge_data['virtual_count']
+        edge = edge_data['edge']
 
         total_visits = visit_count + virtual_count
         policy_score = edge.tac_logprob
-        node_visits = sum([self.scores[(edge.src.goal, edge_.tac)]['visit_count'] for edge_ in edge.src.out_edges])
+        node_visits = sum([self.edge_data[e]['visit_count'] for e in self.edge_data.keys() if e[0] == edge.src.goal])
+        # node_visits = sum([self.edge_data[(edge.src.goal, edge_.tactic)]['visit_count'] for edge_ in self.edge_data])
 
         # define value estimate
         if visit_count == 0:
@@ -277,34 +270,42 @@ class HTPS(Search):
         to_explore = [self.root]
         self.T = {}
         leaves = []
+
+        self.T[self.root.goal] = {'edge': None, 'parent': None,
+                                  'is_prop': True, 'v_score': -math.inf}
+
         # (note: cycles are automatically ignored in tree construction)
         while to_explore:
             g = to_explore.pop()
             # leaf node
             if not g.out_edges:
-                leaves.append(g)
+                leaves.append((g, 0.))
                 continue
 
-            # todo check for expandable goals?
+            # Internal nodes are always expandable, since by definition they have an open descendant, with no cycles
             if isinstance(g, InternalNode) and g.status == Status.OPEN:
                 best_score = -math.inf
                 best_edge = None
-                for edge in g.out_edges:
+                goal_edges = [self.edge_data[e] for e in self.edge_data.keys() if e[0] == g.goal]
+                for edge in goal_edges:
                     edge_score = self.p_uct(edge)
                     if edge_score > best_score:
                         best_score = edge_score
-                        best_edge = edge
+                        best_edge = edge['edge']
 
-                self.scores[(g.goal, best_edge.tactic)]['virtual_count'] += 1
+                self.edge_data[(g.goal, best_edge.tactic)]['virtual_count'] += 1
 
-                self.T[g.goal] = {'edge': best_edge, 'parent': best_edge.src.goal,
-                                  'is_prop': False, 'v_score': -math.inf}
+                # goals may appear only once in the tree
+                for d in best_edge.dst:
+                    # todo why is error node here??? should not be added to edge data
+                    if d.goal not in self.T:
+                        self.T[d.goal] = {'edge': best_edge, 'parent': g.goal,
+                                          'is_prop': False, 'v_score': -math.inf}
+                        to_explore.append(d)
 
-                to_explore.extend(best_edge.dst)
+        return leaves
 
-        return self.T
-
-    # assume as done in the paper that all leaves have been expanded
+    # leaves are the most recently expanded nodes, only need to filter and initialise edges
     def process_responses(self, responses: List[Edge]):
         for response in responses:
             result = response.dst
@@ -316,18 +317,48 @@ class HTPS(Search):
                         new_nodes.append(result_node)
                         self.nodes[result_node.goal] = result_node
 
-        self.propagate_values([g.src.goal for g in responses])
+        # filter responses, taking the fastest tactic per outcome
+        leaves = set([edge.src for edge in responses])
+
+        filtered_responses = []
+        for leaf in leaves:
+            unique_dst = []
+            src_filtered = []
+            for response in [r for r in responses if r.src == leaf and r.dst[0].status == Status.OPEN]:
+                if response.dst not in unique_dst:
+                    unique_dst.append(response.dst)
+                    src_filtered.append(response)
+                else:
+                    prev_edge = unique_dst.index(response.dst)
+                    if response.time < src_filtered[prev_edge].time:
+                        src_filtered[prev_edge] = response
+
+            filtered_responses.extend(src_filtered)
+
+        # initialise scores and counts
+        for edge in filtered_responses:
+            self.edge_data[(edge.src.goal, edge.tactic)] = {'w_score': 0, 'visit_count': 0, 'virtual_count': 0, 'edge': edge}
+
+        self.propagate_values(leaves)
+
+        self.search_trace.append(self.edge_data)
 
     def propagate_values(self, leaf_nodes):
         to_backup = []
         for g in leaf_nodes:
-            # todo move to model
-            node_goal = ['<extra_id_0>' + g]
-            self.T[g]['v_score'] = ray.get(self.goal_model.run.remote(node_goal))
-            to_backup.append(g)
+            if g.status == Status.PROVED:
+                self.T[g.goal]['v_score'] = 1
+            elif g.status == Status.FAILED:
+                self.T[g.goal]['v_score'] = 0
+            else:
+                self.T[g.goal]['v_score'] = ray.get(self.goal_model.run.remote([g.goal]))
+            to_backup.append(g.goal)
 
         while to_backup:
             g = to_backup.pop()
+            # root
+            if self.T[g]['edge'] is None:
+                continue
             edge = self.T[g]['edge']
             parent = self.T[g]['parent']
 
@@ -335,21 +366,21 @@ class HTPS(Search):
             for child in edge.dst:
                 to_update += self.T[child.goal]['v_score']
 
-            self.scores[(g, edge.tactic)]['w_score'] += to_update
-            self.scores[(g, edge.tactic)]['visit_count'] += 1
-            self.scores[(g, edge.tactic)]['virtual_count'] -= 1
+            # todo key error...
+            self.edge_data[(g, edge.tactic)]['w_score'] += to_update
+            self.edge_data[(g, edge.tactic)]['visit_count'] += 1
+            self.edge_data[(g, edge.tactic)]['virtual_count'] -= 1
 
             self.T[g]['v_score'] = to_update
             self.T[g]['is_prop'] = True
 
-            if all([self.T[child.goal]['is_prop'] for child in self.T[parent]['edge'].dst]):
+            if parent and all([self.T[child.goal]['is_prop'] for child in self.T[parent]['edge'].dst]):
                 to_backup.append(parent)
 
 
 def get_search_model(config, device):
     if config.search == 'bestfs':
         return BestFS()
-        pass
     elif config.search == 'bfs':
         pass
     elif config.search == 'updown':
@@ -361,6 +392,12 @@ def get_search_model(config, device):
             goal_model = GoalModel(goal_model)
         return UpDown(goal_model)
     elif config.search == 'htps':
-        pass
+        goal_model = SimpleGoalModel.load(config.ckpt_path, device=device, freeze=True)
+        if config.distributed:
+            goal_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(GoalModel).remote(
+                goal_model)
+        else:
+            goal_model = GoalModel(goal_model)
+        return HTPS(goal_model=goal_model, exploration_constant=config.exploration_constant)
     else:
         raise NotImplementedError(f'Search approach {config.search} not implemented')

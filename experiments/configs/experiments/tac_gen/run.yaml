@@ -11,7 +11,7 @@ exp_config:
 
 logging_config:
   project: leandoj_eval
-  offline: true
+  offline: false
 #  id: zso46x4d
 
 trainer:
@@ -69,7 +69,7 @@ model_config:
 
 
 data_config:
-  batch_size: 4  # effective_batch_size == batch_size * accumulate_grad_batches * devices
+  batch_size: 1  # effective_batch_size == batch_size * accumulate_grad_batches * devices
   model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
   eval_batch_size: 4
   max_seq_len: 2300

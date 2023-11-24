@@ -1,17 +1,14 @@
 """Lightning module for the tactic generator."""
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple
 
 import pytorch_lightning as pl
 import torch
-from lean_dojo import Pos
 from loguru import logger
-from transformers import T5ForConditionalGeneration, AutoTokenizer, NoBadWordsLogitsProcessor
 from torch.nn import CrossEntropyLoss
+from transformers import T5ForConditionalGeneration, AutoTokenizer, NoBadWordsLogitsProcessor
 
-from experiments.reprover.common import (
-    zip_strict,
-    remove_marks,
+from refactor.common import (
     get_optimizers,
     load_checkpoint,
 )
@@ -19,7 +16,6 @@ from experiments.reprover.common import (
 torch.set_float32_matmul_precision("medium")
 
 from torchmetrics.classification import BinaryConfusionMatrix
-
 
 
 class GoalModel(ABC):
@@ -49,7 +45,7 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
             max_seq_len: int,
             provable_tok: str,
             unprovable_tok: str,
-
+            critic_tok: str = '<extra_id_0>'
     ) -> None:
         super().__init__()
 
@@ -63,6 +59,7 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
 
         self.provable_id = self.tokenizer.encode([provable_tok])[0]
         self.unprovable_id = self.tokenizer.encode([unprovable_tok])[0]
+        self.critic_tok = critic_tok
 
         logger.debug(f'provable/unprovable ids: {self.provable_id, self.unprovable_id}')
 
@@ -130,32 +127,7 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
             self.parameters(), self.trainer, self.lr, self.warmup_steps
         )
 
-    def _log_io_texts(
-            self,
-            split: str,
-            state_ids: torch.LongTensor,
-            target_ids: torch.LongTensor,
-    ) -> None:
-        tb = self.logger.experiment
-
-        inp = self.tokenizer.decode(state_ids[0], skip_special_tokens=False)
-
-        oup_ids = torch.where(
-            target_ids[0] == -100, self.tokenizer.pad_token_id, target_ids[0]
-        )
-
-        oup = self.tokenizer.decode(oup_ids, skip_special_tokens=False)
-
-        tb.add_text(f"{split}_state", f"```\n{inp}\n```", self.global_step)
-
-        tb.add_text(f"{split}_tactic", f"`{oup}`", self.global_step)
-
     def on_fit_start(self) -> None:
-        ckpt_path = f"{self.trainer.log_dir}/checkpoints/last.ckpt"
-        self.trainer.save_checkpoint(ckpt_path)
-
-        logger.info(f"Saved checkpoint to {ckpt_path}")
-
         if self.logger is not None:
             self.logger.log_hyperparams(self.hparams)
             assert self.trainer is not None
@@ -181,10 +153,6 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
         inds, preds = torch.max(filtered_logits, dim=1)
         targets = batch['target_ids'][:, 0]
         confusion = self.bcm(torch.abs(preds - 261).to(self.device), torch.abs(targets - 261).to(self.device))
-        # print(f'preds: {preds}, targets: {targets}, probs: {torch.softmax(filtered_logits, dim=1)[:, self.provable_id]}')
-        # print(f'bcm: {confusion}')
-
-
         acc = torch.sum((preds == targets) / (preds == targets).shape[0])
 
         self.log(
@@ -214,10 +182,6 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
             prog_bar=True
         )
 
-
-    # def on_validation_epoch_end(self) -> None:
-    #     pass
-
     ##############
     # Prediction #
     ##############
@@ -226,7 +190,8 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
         return self.batch_generate([state])[0]
 
     def batch_generate(self, state: List[str]) -> List[float]:
-        logger.debug(state)
+        # concat the token indicating this is a goal task
+        state = [self.critic_tok + s for s in state]
 
         tokenized_state = self.tokenizer(
             state,
@@ -250,9 +215,6 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
         )
 
         filtered_logits = self.logits_processor(state_ids, output.scores[0])
-
-        # shape = (batch, tokens)
-        # filtered_logits = filtered_logits[:, self.provable_id]
 
         probs = torch.log_softmax(filtered_logits, dim=1)
 

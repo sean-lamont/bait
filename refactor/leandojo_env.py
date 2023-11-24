@@ -19,8 +19,8 @@ from lean_dojo import (
     DojoInitError,
     DojoCrashError,
     DojoHardTimeoutError,
-    # TacticError,
-    LeanError,
+    TacticError,
+    # LeanError,
     TimeoutError,
     TacticState,
     ProofGivenUp
@@ -101,8 +101,8 @@ class LeanDojoEnv:
         result_node = []
 
         if type(response) in (
-                # TacticError,
-                LeanError,
+                TacticError,
+                # LeanError,
                 TimeoutError,
                 ProofGivenUp,
         ):
@@ -186,7 +186,7 @@ class LeanDojoEnv:
 
         # self-loop sanity check (should never happen)
         if result_node == node:
-            logger.warning(f'Self loop found')
+            logger.error(f'Self loop found')
             response = TreeError('Self-loop')
             result_node = ErrorNode(response)
             result = [result_node]

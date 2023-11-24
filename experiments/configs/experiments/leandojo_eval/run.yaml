@@ -4,15 +4,15 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: nucleus_sample_new_p=0.95_t=1.0
+  name: htps
   experiment: eval_loop
-#  directory: experiments/runs/eval_loop/goal_model_2023_11_17/18_11_05
-#  resume: true
+  directory: experiments/runs/eval_loop/nucleus_sample_new_p=0.95_t=1.0_2023_11_24/01_14_46
+  resume: true
 
 logging_config:
-  project: leandoj_eval
+  project: end_to_end
   offline: false
-#  id: 82u2u2zp
+  id: t6b6cs9u
 
 
 data_path: data/leandojo/data/leandojo_benchmark/random/
@@ -29,19 +29,19 @@ total_timeout: 6000
 env_timeout: 600
 with_gpus: true
 verbose: false
-logical_gpus: 4
-num_gpus: 2
-num_cpus: 8
+logical_gpus: 1
+num_gpus: 1
+num_cpus: 16
 gpu_per_prover: 0.01
 cpu_per_prover: 1
-provers_per_gpu: 1
+provers_per_gpu: 8
 
 tac_model:
   model: reprover
-  ckpt_path: last.ckpt
+  ckpt_path: gen.ckpt
   distributed: true
-  gpu_per_process: 0.225 # 0.45
-  cpu_per_process: 0.5 #1 #
+  gpu_per_process: 0.45
+  cpu_per_process: 1
   config:
     model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
     lr: 5e-6
@@ -50,13 +50,22 @@ tac_model:
     num_beams: 64
     ret_ckpt_path: null
     max_seq_len: 2300
-    gen_config: null
+    gen_config:
+      strategy: sample
     eval_config: null
     lora_config: null
 
 
 search_model:
   search: bestfs
+#
+#  search: htps
+#  ckpt_path: goal_model.ckpt
+#  distributed: true
+#  gpu_per_process: 0.45 #0.225
+#  cpu_per_process: 1 # 0.5
+#  exploration_constant: 1
+
 #  search: updown
 #  ckpt_path: goal_model.ckpt
 #  distributed: true
