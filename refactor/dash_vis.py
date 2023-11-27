@@ -18,6 +18,76 @@ styles = {
 }
 
 
+def render_htps(trace):
+    search_trace = trace.data['search_trace']
+
+    edges, tree = search_trace[-1]
+
+    node_map = {}
+    idx = 0
+
+    for (goal, tactic), data in edges.items():
+        if goal not in node_map:
+            node_map[goal] = idx
+            idx += 1
+
+    vis_edges = []
+    cluster_nodes = []
+    child_nodes = []
+
+    cluster_nodes.append({'data': {'id': 'root', 'label': ''}})
+
+    child_nodes.append(
+        {'data': {'id': trace.tree.goal, 'goal': trace.tree.goal, 'parent': 'root',
+                  'label': node_map[trace.tree.goal]}})
+
+    processed_nodes = set()
+
+    for (goal, tactic), data in edges.items():
+        edge = data['edge']
+
+        if any([(isinstance(d, InternalNode) and d.goal not in node_map) for d in edge.dst]):
+            continue
+
+        children = []
+        for d in edge.dst:
+            node = None
+            if isinstance(d, InternalNode):
+                if d.goal not in processed_nodes:
+                    node = {'data': {'id': d.goal, 'goal': d.goal,
+                                     'parent': goal + tactic,
+                                     'label': node_map[d.goal]}}
+
+                    processed_nodes = processed_nodes | {d.goal}
+
+            elif isinstance(d, ProofFinishedNode):
+                node = {'data': {'id': goal + tactic + 'proven', 'goal': 'proven',
+                                 'parent': goal + tactic,
+                                 'label': 'Q'}}
+
+            elif isinstance(d, ErrorNode):
+                node = {'data': {'id': goal + tactic + 'Error', 'goal': 'Error',
+                                 'parent': goal + tactic,
+                                 'label': 'E'}}
+
+            if node:
+                vis_edges.append({'data': {'target': goal + tactic, 'source': goal, 'tactic': tactic},
+                                  'classes': 'nodes'})
+
+                vis_edges.append({'data': {'source': goal, 'target': d.goal, 'tactic': tactic}, 'classes': 'hidden'})
+                children.append(node)
+
+        if children:
+            child_nodes.extend(children)
+            cluster_nodes.append({'data': {'id': goal + tactic, 'label': '', 'tactic': tactic}})
+
+    for node in child_nodes:
+        if node['data']['goal'] in tree:
+            node['classes'] = "proven"
+
+    return vis_edges + cluster_nodes + child_nodes
+
+
 def render_full_trace(trace):
     siblings = []
 
@@ -115,7 +185,6 @@ def render_full_trace(trace):
         #         else:
         #             edges.append({'data': {'source': str(src), 'target': str(s), 'tactic': tactic},
         #                           'classes': 'dupes'})
-        #
 
     for node in child_nodes:
         if trace.nodes[node['data']['goal']].status == Status.PROVED:
@@ -141,28 +210,19 @@ if __name__ == '__main__':
         return traces
 
 
-    traces = get_traces('../experiments/runs/eval_loop/leandojo_eval_2023_11_10/12_32_48/traces/*')
-    elements = render_full_trace(traces[0])
+    traces = get_traces('../experiments/runs/eval_loop/htps_2023_11_27/18_52_49/traces/*')
+
+    # traces = get_traces('../experiments/runs/eval_loop/htps_2023_11_27/16_35_56/traces/*')
+    # elements = render_full_trace(traces[0])
+
+    elements = render_htps(traces[5])
 
     app = Dash(__name__)
 
     app.layout = html.Div([
         cyto.Cytoscape(
             id='cytoscape-compound',
-            # layout={'name': 'breadthfirst',
-            #         'roots': '[id = "0"]',
-            #         'directed': 'true'},
-            # layout={'name': 'Spring-Embedded',
-            # 'roots': '[id = "0"]',
-            # },
-
             layout={'name': 'dagre'},
-            # layout={'name': 'klay'},
-            # layout={'name': 'cose'},
-            # layout={'name': 'cola',
-            #         'flow': {'axis': 'y', 'minSeparation': 40},
-            #         'avoidOverlap': 'true'
-            #         },
 
             style={'width': '100%', 'height': '900px'},
             stylesheet=[
@@ -183,7 +243,7 @@ if __name__ == '__main__':
                 {
                     'selector': '.clusters',
                     'style': {'line-style': 'dashed',
-                              'target-arrow-color': '#000',
+                              'target-arrow-color': '#000)',
                               'target-arrow-shape': 'triangle',
                               }
                 },

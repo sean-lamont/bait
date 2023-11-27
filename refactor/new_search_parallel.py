@@ -181,7 +181,6 @@ class EndToEndProver:
                     try:
                         self._step(env)
                     except Exception as e:
-                        # todo make env timeout error
                         if not (self.env_time >= self.timeout):
                             logger.warning(f"Exception not timeout: {e}")
                             traceback.print_exc()
