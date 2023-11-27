@@ -323,6 +323,7 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
         output_score = []
         for i in range(len(state)):
             gen_step = 0
+            # todo check returned sequence probs aren't changed by this
             # keep sampling, flattening distribution until num_samples are generated
             while len(output_text) < num_samples:
                 output = self.generator.generate(
