@@ -10,6 +10,7 @@ import pytorch_lightning as pl
 import ray
 
 from refactor.goal_model.model import SimpleGoalModel
+from refactor.goal_model_step.model import StepGoalModel
 from refactor.proof_node import *
 
 
@@ -364,9 +365,9 @@ class HTPS(Search):
             self.edge_data[(edge.src.goal, edge.tactic)] = {'w_score': 0, 'visit_count': 0, 'virtual_count': 0,
                                                             'edge': edge}
 
-        self.search_trace.append(copy.deepcopy((self.edge_data, self.T, self.leaves)))
-
         self.propagate_values()
+
+        self.search_trace.append(copy.deepcopy((self.edge_data, self.T, self.leaves)))
 
     def propagate_values(self):
         if len(self.leaves) == 1 and self.leaves[0][0] == self.root:
@@ -396,9 +397,12 @@ class HTPS(Search):
             edge = self.T[g]['edge']
             parent = self.T[g]['parent']
 
+            # if all children aren't propagated, continue, as they will call parent later
+            if not all([self.T[child.goal]['is_prop'] for child in edge.dst]):
+                continue
+
             to_update = 1
             for child in edge.dst:
-                assert self.T[child.goal]['is_prop'], (g, child.goal)
                 to_update *= self.T[child.goal]['v_score']
 
             self.edge_data[(g, edge.tactic)]['w_score'] += to_update
@@ -426,7 +430,9 @@ def get_search_model(config, device):
             goal_model = GoalModel(goal_model)
         return UpDown(goal_model)
     elif config.search == 'htps':
-        goal_model = SimpleGoalModel.load(config.ckpt_path, device=device, freeze=True)
+        # goal_model = SimpleGoalModel.load(config.ckpt_path, device=device, freeze=True)
+        goal_model = StepGoalModel.load(config.ckpt_path, device=device, freeze=True)
+
         if config.distributed:
             goal_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(GoalModel).remote(
                 goal_model)

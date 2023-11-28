@@ -144,9 +144,8 @@ class GenTacModel(pl.LightningModule):
         output_score = []
         for i in range(len(state)):
             gen_step = 0
-            # keep sampling, flattening distribution until num_samples are generated
+            # keep sampling until num_samples unique samples are generatd
             while len(output_text) < num_samples:
-                # todo get args from config
                 output = self.generator.generate(
                     input_ids=state_ids,
                     attention_mask=state_mask,
@@ -155,8 +154,6 @@ class GenTacModel(pl.LightningModule):
                     num_return_sequences=num_samples,
                     output_scores=True,
                     return_dict_in_generate=True,
-                    top_p=min(1.0, 0.95 + (gen_step * 0.01)),
-                    temperature=1.0 + (gen_step * 0.5)
                 )
 
                 transitions = self.generator.compute_transition_scores(output.sequences, output.scores,

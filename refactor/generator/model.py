@@ -74,7 +74,6 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
             model_name: str,
             lr: float,
             warmup_steps: int,
-
             num_beams: int,
             eval_num_retrieved: int,
             eval_num_cpus: int,
@@ -284,7 +283,6 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
             [state], retriever_args, num_samples
         )[0]
 
-    # todo parameterise generation
     def batch_generate(
             self,
             state: List[str],
@@ -323,8 +321,7 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
         output_score = []
         for i in range(len(state)):
             gen_step = 0
-            # todo check returned sequence probs aren't changed by this
-            # keep sampling, flattening distribution until num_samples are generated
+            # keep sampling until num_samples unique sequences are generated
             while len(output_text) < num_samples:
                 output = self.generator.generate(
                     input_ids=state_ids,
@@ -334,8 +331,6 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
                     num_return_sequences=num_samples,
                     output_scores=True,
                     return_dict_in_generate=True,
-                    top_p=min(1.0, 0.95 + (gen_step * 0.01)),
-                    temperature=1.0 + (gen_step * 0.5)
                 )
 
                 transitions = self.generator.compute_transition_scores(output.sequences, output.scores,
@@ -373,7 +368,14 @@ class GPT4TacticGenerator(TacticGenerator):
         openai.organization = organization
         openai.api_key = api_key
         self.model = model
-        self.default_prompt = "You are an expert in Lean3 theorem proofs. We are trying to solve the Lean3 theorem 'THEOREM_FULL_NAME' from the mathlib file 'FILE_PATH'. The current tactic state is: 'TACTIC_STATE'. Suggest exactly NUM_SAMPLES unique tactics to progress in solving 'THEOREM_FULL_NAME', along with their confidence levels as a float between 0 and 1. Rank them in order of effectiveness. Present the tactics and their confidence levels as comma-separated tuples in this format: #(tactic_{1}, confidence_{1})#, #(tactic_{2}, confidence_{2})#, ..., #(tactic_{NUM_SAMPLES}, confidence_{NUM_SAMPLES})#."
+        self.default_prompt = ("You are an expert in Lean3 theorem proofs. We are trying to solve the Lean3 theorem "
+                               "'THEOREM_FULL_NAME' from the mathlib file 'FILE_PATH'. The current tactic state is: "
+                               "'TACTIC_STATE'. Suggest exactly NUM_SAMPLES unique tactics to progress in solving "
+                               "'THEOREM_FULL_NAME', along with their confidence levels as a float between 0 and 1. "
+                               "Rank them in order of effectiveness. Present the tactics and their confidence levels "
+                               "as comma-separated tuples in this format: #(tactic_{1}, confidence_{1})#, "
+                               "#(tactic_{2}, confidence_{2})#, ..., #(tactic_{NUM_SAMPLES}, confidence_{"
+                               "NUM_SAMPLES})#.")
         self.max_tokens = max_tokens
         self.num_retries = num_retries
         self.threshold = threshold

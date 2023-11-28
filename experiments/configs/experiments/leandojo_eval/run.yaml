@@ -4,15 +4,12 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: htps
-  experiment: eval_loop
-#  directory: experiments/runs/eval_loop/nucleus_sample_new_p=0.95_t=1.0_2023_11_24/01_14_46
-#  resume: true
+  name: sample_bestfs
+  experiment: leandojo
 
 logging_config:
   project: end_to_end
-  offline: true
-#  id: t6b6cs9u
+  offline: false
 
 
 data_path: data/leandojo/data/leandojo_benchmark/random/
@@ -29,16 +26,16 @@ total_timeout: 6000
 env_timeout: 600
 with_gpus: true
 verbose: false
-logical_gpus: 1
-num_gpus: 1
+logical_gpus: 4
+num_gpus: 2
 num_cpus: 16
 gpu_per_prover: 0.01
 cpu_per_prover: 1
-provers_per_gpu: 4
+provers_per_gpu: 1
 
 tac_model:
   model: reprover
-  ckpt_path: gen.ckpt
+  ckpt_path: last.ckpt
   distributed: true
   gpu_per_process: 0.45
   cpu_per_process: 1
@@ -57,14 +54,14 @@ tac_model:
 
 
 search_model:
-#  search: bestfs
-#
-  search: htps
-  ckpt_path: goal_model.ckpt
-  distributed: true
-  gpu_per_process: 0.45 #0.225
-  cpu_per_process: 1 # 0.5
-  exploration_constant: 1
+    search: bestfs
+
+#  search: htps
+#  ckpt_path: goal_step.ckpt
+#  distributed: true
+#  gpu_per_process: 0.225
+#  cpu_per_process: 0.5
+#  exploration_constant: 1
 
 #  search: updown
 #  ckpt_path: goal_model.ckpt

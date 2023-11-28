@@ -226,7 +226,7 @@ class DistributedProver:
 
         prover_pool = []
 
-        for _ in range(config.logical_gpus):
+        for i in range(config.logical_gpus):
             tac_model = get_tac_model(config.tac_model, device)
             search_model = get_search_model(config.search_model, device)
 
