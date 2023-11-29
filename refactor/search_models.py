@@ -293,12 +293,15 @@ class HTPS(Search):
                     continue
 
                 # Expand open nodes
-                if g.status == Status.OPEN or g.status == Status.PROVED:
+                if g.status != Status.FAILED:
                     # goals may appear only once in the tree todo multiple parents?
                     if g.goal not in self.T:
                         best_score = -math.inf
                         best_edge = None
-                        goal_edges = [self.edge_data[e] for e in self.edge_data.keys() if e[0] == g.goal]
+                        # get the valid edges from this node, which will be edges with expandable (open/proven) children
+                        # note that there must be at least valid edge, otherwise g.status == FAILED
+                        goal_edges = [self.edge_data[e] for e in self.edge_data.keys() if e[0] == g.goal
+                                      and any([d.status != Status.FAILED for d in self.edge_data[e]['edge'].dst])]
 
                         for edge in goal_edges:
                             edge_score = self.p_uct(edge)
@@ -326,7 +329,6 @@ class HTPS(Search):
 
         return ret
 
-    # leaves are the most recently expanded nodes, only need to filter and initialise edges
     def process_responses(self, responses: List):
         for response in responses:
             result = response.dst
@@ -339,7 +341,6 @@ class HTPS(Search):
                         self.nodes[result_node.goal] = result_node
 
         # filter responses, taking the fastest tactic per outcome
-
         filtered_responses = []
         for leaf, parent in self.leaves:
             unique_dst = []
@@ -430,8 +431,8 @@ def get_search_model(config, device):
             goal_model = GoalModel(goal_model)
         return UpDown(goal_model)
     elif config.search == 'htps':
-        # goal_model = SimpleGoalModel.load(config.ckpt_path, device=device, freeze=True)
-        goal_model = StepGoalModel.load(config.ckpt_path, device=device, freeze=True)
+        goal_model = SimpleGoalModel.load(config.ckpt_path, device=device, freeze=True)
+        # goal_model = StepGoalModel.load(config.ckpt_path, device=device, freeze=True)
 
         if config.distributed:
             goal_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(GoalModel).remote(

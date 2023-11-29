@@ -19,8 +19,8 @@ from lean_dojo import (
     DojoInitError,
     DojoCrashError,
     DojoHardTimeoutError,
-    # TacticError,
-    LeanError,
+    TacticError,
+    # LeanError,
     TimeoutError,
     TacticState,
     ProofGivenUp
@@ -101,8 +101,8 @@ class LeanDojoEnv:
         result_node = []
 
         if type(response) in (
-                # TacticError,
-                LeanError,
+                TacticError,
+                # LeanError,
                 TimeoutError,
                 ProofGivenUp,
         ):
@@ -117,7 +117,8 @@ class LeanDojoEnv:
             assert isinstance(response, TacticState)
             response_goals = [g for g in response.pp.split("\n\n")]
             prev_goals = [g for g in state.pp.split("\n\n")]
-            new_goals = [g for g in response_goals if g not in prev_goals]
+            # for some reason, multiple copies of the same goal might be present
+            new_goals = list(set([g for g in response_goals if g not in prev_goals]))
 
             # Ensure that the selected goal was actually worked on
             # i.e. no additional rotates etc. in sampled tactic, no self cycles

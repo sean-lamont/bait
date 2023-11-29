@@ -9,7 +9,7 @@ exp_config:
 
 logging_config:
   project: end_to_end
-  offline: false
+  offline: true
 
 
 data_path: data/leandojo/data/leandojo_benchmark/random/
@@ -17,7 +17,7 @@ split: test
 file_path: null
 full_name: null
 num_theorems: 2000
-shuffle: true
+shuffle: false
 name_filter: null
 name: null
 indexed_corpus_path: null
@@ -26,16 +26,16 @@ total_timeout: 6000
 env_timeout: 600
 with_gpus: true
 verbose: false
-logical_gpus: 4
-num_gpus: 2
+logical_gpus: 1
+num_gpus: 1
 num_cpus: 16
 gpu_per_prover: 0.01
 cpu_per_prover: 1
-provers_per_gpu: 1
+provers_per_gpu: 4
 
 tac_model:
   model: reprover
-  ckpt_path: last.ckpt
+  ckpt_path: gen.ckpt
   distributed: true
   gpu_per_process: 0.45
   cpu_per_process: 1
@@ -54,14 +54,14 @@ tac_model:
 
 
 search_model:
-    search: bestfs
+#    search: bestfs
 
-#  search: htps
-#  ckpt_path: goal_step.ckpt
-#  distributed: true
-#  gpu_per_process: 0.225
-#  cpu_per_process: 0.5
-#  exploration_constant: 1
+  search: htps
+  ckpt_path: goal_model.ckpt # goal_step.ckpt
+  distributed: true
+  gpu_per_process: 0.45
+  cpu_per_process: 1
+  exploration_constant: 1
 
 #  search: updown
 #  ckpt_path: goal_model.ckpt
