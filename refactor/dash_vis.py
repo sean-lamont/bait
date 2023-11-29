@@ -19,6 +19,116 @@ styles = {
 }
 
 
+def render_updown(trace, node_map, rev_map, search_trace):
+    siblings = []
+
+    (fringe_goals, node_scores, initial_scores, updated_scores), responses = search_trace
+
+    max_ind = -1
+    for response in responses:
+        ind = trace.trace.index(response)
+        if ind > max_ind:
+            max_ind = ind
+
+    responses = trace.trace[:max_ind + 1]
+
+    for edge in responses:
+        siblings_ = []
+        for d in edge.dst:
+            if hasattr(edge.src, 'goal') and hasattr(d, 'goal'):
+                siblings_.append((node_map[edge.src.goal], node_map[d.goal]))
+            elif isinstance(d, ProofFinishedNode):
+                siblings_.append((node_map[edge.src.goal], -1))
+
+        if siblings_:
+            siblings.append((siblings_, edge))
+
+    processed_nodes = set()
+
+    cluster_nodes = []
+    child_nodes = []
+    edges = []
+
+    cluster_nodes.append({'data': {'id': 'root', 'label': ''}})
+
+    child_nodes.append(
+        {'data': {'id': str(node_map[trace.tree.goal]), 'goal': trace.tree.goal, 'parent': 'root',
+                  'label': node_map[trace.tree.goal], }})
+
+    for i, (sib, edge) in enumerate(siblings):
+        tactic = edge.tactic
+        src = [s[0] for s in sib][0]
+        dst = [s[1] for s in sib]
+
+        new_nodes = [s for s in dst if s not in processed_nodes]
+
+        if len(dst) == 1 and dst[0] == -1:
+            cluster_nodes.append({'data': {'id': str(tactic) + str(src), 'label': '', 'tactic': tactic}})
+            child_nodes.append(
+                {'data': {'id': 'QED' + str(tactic) + str(src), 'goal': 'QED',
+                          'label': 'QED', 'parent': str(tactic) + str(src)}})
+
+            edges.append({'data': {'source': str(src), 'target': str(tactic) + str(src), 'tactic': tactic},
+                          'classes': 'clusters proven'})
+            edges.append({'data': {'source': str(src), 'target': 'QED' + str(tactic) + str(src), 'tactic': tactic},
+                          'classes': 'hidden'})
+
+        elif new_nodes:
+            cluster_nodes.append({'data': {'id': str(src) + str(i) + tactic, 'label': '', 'tactic': tactic}})
+            for s in dst:
+                if s not in processed_nodes:
+                    goal = trace.nodes[rev_map[s]].goal
+                    data = {'id': str(s), 'goal': goal,
+                            'parent': str(src) + str(i) + tactic,
+                            'label': str(s),
+                            }
+                    if goal in node_scores:
+                        data['final_score'] = math.exp(node_scores[goal])
+                    else:
+                        data['final_score'] = 'Explored'
+                    if goal in initial_scores:
+                        data['initial_score'] = math.exp(initial_scores[goal])
+                    if goal in updated_scores:
+                        data['updated_score'] = math.exp(updated_scores[goal])
+
+                    child_nodes.append({'data': data})
+
+                    processed_nodes = processed_nodes | {s}
+                    edges.append({'data': {'source': str(src), 'target': s, 'tactic': tactic}, 'classes': 'hidden'})
+                else:
+                    # If newly seen set of subgoals, with one goal already seen, just connect to source for now
+                    edges.append(
+                        {'data': {'target': str(s), 'source': str(src) + str(i) + tactic, 'tactic': tactic},
+                         'classes': 'nodes'})
+
+            if edge.distance_to_proof() < math.inf:
+                edges.append({'data': {'source': str(src), 'target': str(src) + str(i) + tactic, 'tactic': tactic},
+                              'classes': 'clusters proven'})
+            else:
+                edges.append({'data': {'source': str(src), 'target': str(src) + str(i) + tactic, 'tactic': tactic},
+                              'classes': 'clusters'})
+
+        # else:
+        # for s in dst:
+        #     edges.append({'data': {'source': str(src), 'target': str(s), 'tactic': tactic},
+        #                   'classes': 'nodes'})
+
+    for node in child_nodes:
+        classes = ""
+        goal = node['data']['goal']
+        if goal != 'QED':
+            if goal in fringe_goals:
+                classes += " leaves"
+            if trace.nodes[goal].visit_count == 64:
+                classes += " expanded"
+        else:
+            classes += " proven"
+        node['classes'] = classes
+
+    elements = cluster_nodes + child_nodes + edges
+    return elements
+
+
 def render_htps(trace, node_map, rev_map, search_trace):
     siblings = []
     edge_trace, tree, leaves = search_trace
@@ -62,8 +172,10 @@ def render_htps(trace, node_map, rev_map, search_trace):
                 {'data': {'id': 'QED' + str(tactic) + str(src), 'goal': 'QED',
                           'label': 'QED', 'parent': str(tactic) + str(src)}})
 
-            edges.append({'data': {'source': str(src), 'target': str(tactic) + str(src), 'tactic': tactic}, 'classes': 'clusters proven'})
-            edges.append({'data': {'source': str(src), 'target': 'QED' + str(tactic) + str(src), 'tactic': tactic}, 'classes': 'hidden'})
+            edges.append({'data': {'source': str(src), 'target': str(tactic) + str(src), 'tactic': tactic},
+                          'classes': 'clusters proven'})
+            edges.append({'data': {'source': str(src), 'target': 'QED' + str(tactic) + str(src), 'tactic': tactic},
+                          'classes': 'hidden'})
 
         elif new_nodes:
             cluster_nodes.append({'data': {'id': str(src) + str(i) + tactic, 'label': '', 'tactic': tactic}})
@@ -100,8 +212,8 @@ def render_htps(trace, node_map, rev_map, search_trace):
                               'classes': 'nodes'})
 
     leaf_goals = [l[0].goal for l in leaves]
-
-    expanded_nodes = set([g for (g,t), v in edge_trace.items()])
+    #
+    expanded_nodes = set([g for (g, t), v in edge_trace.items()])
 
     for node in child_nodes:
         classes = ""
@@ -123,114 +235,11 @@ def render_htps(trace, node_map, rev_map, search_trace):
     return elements
 
 
-def render_full_trace(trace):
-    siblings = []
-
-    node_map = {}
-    i = 0
-    for edge in trace.tac_trace:
-        if edge.src.goal not in node_map:
-            node_map[edge.src.goal] = i
-            i += 1
-            # todo remove this (old traces were wrong)
-            if edge.src.goal not in trace.nodes:
-                trace.nodes[edge.src.goal] = edge.src
-        for d in edge.dst:
-            if isinstance(d, InternalNode):
-                if d.goal not in node_map:
-                    node_map[d.goal] = i
-                    i += 1
-                    if d.goal not in trace.nodes:
-                        trace.nodes[d.goal] = d
-
-    rev_map = {v: k for k, v in node_map.items()}
-
-    def add_edges(node):
-        if not node.out_edges:
-            return
-        for j, edge in enumerate(node.out_edges):
-            siblings_ = []
-            for i, d in enumerate(edge.dst):
-                if hasattr(edge.src, 'goal') and hasattr(d, 'goal'):
-                    siblings_.append((node_map[edge.src.goal], node_map[d.goal]))
-
-                    if node.out_edges != None:
-                        add_edges(d)
-                else:
-                    if type(d) == ErrorNode:
-                        pass
-                    elif type(d) == ProofFinishedNode:
-                        pass
-            if siblings_:
-                siblings.append((siblings_, edge))
-
-    add_edges(trace.tree)
-
-    processed_nodes = set()
-
-    cluster_nodes = []
-    child_nodes = []
-    edges = []
-
-    cluster_nodes.append({'data': {'id': 'root', 'label': ''}})
-
-    child_nodes.append(
-        {'data': {'id': str(node_map[trace.tree.goal]), 'goal': trace.tree.goal, 'parent': 'root',
-                  'label': node_map[trace.tree.goal]}})
-
-    # todo add edges in order of execution
-    # todo self loops when cluster repeated?
-    for i, (sib, edge) in enumerate(siblings):
-        tactic = edge.tactic
-        src = [s[0] for s in sib][0]
-        dst = [s[1] for s in sib]
-
-        new_nodes = [s for s in dst if s not in processed_nodes]
-
-        if new_nodes:
-            cluster_nodes.append({'data': {'id': str(src) + str(i) + tactic, 'label': '', 'tactic': tactic}})
-            for s in dst:
-                if s not in processed_nodes:
-                    child_nodes.append(
-                        {'data': {'id': str(s), 'goal': trace.nodes[rev_map[s]].goal,
-                                  'parent': str(src) + str(i) + tactic,
-                                  'label': str(s)}})
-
-                    processed_nodes = processed_nodes | {s}
-                    edges.append({'data': {'source': str(src), 'target': s, 'tactic': tactic}, 'classes': 'hidden'})
-                else:
-                    # If newly seen set of subgoals, with one goal already seen, just connect to source for now
-                    edges.append(
-                        {'data': {'target': str(s), 'source': str(src) + str(i) + tactic, 'tactic': tactic},
-                         'classes': 'nodes'})
-
-            if edge.distance_to_proof() < math.inf:
-                edges.append({'data': {'source': str(src), 'target': str(src) + str(i) + tactic, 'tactic': tactic},
-                              'classes': 'clusters proven'})
-            else:
-                edges.append({'data': {'source': str(src), 'target': str(src) + str(i) + tactic, 'tactic': tactic},
-                              'classes': 'clusters'})
-
-    for node in child_nodes:
-        if trace.nodes[node['data']['goal']].status == Status.PROVED:
-            node['classes'] = "proven"
-
-    elements = cluster_nodes + child_nodes + edges
-    return elements
-
-
 if __name__ == '__main__':
-    # traces = get_traces('../experiments/runs/leandojo/sample_bestfs_2023_11_29/12_14_36/traces/set.is_wf_min_singleton')
-    # traces = get_traces('../experiments/runs/leandojo/sample_bestfs_2023_11_29/14_16_34/traces/is_lub.exists_between_sub_self')
-
-    # traces = get_traces('../experiments/runs/leandojo/sample_bestfs_2023_11_29/14_30_44/traces/algebraic_geometry.Scheme.pullback.p_comm')
-    traces = get_traces('../experiments/runs/leandojo/sample_bestfs_2023_11_29/15_01_36/traces/measure_theory.norm_integral_le_of_norm_le')
-
+    traces = get_traces(
+        "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/integrable_on_Ico_iff_integrable_on_Ioo'")
 
     cyto.load_extra_layouts()
-
-
-    # elements = render_full_trace(traces[0])
 
     trace = traces[0]
 
@@ -252,10 +261,10 @@ if __name__ == '__main__':
 
     search_trace = trace.data['search_trace']
 
-    elements = render_htps(node_map=node_map,
-                           search_trace=search_trace[1],
-                           rev_map=rev_map,
-                           trace=trace)
+    elements = render_updown(node_map=node_map,
+                             search_trace=search_trace[1],
+                             rev_map=rev_map,
+                             trace=trace)
 
     app = Dash(__name__)
 
@@ -296,6 +305,12 @@ if __name__ == '__main__':
 
                 },
                 {
+                    'selector': '.tree',
+                    'style': {'background-color': 'yellow',
+                              'line-color': 'yellow'}
+
+                },
+                {
                     'selector': '.expanded',
                     'style': {'background-color': 'red',
                               'line-color': 'red'}
@@ -305,12 +320,6 @@ if __name__ == '__main__':
                     'selector': '.proven',
                     'style': {'background-color': 'green',
                               'line-color': 'green'}
-
-                },
-                {
-                    'selector': '.tree',
-                    'style': {'background-color': 'yellow',
-                              'line-color': 'yellow'}
 
                 },
                 {
@@ -339,10 +348,14 @@ if __name__ == '__main__':
     @callback(Output('cytoscape-compound', 'elements'),
               Input('dropdown-update-layout', 'value'))
     def update_layout(value):
-        return render_htps(node_map=node_map,
-                           search_trace=search_trace[value],
-                           rev_map=rev_map,
-                           trace=trace)
+        # return render_htps(node_map=node_map,
+        #                    search_trace=search_trace[value],
+        #                    rev_map=rev_map,
+        #                    trace=trace)
+        return render_updown(node_map=node_map,
+                             search_trace=search_trace[value],
+                             rev_map=rev_map,
+                             trace=trace)
 
 
     # todo add scores
@@ -351,6 +364,11 @@ if __name__ == '__main__':
     def displayTapNodeData(data):
         if data and 'goal' in data:
             ret = data['goal'] + '\n'
+            if 'initial_score' in data:
+                ret += f'Initial score:  {data["initial_score"]} \n' \
+                       + f"Updated score: {data['updated_score']}\n" \
+                       + f"Final score: {data['final_score']}\n"
+
             return 'Goal:\n' + ret
         elif data and 'tactic' in data:
             return 'From tactic: \n' + data['tactic']
@@ -361,7 +379,8 @@ if __name__ == '__main__':
     def displayTapEdgeData(data):
         if data:
             if 'w_score' in data:
-                return 'Tactic: \n' + data['tactic'] + '\nW score: ' + str(data['w_score']) + '\nVisit Count:' + str(data['visit_count'])
+                return 'Tactic: \n' + data['tactic'] + '\nW score: ' + str(data['w_score']) + '\nVisit Count:' + str(
+                    data['visit_count'])
             else:
                 return 'Tactic: \n' + data['tactic']
 

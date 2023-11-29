@@ -47,6 +47,8 @@ def get_tac_model(config, device):
             assert config.indexed_corpus_path is not None
             tac_gen.retriever.load_corpus(config.indexed_corpus_path)
 
+        tac_gen.freeze()
+
         if config.distributed:
             return ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(ReProverTacGen).remote(
                 tac_model=tac_gen)

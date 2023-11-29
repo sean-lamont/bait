@@ -4,14 +4,12 @@ from __future__ import print_function
 
 import copy
 
-from loguru import logger
 import pytorch_lightning as pl
-
 import ray
 
 from refactor.goal_model.model import SimpleGoalModel
-from refactor.goal_model_step.model import StepGoalModel
 from refactor.proof_node import *
+from loguru import logger
 
 
 class GoalModel:
@@ -55,18 +53,23 @@ class UpDown(Search):
     def __init__(self, goal_model: GoalModel):
         super().__init__()
         self.goal_model = goal_model
+        self.initial_scores = {}
+        self.updated_scores = {}
+        self.search_trace = []
 
     def reset(self, root):
         self.__init__(self.goal_model)
         self.root = root
+        self.search_trace = []
+
         if isinstance(root, InternalNode):
             self.nodes[root.goal] = root
 
             # Initialise scores for root
             scores = ray.get(self.goal_model.run.remote([self.root.goal]))
 
-            self.root.provable_score = scores[0].item()
-            self.root.up_score = self.root.provable_score
+            self.initial_scores[root.goal] = scores[0].item()
+            self.updated_scores[root.goal] = scores[0].item()
 
     def get_goals(self):
         best_score = -math.inf
@@ -80,10 +83,11 @@ class UpDown(Search):
             # multiplied by the probability of proving the best context of that goal
             # (i.e how likely to prove the original goal, assuming this goal is used)
             if node.context and len(node.context[0]) > 0:
-                score = node.provable_score + max(
-                    [sum([self.nodes[ctx].up_score for ctx in context]) for context in node.context])
+                score = self.initial_scores[goal] + max(
+                    [sum([self.updated_scores[ctx] for ctx in context]) for context in node.context])
+
             else:
-                score = node.provable_score
+                score = self.initial_scores[goal]
 
             node_scores[node.goal] = score
             if score > best_score:
@@ -93,9 +97,6 @@ class UpDown(Search):
         if not best_node:
             return []
 
-        # todo take as parameter # of fringes then sample? Would take set of all scores, then sample from the set and
-        # choose fringe with the score as below
-
         # find fringe for selected node by choosing all goals with the same score.
         # (may include other goals with same score not in fringe)
         best_fringe = []
@@ -104,28 +105,35 @@ class UpDown(Search):
             if score == best_score:
                 best_fringe.append((self.nodes[goal], best_score))
 
+        self.search_trace.append(
+            copy.deepcopy(([f[0].goal for f in best_fringe], node_scores, self.initial_scores, self.updated_scores)))
+
         return best_fringe
 
     def _up_step(self, node):
         if node.out_edges:
-            best_score = -math.inf
-            for edge in node.out_edges:
-                edge_score = 0
-                for sib in edge.dst:
-                    edge_score += sib.up_score
+            if node.status == Status.PROVED:
+                best_score = 0
+            else:
+                best_score = -math.inf
+                valid_edges = [edge for edge in node.out_edges if all([isinstance(d, InternalNode) for d in edge.dst])]
+                for edge in valid_edges:
+                    edge_score = 0
+                    for sib in edge.dst:
+                        edge_score += self.updated_scores[sib.goal]
 
-                if edge_score > best_score:
-                    best_score = edge_score
+                    if edge_score > best_score:
+                        best_score = edge_score
 
             if node.visit_count >= node.max_expansions:
-                node.provable_score = -math.inf
+                self.initial_scores[node.goal] = -math.inf
                 node.is_explored = True
 
-            up_score = max(node.provable_score, best_score)
+            up_score = max(self.initial_scores[node.goal], best_score)
 
-            # todo scale breadth as it's explored?
-            if up_score != node.up_score:
-                node.up_score = up_score
+            # todo scale breadth as explored?
+            if up_score != self.updated_scores[node.goal]:
+                self.updated_scores[node.goal] = up_score
                 parents = set([edge.src for edge in node.in_edges])
                 for parent in parents:
                     self._up_step(parent)
@@ -133,7 +141,6 @@ class UpDown(Search):
     # Assume response is a single edge in this case
     def process_responses(self, responses: List[Edge]):
         for response in responses:
-            search_node = response.src
             result = response.dst
 
             # find new nodes from response, and compute their provable score
@@ -149,11 +156,16 @@ class UpDown(Search):
 
                 # Initialise provable_score/up_score for new internal nodes
                 for i, node_ in enumerate(new_nodes):
-                    node_.provable_score = (scores[i] + (node_.depth * math.log(0.99))).item()
-                    node_.up_score = node_.provable_score
+                    scaled_score = (scores[i] + (node_.depth * math.log(0.99))).item()
+                    self.initial_scores[node_.goal] = scaled_score
+                    self.updated_scores[node_.goal] = scaled_score
                     assert self.nodes[node_.goal] is node_
 
+        to_update = set([response.src for response in responses])
+        for search_node in to_update:
             self._up_step(search_node)
+
+        self.search_trace[-1] = (self.search_trace[-1], responses)
 
         return
 
@@ -303,6 +315,8 @@ class HTPS(Search):
                         goal_edges = [self.edge_data[e] for e in self.edge_data.keys() if e[0] == g.goal
                                       and any([d.status != Status.FAILED for d in self.edge_data[e]['edge'].dst])]
 
+                        assert goal_edges, g
+
                         for edge in goal_edges:
                             edge_score = self.p_uct(edge)
                             if edge_score > best_score:
@@ -345,7 +359,7 @@ class HTPS(Search):
         for leaf, parent in self.leaves:
             unique_dst = []
             src_filtered = []
-            valid_children = [r for r in responses if r.src == leaf and r.dst[0].status != Status.FAILED]
+            valid_children = [r for r in responses if r.src == leaf and all([d.status != Status.FAILED for d in r.dst])]
             for response in valid_children:
                 if isinstance(response.dst[0], ProofFinishedNode):
                     response_children = 'proven'

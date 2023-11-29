@@ -151,7 +151,7 @@ class GenTacModel(pl.LightningModule):
                     attention_mask=state_mask,
                     max_length=self.max_seq_len,
                     do_sample=True,
-                    num_return_sequences=num_samples,
+                    num_return_sequences=num_samples * 2,
                     output_scores=True,
                     return_dict_in_generate=True,
                 )
@@ -163,18 +163,20 @@ class GenTacModel(pl.LightningModule):
                     output.sequences, skip_special_tokens=True
                 )
 
-                for j in range(num_samples):
+                for j in range(num_samples * 2):
                     t = raw_output_text[j]
                     if t not in output_text:
                         output_text.append(t)
                         score = torch.sum(transitions[j][transitions[j] != -torch.inf]).item()
                         output_score.append(score)
+                    if len(output_text) >= num_samples:
+                        break
 
                 gen_step += 1
 
         tactics_with_scores.append(list(zip_strict(output_text, output_score)))
 
-        return tactics_with_scores
+        return tactics_with_scores[:num_samples]
 
     def beamsearch_gen(self, state, state_ids, state_mask, num_samples):
         # Generate tactic candidates using beam search.
