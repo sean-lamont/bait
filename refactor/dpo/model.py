@@ -142,41 +142,43 @@ class GenTacModel(pl.LightningModule):
 
         output_text = []
         output_score = []
-        for i in range(len(state)):
-            gen_step = 0
-            # keep sampling until num_samples unique samples are generatd
-            while len(output_text) < num_samples:
-                output = self.generator.generate(
-                    input_ids=state_ids,
-                    attention_mask=state_mask,
-                    max_length=self.max_seq_len,
-                    do_sample=True,
-                    num_return_sequences=num_samples * 2,
-                    output_scores=True,
-                    return_dict_in_generate=True,
-                )
+        gen_step = 0
 
-                transitions = self.generator.compute_transition_scores(output.sequences, output.scores,
-                                                                       normalize_logits=True)
-                # Return the output.
-                raw_output_text = self.tokenizer.batch_decode(
-                    output.sequences, skip_special_tokens=True
-                )
+        gen_idx = 0
+        # keep sampling until num_samples unique samples are generated, with at most 4 loops
+        while len(output_text) < num_samples and gen_idx < 4:
+            gen_idx += 1
+            output = self.generator.generate(
+                input_ids=state_ids,
+                attention_mask=state_mask,
+                max_length=self.max_seq_len,
+                do_sample=True,
+                num_return_sequences=num_samples * 2,
+                output_scores=True,
+                return_dict_in_generate=True,
+            )
 
-                for j in range(num_samples * 2):
-                    t = raw_output_text[j]
-                    if t not in output_text:
-                        output_text.append(t)
-                        score = torch.sum(transitions[j][transitions[j] != -torch.inf]).item()
-                        output_score.append(score)
-                    if len(output_text) >= num_samples:
-                        break
+            transitions = self.generator.compute_transition_scores(output.sequences, output.scores,
+                                                                   normalize_logits=True)
+            # Return the output.
+            raw_output_text = self.tokenizer.batch_decode(
+                output.sequences, skip_special_tokens=True
+            )
 
-                gen_step += 1
+            for j in range(num_samples * 2):
+                t = raw_output_text[j]
+                if t not in output_text:
+                    output_text.append(t)
+                    score = torch.sum(transitions[j][transitions[j] != -torch.inf]).item()
+                    output_score.append(score)
+                if len(output_text) >= num_samples:
+                    break
 
-        tactics_with_scores.append(list(zip_strict(output_text, output_score)))
+            gen_step += 1
 
-        return tactics_with_scores[:num_samples]
+        tactics_with_scores.append(list(zip_strict(output_text, output_score))[:num_samples])
+
+        return tactics_with_scores
 
     def beamsearch_gen(self, state, state_ids, state_mask, num_samples):
         # Generate tactic candidates using beam search.

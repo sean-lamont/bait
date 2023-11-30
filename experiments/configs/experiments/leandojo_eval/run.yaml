@@ -9,7 +9,7 @@ exp_config:
 
 logging_config:
   project: end_to_end
-  offline: false
+  offline: true
 
 
 data_path: data/leandojo/data/leandojo_benchmark/random/
@@ -26,16 +26,16 @@ total_timeout: 6000
 env_timeout: 600
 with_gpus: true
 verbose: false
-logical_gpus: 1
-num_gpus: 1
+logical_gpus: 4
+num_gpus: 2
 num_cpus: 16
 gpu_per_prover: 0.01
 cpu_per_prover: 1
-provers_per_gpu: 4
+provers_per_gpu: 1
 
 tac_model:
   model: reprover
-  ckpt_path: gen.ckpt
+  ckpt_path: last.ckpt
   distributed: true
   gpu_per_process: 0.45
   cpu_per_process: 1
