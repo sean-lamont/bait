@@ -1,16 +1,16 @@
 """Lightning module for the tactic generator."""
-from torchmetrics import Metric
+
 import re
 from subprocess import CalledProcessError
 from typing import Dict, Any, Optional, List
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 import torch.nn.functional as F
 from lean_dojo.utils import execute
-
 from loguru import logger
 from peft import LoraConfig, get_peft_model
+from torchmetrics import Metric
 from transformers import T5ForConditionalGeneration, AutoTokenizer
 
 from refactor.common import format_augmented_state, zip_strict, remove_marks, get_optimizers, load_checkpoint
@@ -21,8 +21,6 @@ torch.set_float32_matmul_precision("medium")
 class GenTacModel(pl.LightningModule):
     def __init__(self, config) -> None:
         super().__init__()
-
-        self.save_hyperparameters()
 
         self.gen_config = config.gen_config
         self.eval_config = config.eval_config
@@ -71,16 +69,17 @@ class GenTacModel(pl.LightningModule):
     ###############################
 
     def on_validation_epoch_end(self) -> None:
-        # pass
+        torch.cuda.empty_cache()
         self.run_eval()
 
     def run_eval(self) -> None:
-        ckpt_path = f"{self.trainer.log_dir}/checkpoints/last.ckpt"
-        # self.trainer.save_checkpoint(ckpt_path)
+        ckpt_path = f"{self.trainer.log_dir}/checkpoints/last_eval.ckpt"
+        self.trainer.save_checkpoint(ckpt_path)
         logger.info(f"Saved checkpoint to {ckpt_path}")
 
         cmd = f"python -m refactor.new_search_parallel --config-name=leandojo_eval/run num_theorems={self.eval_config.eval_num_theorems}" \
-              f" shuffle={self.eval_config.shuffle} timeout={self.eval_config.timeout} tac_model.ckpt_path={ckpt_path}"
+              f" shuffle={self.eval_config.shuffle} env_timeout={self.eval_config.timeout} tac_model.ckpt_path={ckpt_path} log_level='ERROR' tac_model.model='dpo'" \
+              f" exp_config.name=eval_{self.global_step} exp_config.experiment=dpo_eval"
 
         logger.info(f'Running evaluation with {cmd}')
 
@@ -96,7 +95,7 @@ class GenTacModel(pl.LightningModule):
         m = re.search(r"Pass@1: (\S+)", err)
         assert m is not None, err
         acc = float(m.group(1))
-        self.log("Pass@1_val", acc, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("Pass@1_val", acc, prog_bar=True)
         logger.info(f"Pass@1: {acc}")
 
     ##############
@@ -145,8 +144,8 @@ class GenTacModel(pl.LightningModule):
         gen_step = 0
 
         gen_idx = 0
-        # keep sampling until num_samples unique samples are generated, with at most 4 loops
-        while len(output_text) < num_samples and gen_idx < 4:
+        # keep sampling until num_samples unique samples are generated, with at most 10 loops
+        while len(output_text) < num_samples and gen_idx < 10:
             gen_idx += 1
             output = self.generator.generate(
                 input_ids=state_ids,
@@ -182,7 +181,6 @@ class GenTacModel(pl.LightningModule):
 
     def beamsearch_gen(self, state, state_ids, state_mask, num_samples):
         # Generate tactic candidates using beam search.
-        # todo get args from config (length penalty, sample etc.)
         output = self.generator.generate(
             input_ids=state_ids,
             attention_mask=state_mask,
@@ -207,9 +205,7 @@ class GenTacModel(pl.LightningModule):
             output_text = []
             output_score = []
 
-            # delegate removal of marks to environment
             for j in range(i * num_samples, (i + 1) * num_samples):
-                # t = remove_marks(raw_output_text[j])
                 t = raw_output_text[j]
                 if t not in output_text:
                     output_text.append(t)
@@ -223,7 +219,10 @@ class GenTacModel(pl.LightningModule):
 class DPOTrainModule(GenTacModel):
     def __init__(self, config) -> None:
         super().__init__(config)
+
         self.beta = config.beta
+
+        self.save_hyperparameters()
 
     def dpo_loss(self, pi_yw_logps, pi_yl_logps, ref_yw_logps, ref_yl_logps):
         """
@@ -387,7 +386,9 @@ class TopkAccuracy(Metric):
 class RetrievalAugmentedGenerator(GenTacModel):
     def __init__(self, config) -> None:
         super().__init__(config)
-        self.save_hyperparameters()
+
+        # self.save_hyperparameters()
+
         self.num_beams = config.num_beams
         self.length_penalty = config.length_penalty
         ret_ckpt_path = config.ret_ckpt_path

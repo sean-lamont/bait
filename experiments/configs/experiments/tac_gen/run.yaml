@@ -4,42 +4,41 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: initial
+  name: dpo_beamsearch
   experiment: lean_dojo_dpo
-#  directory: experiments/runs/lean_dojo_dpo/initial_2023_11_20/18_10_54
-#  resume: true
 
 logging_config:
-  project: leandoj_eval
+  project: leandojo_eval
   offline: false
-#  id: zso46x4d
 
 trainer:
   accelerator: gpu
-  devices: 2
+  devices: 1
   precision: bf16-mixed
   strategy:
-    _target_: pytorch_lightning.strategies.DeepSpeedStrategy
+    _target_: lightning.pytorch.strategies.DeepSpeedStrategy
     stage: 2
     offload_optimizer: false
     cpu_checkpointing: false
-    logging_batch_size_per_gpu: 4
+    logging_batch_size_per_gpu: 1
   gradient_clip_val: 1.0
-  max_steps: 50000000
-  val_check_interval: 10
-  limit_val_batches: 10
+  max_steps: 5000000
+  val_check_interval: 10000
+#  limit_val_batches: 100
   callbacks:
-    - _target_: pytorch_lightning.callbacks.LearningRateMonitor
+    - _target_: lightning.pytorch.callbacks.LearningRateMonitor
       logging_interval: step
-    - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
       verbose: true
       save_top_k: 3
       save_last: true
       monitor: Pass@1_val
+#      monitor: win_rate
       mode: max
       dirpath: ${exp_config.directory}/checkpoints
       auto_insert_metric_name: true
       filename: "{epoch}-{step}-{Pass@1_val:.2f}"
+#      filename: "{epoch}-{step}-{win_rate}"
 #    - class_path: pytorch_lightning.callbacks.EarlyStopping
 #      init_args:
 #        monitor: win_rate
@@ -57,8 +56,8 @@ model_config:
   gen_config:
     strategy: sample
   eval_config:
-    eval_num_theorems: 200
-    shuffle: true
+    eval_num_theorems: 100
+    shuffle: false
     timeout: 60
   lora_config:
     target_modules: ['q', 'k', 'v', 'o', 'wo', 'lm_head']
@@ -66,7 +65,6 @@ model_config:
     r: 16
     lora_alpha: 16
     lora_dropout: 0.01
-
 
 data_config:
   batch_size: 1  # effective_batch_size == batch_size * accumulate_grad_batches * devices

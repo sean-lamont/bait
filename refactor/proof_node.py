@@ -249,6 +249,7 @@ class InternalNode(Node):
             if all(child.status == Status.PROVED for child in edge.dst):
                 self._status = Status.PROVED
 
+        # todo should inner 'all' be 'any'?
         if all([all([c.status == Status.FAILED for c in child.dst]) for child in
                 self.out_edges]) and self.visit_count >= self.max_expansions:
             self._status = Status.FAILED

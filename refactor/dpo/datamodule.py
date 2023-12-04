@@ -2,7 +2,10 @@
 from itertools import islice
 from typing import Optional
 
-import pytorch_lightning as pl
+# import pytorch_lightning as pl
+import lightning.pytorch as pl
+
+
 import torch
 from loguru import logger
 from pymongo import MongoClient
@@ -145,8 +148,8 @@ class DPODataModule(pl.LightningDataModule):
             eval_batch_size: int,
             max_seq_len: int,
             num_workers: int,
-            database='lean_dojo',
-            collection='tac_ranks'
+            database='lean_e2e',
+            collection='dpo'
     ) -> None:
 
         super().__init__()

@@ -322,7 +322,7 @@ def main(config) -> None:
                    mode='offline' if config.logging_config.offline else 'online'
                    )
 
-    set_logger(config.verbose)
+    set_logger(config.log_level)
 
     logger.info(f"PID: {os.getpid()}")
     logger.info(f"Config: {config}")
@@ -340,7 +340,8 @@ def main(config) -> None:
     theorems = theorems[:config.num_theorems]
 
     logger.info(f'Attempting {len(theorems)} proofs..')
-    results.append(prover.search_unordered(theorems, iteration=0, resume_step=len(prev_theorems), resume_proven=prev_proven))
+    results.extend(prover.search_unordered(theorems, iteration=0, resume_step=len(prev_theorems), resume_proven=prev_proven))
+
 
     # Calculate the result statistics.
     num_proved = num_failed = num_discarded = 0
@@ -355,7 +356,9 @@ def main(config) -> None:
     logger.info(
         f"Iteration done! {num_proved} theorems proved, {num_failed} theorems failed, {num_discarded} non-theorems discarded"
     )
-    logger.info(f"Pass@1: {num_proved / (num_proved + num_failed)}")
+
+    # log as error for now, to minimise output for parent processes
+    logger.error(f"Pass@1: {num_proved / (num_proved + num_failed)}")
 
     # todo add end-to-end training
     # todo unfreeze before training

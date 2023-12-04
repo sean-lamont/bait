@@ -9,15 +9,25 @@ import tempfile
 import networkx as nx
 from loguru import logger
 from lean_dojo import Pos
-import pytorch_lightning as pl
+
 from dataclasses import dataclass, field
-from pytorch_lightning.utilities.deepspeed import (
+
+# import pytorch_lightning as pl
+# from pytorch_lightning.utilities.deepspeed import (
+#     convert_zero_checkpoint_to_fp32_state_dict,
+# )
+# from pytorch_lightning.strategies.deepspeed import DeepSpeedStrategy
+
+
+import lightning.pytorch as pl
+from lightning.pytorch.utilities.deepspeed import (
     convert_zero_checkpoint_to_fp32_state_dict,
 )
+from lightning.pytorch.strategies.deepspeed import DeepSpeedStrategy
+
 from transformers import get_cosine_schedule_with_warmup
 from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
 from typing import Optional, List, Dict, Any, Tuple, Generator
-from pytorch_lightning.strategies.deepspeed import DeepSpeedStrategy
 
 Example = Dict[str, Any]
 Batch = Dict[str, Any]
@@ -483,20 +493,14 @@ def log_to_file(file, msg):
         f.write(msg)
 
 
-def set_logger(verbose: bool) -> None:
+def set_logger(level) -> None:
     """
     Set the logging level of loguru.
     The effect of this function is global, and it should
     be called only once in the main function
     """
     logger.remove()
-    if verbose:
-        logger.add(sys.stderr, level="DEBUG")
-    else:
-        logger.add(sys.stderr, level="INFO")
-        # logger.add(logging.FileHandler("extra_ray_tune_log.log"))
-
-        # logger.add(lambda msg: log_to_file('log.log', msg),  level="INFO")
+    logger.add(sys.stderr, level=level)
 
 
 def cpu_checkpointing_enabled(pl_module) -> bool:

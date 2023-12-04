@@ -4,41 +4,47 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: sample_bestfs
+  name: test_dpo
   experiment: leandojo
+#  directory: experiments/runs/leandojo/sample_bestfs_2023_11_30/01_00_40
+#  resume: true
 
 logging_config:
   project: end_to_end
-  offline: true
+  offline: false
+#  id: j1sm94z6
 
 
 data_path: data/leandojo/data/leandojo_benchmark/random/
 split: test
 file_path: null
 full_name: null
-num_theorems: 2000
+#num_theorems: 2000
+num_theorems: 100
 shuffle: false
 name_filter: null
 name: null
 indexed_corpus_path: null
 num_sampled_tactics: 64
 total_timeout: 6000
-env_timeout: 600
+env_timeout: 60
 with_gpus: true
-verbose: false
-logical_gpus: 4
-num_gpus: 2
+log_level: 'INFO'
+logical_gpus: 1
+num_gpus: 1
 num_cpus: 16
 gpu_per_prover: 0.01
 cpu_per_prover: 1
-provers_per_gpu: 1
+provers_per_gpu: 4
 
 tac_model:
-  model: reprover
-  ckpt_path: last.ckpt
+#  model: reprover
+  ckpt_path: gen.ckpt
+  model: dpo
+#  ckpt_path: experiments/runs/lean_dojo_dpo/dpo_2023_12_04/16_25_32/checkpoints/last_eval.ckpt
   distributed: true
-  gpu_per_process: 0.45
-  cpu_per_process: 1
+  gpu_per_process: 0.9
+  cpu_per_process: 4
   config:
     model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
     lr: 5e-6
@@ -48,7 +54,9 @@ tac_model:
     ret_ckpt_path: null
     max_seq_len: 2300
     gen_config:
-      strategy: sample
+#      strategy: sample
+      strategy: beam
+      length_penalty: 0.0
     eval_config: null
     lora_config: null
 

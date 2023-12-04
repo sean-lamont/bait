@@ -236,8 +236,31 @@ def render_htps(trace, node_map, rev_map, search_trace):
 
 
 if __name__ == '__main__':
+
     traces = get_traces(
-        "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/integrable_on_Ico_iff_integrable_on_Ioo'")
+        "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/set.definable.compl")
+
+    # good example of updown not exploring, only one edge from the root node is explored,
+    # as the others are initially estimated very low:
+    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/tsub_lt_tsub_iff_left_of_le")
+
+    # as above
+    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/X_in_terms_of_W_vars_subset")
+
+    # nodes 6,7,9 are all semantically identical, varying only with renaming of a variable, yet all have
+    # very different scores. Indicates the goal model doesn't have a good understanding (it should learn
+    # that renamed variables don't impact the provability)
+    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/upper_set.coe_Inf")
+
+    # another example of same hypotheses (although scored similarly here)
+    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/subgroup.subset_closure")
+
+    # Failing after expanding all valid nodes, note that path is terminated once member of context is found to fail
+    # Think HTPS wouldn't pick up on this? (node 6,7,8,9)
+    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/simple_graph.nonempty_of_pos_dist")
+
+    # very large graph, with timeout. Again, lot's of variable renaming with same goal
+    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/set.definable.compl")
 
     cyto.load_extra_layouts()
 
@@ -262,7 +285,7 @@ if __name__ == '__main__':
     search_trace = trace.data['search_trace']
 
     elements = render_updown(node_map=node_map,
-                             search_trace=search_trace[1],
+                             search_trace=search_trace[0],
                              rev_map=rev_map,
                              trace=trace)
 

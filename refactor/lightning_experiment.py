@@ -6,9 +6,6 @@ import hydra
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
 
-from refactor.dpo.datamodule import DPODataModule
-from refactor.dpo.model import DPOTrainModule
-
 warnings.filterwarnings('ignore')
 
 import lightning.pytorch as pl
@@ -17,13 +14,15 @@ from lightning.pytorch.loggers import WandbLogger
 import torch
 
 
+# todo import experiments
+
+
 def config_to_dict(conf):
     return OmegaConf.to_container(
         conf, resolve=True, throw_on_missing=True
     )
 
 
-# todo reorganise
 def get_logger(config):
     if config.exp_config.resume:
         logging.info('Resuming run..')
@@ -50,20 +49,20 @@ def get_logger(config):
 
 
 @hydra.main(config_path="../experiments/configs/experiments")
-def dpo_train_experiment(config):
+def lightning_experiment(config):
     torch.set_float32_matmul_precision('medium')
 
     OmegaConf.resolve(config)
 
     os.makedirs(config.exp_config.directory + '/checkpoints', exist_ok=True)
 
-    experiment = DPOTrainModule(config.model_config)
+    config = instantiate(config)
 
-    data_module = DPODataModule(**config.data_config)
+    experiment = config.experiment
+
+    data_module = config.data_module
 
     logger = get_logger(config)
-
-    config = instantiate(config)
 
     trainer = pl.Trainer(**config.trainer,
                          logger=logger)
@@ -80,4 +79,4 @@ def dpo_train_experiment(config):
 
 
 if __name__ == '__main__':
-    dpo_train_experiment()
+    lightning_experiment()

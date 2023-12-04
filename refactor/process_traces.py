@@ -29,14 +29,14 @@ def add_goal_data(node, visits):
         'distance_to_proof': steps,
         'visits': visits[node.goal],
         'local_visits': len(node.out_edges) if node.out_edges else 0,
-        'score': node.up_score.item() if isinstance(node.up_score, torch.Tensor) else node.up_score
     }
 
     return datum
 
 
-def full_trace_data(trace):
+def full_trace_data(trace, visits):
     data = []
+    goal_data = []
     for i, edge in enumerate(trace.trace):
         datum = {
             'iteration': 0,
@@ -58,8 +58,18 @@ def full_trace_data(trace):
         else:
             outcome = [d.goal for d in edge.dst]
             datum['outcome'] = outcome
+
+            for dst in edge.dst:
+                if dst.goal in visits:
+                    goal_data.append({'initial_goal': edge.src.goal,
+                                      'subgoal': dst.goal,
+                                      'distance_to_proof': edge.distance_to_proof(),
+                                      'visits': visits[dst.goal],
+                                      'local_visits': len(dst.out_edges) if dst.out_edges else 0
+                                      })
+
         data.append(datum)
-    return data
+    return data, goal_data
 
 
 def add_rand_idx(collection):
@@ -102,21 +112,107 @@ def transform_goal_proven(goal_datum, visit_threshold=256):
     else:
         return None
 
+def transform_subgoal_proven(subgoal_data, visit_threshold=1024):
+    proof_len = subgoal_data['distance_to_proof']
+    if proof_len < math.inf:
+        return {'initial_goal': subgoal_data['initial_goal'], 'subgoal': subgoal_data['subgoal'], 'target': 1}
+    elif subgoal_data['visits'] >= visit_threshold:
+        return {'initial_goal': subgoal_data['initial_goal'], 'subgoal': subgoal_data['subgoal'], 'target': 0}
+    else:
+        return None
 
-# create pairs of winners/losers based on edges from a given goal, and maintain tac probs for each, used for DPO
+
+# new ranking:
+# - restricted to max_pairs per goal
+# - prioritise rankings: (proven, error), (no error, error)
+# - try find pairs with closer length
+def rank_edges_new(goal, edges, max_pairs=16):
+    valid_edges = [edge for edge in edges if not isinstance(edge.dst[0], ErrorNode)]
+    invalid_edges = [('error', edge) for edge in edges if isinstance(edge.dst[0], ErrorNode)]
+
+    # proven edges
+    proven_edges = [('proven', edge) for edge in valid_edges if edge.distance_to_proof() < math.inf]
+
+    # non-error edges
+    success_non_proven_edges = [('no_error', edge) for edge in valid_edges if edge.distance_to_proof() == math.inf]
+
+    all_edges = sorted(invalid_edges + proven_edges + success_non_proven_edges, key=lambda x: len(x[1].tactic))
+
+    num_proven = len(proven_edges)
+    num_failed = len(invalid_edges)
+    num_success = len(success_non_proven_edges)
+
+    pairs = []
+
+    while len(pairs) < max_pairs and num_failed >= 0:
+        winner = None
+        loser = None
+        win_type = None
+        last_error = None
+        for (i, (edge_type, edge)) in enumerate(all_edges):
+            if not winner:
+                if edge_type == 'proven':
+                    winner = edge
+                    all_edges.pop(i)
+                    num_proven -= 1
+                    win_type = edge_type
+                elif num_proven <= 0 and edge_type == 'no_error':
+                    winner = edge
+                    all_edges.pop(i)
+                    num_success -= 1
+                    win_type = edge_type
+                elif edge_type == 'error':
+                    last_error = edge
+
+            # will be called once winner is found
+            elif edge_type == 'error':
+                # nearest error edge will be either last_error or this error, take the closest in tactic length
+                if not last_error:
+                    loser = edge
+                    num_failed -= 1
+                    all_edges.pop(i)
+                    break
+                elif (len(last_error.tactic) - len(winner.tactic)) ** 2 <= (len(edge.tactic) - len(edge.tactic)) ** 2:
+                    loser = last_error
+                    num_failed -= 1
+                    all_edges.pop(i)
+                    break
+                else:
+                    loser = edge
+                    num_failed -= 1
+                    all_edges.pop(i)
+                    break
+
+        if winner and loser and win_type:
+            pairs.append((winner, loser, win_type))
+        else:
+            return
+
+        w_l = [
+            {'goal': goal, 'winner': w.tactic, 'winner_prob': w.tac_logprob, 'loser': l.tactic,
+             'loser_prob': l.tac_logprob,
+             'type': tac_type} for (w, l, tac_type) in pairs]
+
+        rank_collection.insert_many(w_l)
+
+        return
+
+
 def rank_edges(goal, edges):
     valid_edges = [edge for edge in edges if not isinstance(edge.dst[0], ErrorNode)]
     invalid_edges = [edge for edge in edges if isinstance(edge.dst[0], ErrorNode)]
 
     # rank all valid_edges above all invalid_edges
-    w_l = [{'goal': goal, 'winner': w.tactic, 'winner_prob': w.tac_logprob, 'loser': l.tactic, 'loser_prob': l.tac_logprob,
-            'type': 'valid_rank'} for w in valid_edges for l in invalid_edges]
+    w_l = [
+        {'goal': goal, 'winner': w.tactic, 'winner_prob': w.tac_logprob, 'loser': l.tactic, 'loser_prob': l.tac_logprob,
+         'type': 'valid_rank'} for w in valid_edges for l in invalid_edges]
 
     # from valid_edges, rank proven goals above non_proven valid goals
     proven_edges = [edge for edge in valid_edges if edge.distance_to_proof() < math.inf]
     success_non_proven_edges = [edge for edge in valid_edges if edge.distance_to_proof() == math.inf]
 
-    w_l.extend([{'goal': goal, 'winner': w.tactic, 'winner_prob': w.tac_logprob, 'loser': l.tactic, 'loser_prob': l.tac_logprob,
+    w_l.extend([{'goal': goal, 'winner': w.tactic, 'winner_prob': w.tac_logprob, 'loser': l.tactic,
+                 'loser_prob': l.tac_logprob,
                  'type': 'proven_rank'} for w in proven_edges for l in success_non_proven_edges])
 
     # from proven edges, rank based on distance_to_proof, then execution time
@@ -158,7 +254,7 @@ def rank_edges(goal, edges):
 if __name__ == '__main__':
 
     client = MongoClient()
-    db = client['lean_dojo']
+    db = client['lean_e2e']
 
     # todo how to merge different attempts of same proof?
     # For goal data, if proof length is lower, take that data point. If failed, and visit count higher, replace with that as well
@@ -170,67 +266,78 @@ if __name__ == '__main__':
     # Rankings within proof could also change, if shorter proof from children is found
     # Seems small/unlikely for this to make much of a difference. Worst case is a longer proof is ranked better than a shorter/slower one
 
-    traces = get_traces('../experiments/runs/eval_loop/goal_model_2023_11_17/18_11_05/traces/*')
+    # traces = get_traces('../experiments/runs/eval_loop/goal_model_2023_11_17/18_11_05/traces/*')
 
-    rank_collection = db['tac_ranks']
+    # traces = get_traces('../experiments/runs/leandojo/sample_bestfs_2023_11_30/01_00_40/traces/*')
+    
+    
+    rank_collection = db['dpo']
     goal_collection = db['goal_data']
     goal_len_collection = db['goal_len_task']
     goal_proven_task = db['goal_proven_task']
     trace_collection = db['edge_data']
 
     logger.info(f'Adding proof data from traces..')
-    for trace in tqdm(traces):
-        if isinstance(trace.tree, ErrorNode):
-            continue
+    # for trace in tqdm(traces):
+    #     if isinstance(trace.tree, ErrorNode):
+    #         continue
+    #
+    #     nodes = trace.nodes
+    #     nodes[trace.tree.goal] = trace.tree
+    #
+    #     updated_visit_count = {node: nodes[node].visit_count for node in nodes.keys()}
+    #
+    #     for goal, node in nodes.items():
+    #         for a in node.ancestors:
+    #             updated_visit_count[a] += node.visit_count
+    #
+    #     # add raw data for goal models
+    #     # for node in nodes:
+    #     #     step_datum = add_goal_data(nodes[node], updated_visit_count)
+    #     #     if step_datum:
+    #     #         goal_collection.insert_one(step_datum)
+    #
+    #     # add full trace data
+    #     trace_data, goal_data = full_trace_data(trace, updated_visit_count)
+    #
+    #     if trace_data:
+    #         trace_collection.insert_many(trace_data)
+    #     if goal_data:
+    #         goal_collection.insert_many(goal_data)
+    #
+    #     # add edge ranking data for DPO
+    #     for node in nodes.values():
+    #         if node.out_edges:
+    #             rank_edges_new(goal=node.goal, edges=node.out_edges)
+    #
+    # logger.info(f'Adding processed goal data..')
+    # # add processed data for goal models
+    # goal_data = []
 
-        nodes = trace.nodes
-        nodes[trace.tree.goal] = trace.tree
-
-        updated_visit_count = {node: nodes[node].visit_count for node in nodes.keys()}
-
-        for goal, node in nodes.items():
-            for a in node.ancestors:
-                updated_visit_count[a] += node.visit_count
-
-        # add raw data for goal models
-        for node in nodes:
-            step_datum = add_goal_data(nodes[node], updated_visit_count)
-            if step_datum:
-                goal_collection.insert_one(step_datum)
-
-        # add full trace data
-        trace_collection.insert_many(full_trace_data(trace))
-
-        # add edge ranking data for DPO
-        for node in nodes.values():
-            if node.out_edges:
-                rank_edges(goal=node.goal, edges=node.out_edges)
-
-    logger.info(f'Adding processed goal data..')
-    # add processed data for goal models
-    goal_data = []
     for datum in tqdm(goal_collection.find()):
+        # goal_data.append({'goal': datum['goal'],
+        #                   'full_visit_count': datum['visits'],
+        #                   'proved': datum['distance_to_proof'] < math.inf})
 
-        goal_data.append({'goal': datum['goal'],
-                          'full_visit_count': datum['visits'],
-                          'proved': datum['distance_to_proof'] < math.inf})
+        # with open('../train_goal.pk', 'wb') as f:
+        #     pickle.dump(goal_data[:int(0.9 * len(goal_data))], f)
 
-    # with open('../train_goal.pk', 'wb') as f:
-    #     pickle.dump(goal_data[:int(0.9 * len(goal_data))], f)
-        
-    # with open('../val_goal.pk', 'wb') as f:
-    #     pickle.dump(goal_data[int(0.9 * len(goal_data)):], f)
+        # with open('../val_goal.pk', 'wb') as f:
+        #     pickle.dump(goal_data[int(0.9 * len(goal_data)):], f)
 
-        len_data = transform_goal(datum)
-        if len_data:
-            goal_len_collection.insert_one(len_data)
+        # len_data = transform_goal(datum)
+        # if len_data:
+        #     goal_len_collection.insert_one(len_data)
 
-        proven_data = transform_goal_proven(datum)
+        # proven_data = transform_goal_proven(datum)
+        proven_data = transform_subgoal_proven(datum)
         if proven_data:
             goal_proven_task.insert_one(proven_data)
 
     logger.info(f'Adding random field to enable shuffled, streamed dataloading..')
+
     # add random index for collections used in training (ensures shuffled and ordered data for distributed training)
-    add_rand_idx(goal_len_collection)
-    add_rand_idx(goal_proven_task)
+    # add_rand_idx(goal_len_collection)
+    # add_rand_idx(goal_proven_task)
+
     add_rand_idx(rank_collection)
