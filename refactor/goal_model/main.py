@@ -4,7 +4,8 @@ import os
 from refactor.goal_model.datamodule import GoalProvableDataModule
 from refactor.goal_model.model import SimpleGoalModel
 from loguru import logger
-from pytorch_lightning.cli import LightningCLI
+# from pytorch_lightning.cli import LightningCLI
+from lightning.pytorch.cli import LightningCLI
 
 
 class CLI(LightningCLI):

@@ -2,7 +2,8 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Tuple
 
-import pytorch_lightning as pl
+# import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 from loguru import logger
 from torch.nn import CrossEntropyLoss
@@ -119,7 +120,6 @@ class SimpleGoalModel(GoalModel, pl.LightningModule):
             batch_size=len(batch),
             prog_bar=True
         )
-        self._log_io_texts("train", batch["state_ids"], batch["target_ids"])
         return loss
 
     def configure_optimizers(self) -> Dict[str, Any]:
