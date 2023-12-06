@@ -13,9 +13,7 @@ from lightning.pytorch.loggers import WandbLogger
 
 import torch
 
-
-# todo import experiments
-
+# todo option to suppress output from imports
 
 def config_to_dict(conf):
     return OmegaConf.to_container(

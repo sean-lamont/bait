@@ -24,4 +24,5 @@ class SearchResult:
     # ordered trace of edges, includes selected goal, outcome, tactic prob and goal probs
     trace: Any = field(repr=False)
 
+    # any additional data from the proof
     data: Any = field(repr=False, default=None)

@@ -8,8 +8,8 @@ exp_config:
   experiment: leandojo
 
 logging_config:
-  project: end_to_end
-  offline: true
+  project: dpo_eval
+  offline: false
 
 
 data_path: data/leandojo/data/leandojo_benchmark/random/
@@ -26,19 +26,21 @@ total_timeout: 6000
 env_timeout: 600
 with_gpus: true
 log_level: 'INFO'
-logical_gpus: 4
-num_gpus: 2
-num_cpus: 8
+logical_gpus: 1
+num_gpus: 1
+num_cpus: 16
 gpu_per_prover: 0.01
 cpu_per_prover: 1
-provers_per_gpu: 1
+provers_per_gpu: 4
 
 tac_model:
   model: reprover
+#  model: dpo
   ckpt_path: last.ckpt
+#  ckpt_path: experiments/runs/dpo_beamsearch/dpo_beamsearch_2023_12_06/13_09_32/checkpoints/last_eval.ckpt
   distributed: true
-  gpu_per_process: 0.45
-  cpu_per_process: 0.5
+  gpu_per_process: 0.9
+  cpu_per_process: 1
   config:
     model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
     lr: 5e-6
@@ -55,13 +57,13 @@ tac_model:
 
 
 search_model:
-#    search: bestfs
-    search: htps
-    ckpt_path: goal_model.ckpt # goal_step.ckpt
-    distributed: true
-    gpu_per_process: 0.45
-    cpu_per_process: 0.5
-    exploration_constant: 1
+    search: bestfs
+#    search: htps
+#    ckpt_path: goal_model.ckpt # goal_step.ckpt
+#    distributed: true
+#    gpu_per_process: 0.45
+#    cpu_per_process: 0.5
+#    exploration_constant: 1
 
 #  search: updown
 #  ckpt_path: goal_model.ckpt

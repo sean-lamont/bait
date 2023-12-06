@@ -40,6 +40,7 @@ class ReProverTacGen(TacModel):
 
 
 # todo better loading for LoRA
+# todo add non-generative models
 def get_tac_model(config, device):
     if config.model == 'reprover':
         # tac_gen = RetrievalAugmentedGenerator.load(

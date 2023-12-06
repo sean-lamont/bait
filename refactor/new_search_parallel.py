@@ -30,6 +30,11 @@ from refactor.search_result import SearchResult
 from refactor.tac_models import get_tac_model
 
 
+# todo option to suppress output from imports
+
+# todo merge refactor with original BAIT
+
+# todo move to common/utils
 def config_to_dict(conf):
     return OmegaConf.to_container(
         conf, resolve=True, throw_on_missing=True
@@ -329,7 +334,7 @@ def main(config) -> None:
 
     # todo loop over iterations
     # for i in range(len(self.num_iterations)): ...
-    # Search for proofs using multiple concurrent provers.
+
     prover = DistributedProver(config)
 
     theorems = list(zip_strict([repo] * len(theorems), theorems, positions))
@@ -360,18 +365,17 @@ def main(config) -> None:
     # log as error for now, to minimise output for parent processes
     logger.error(f"Pass@1: {num_proved / (num_proved + num_failed)}")
 
-    # todo add end-to-end training
-    # todo unfreeze before training
-    # todo add tac/search model train functions, which can be lightning data modules
+    # todo add end-to-end training:
+    # todo call separate process for training goal/tactic models (specify in config)
+    # todo reload loop each iteration? or have frequency with which to retrain models?
+    # todo best to run separate script for training (similar to end-to-end eval)?, or to have trainer for the
+    # #todo tac/goal models to run here
+
     # self.process_result(results, config) (e.g. process and add results to mongodb)
 
-    # if self.tac_train:
-    #   self.tac_trainer = Trainer()
-    #   self.tac_trainer.fit(self.tac_model, self.tac_datamodule)
+    # train goal/tactic models...
 
-    # (likewise for goal_model)
     # also would update retriever e.g. refresh embedding generation
-
 
 if __name__ == '__main__':
     main()

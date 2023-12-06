@@ -150,7 +150,7 @@ class InternalNode(Node):
         default=math.inf, init=False, compare=False, repr=False
     )
 
-    # todo move to search model?
+    # todo remove, implemented in search model
     # Scores based on the intrinsic probability of proving a goal, and the best available path from children
     provable_score = -math.inf
     up_score = -math.inf
@@ -175,8 +175,8 @@ class InternalNode(Node):
     def out_edges(self):
         return self._out_edges
 
-    # This setter adds edges to the node, and updates the status
-    # todo move context, ancestor updating to here?
+    # This setter adds edges to the node, and updates the tree
+    # todo move context, ancestor updating to here rather than env?
     @out_edges.setter
     def out_edges(self, out_edges):
         self._out_edges = out_edges

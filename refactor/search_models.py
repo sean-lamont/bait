@@ -9,7 +9,6 @@ import ray
 
 from refactor.goal_model.model import SimpleGoalModel
 from refactor.proof_node import *
-from loguru import logger
 
 
 class GoalModel:
@@ -49,6 +48,9 @@ class Search:
         return
 
 
+# todo normalise with prior, using e.g. BestFS cumulative logprob
+# todo determine how to split prior scores for siblings, e.g. divide by # siblings
+# todo exploration epsilon, random selection over valid fringe scores
 class UpDown(Search):
     def __init__(self, goal_model: GoalModel):
         super().__init__()
@@ -315,6 +317,7 @@ class HTPS(Search):
                         goal_edges = [self.edge_data[e] for e in self.edge_data.keys() if e[0] == g.goal
                                       and any([d.status != Status.FAILED for d in self.edge_data[e]['edge'].dst])]
 
+                        # todo check when this errors out
                         assert goal_edges, g
 
                         for edge in goal_edges:

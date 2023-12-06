@@ -69,8 +69,9 @@ class GenTacModel(pl.LightningModule):
     ###############################
 
     def on_validation_epoch_end(self) -> None:
-        torch.cuda.empty_cache()
-        self.run_eval()
+        if self.global_step > 1:
+            torch.cuda.empty_cache()
+            self.run_eval()
 
     def run_eval(self) -> None:
         ckpt_path = f"{self.trainer.log_dir}/checkpoints/last_eval.ckpt"

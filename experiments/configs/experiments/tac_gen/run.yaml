@@ -5,14 +5,15 @@ defaults:
 
 exp_config:
   name: dpo_beamsearch
-  experiment: lean_dojo_dpo
+  experiment: dpo_beamsearch
 
 logging_config:
-  project: leandojo_eval
+  project: leandojo_dpo
   offline: false
 
 trainer:
   accelerator: gpu
+  max_epochs: 1
   devices: 1
   precision: bf16-mixed
   strategy:
@@ -23,8 +24,7 @@ trainer:
     logging_batch_size_per_gpu: 1
   gradient_clip_val: 1.0
   max_steps: 5000000
-  val_check_interval: 10000
-#  limit_val_batches: 100
+  val_check_interval: 30000
   callbacks:
     - _target_: lightning.pytorch.callbacks.LearningRateMonitor
       logging_interval: step
@@ -33,32 +33,26 @@ trainer:
       save_top_k: 3
       save_last: true
       monitor: Pass@1_val
-#      monitor: win_rate
       mode: max
       dirpath: ${exp_config.directory}/checkpoints
       auto_insert_metric_name: true
       filename: "{epoch}-{step}-{Pass@1_val:.2f}"
-#      filename: "{epoch}-{step}-{win_rate}"
-#    - class_path: pytorch_lightning.callbacks.EarlyStopping
-#      init_args:
-#        monitor: win_rate
-#        patience: 25
-#        mode: max
-#        verbose: true
 
 model_config:
   model_type: 'tac_gen'
   model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
-  lr: 5e-6
-  warmup_steps: 200
+  lr: 1e-6
+  warmup_steps: 150
   beta: 0.99
   max_seq_len: 2300
   gen_config:
-    strategy: sample
+    strategy: beam
+    length_penalty: 0.0
+  #    strategy: sample
   eval_config:
-    eval_num_theorems: 100
+    eval_num_theorems: 200
     shuffle: false
-    timeout: 60
+    timeout: 600
   lora_config:
     target_modules: ['q', 'k', 'v', 'o', 'wo', 'lm_head']
     task_type: "SEQ_2_SEQ_LM"
@@ -67,7 +61,7 @@ model_config:
     lora_dropout: 0.01
 
 data_config:
-  batch_size: 1  # effective_batch_size == batch_size * accumulate_grad_batches * devices
+  batch_size: 1
   model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
   eval_batch_size: 4
   max_seq_len: 2300
