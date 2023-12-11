@@ -7,6 +7,7 @@
   - Modify TacticApplication from proof_search_tree for run_tactics
   - get_premises can reuse pb2 premise sets
   - Generate docker container per instance with _enter_ then destroy with _exit_?
+    - setup_prover from prover.py
 - Sexpressions default encoding, not sure if we can use pretty printed..
   - Can parse from sexpression back?
   - Can use polished representation 

@@ -50,7 +50,7 @@ class HOL4Env:
         pass
 
     def retrieve_premises(self):
-        # todo, should just be a modificatio of gen_fact_pool
+        # todo, should just be a modification of gen_fact_pool
         pass
 
         # todo move some of this to search model?
