@@ -100,6 +100,7 @@ class Prover(object):
         # Timeout for each individual "prove" call in separation.
         self.timeout_seconds = self.prover_options.timeout_seconds
         self.pruner = None
+
         if self.prover_options.prune_theorem_parameters:
             self.pruner = prune_lib.ParameterPruning(
                 theorem_db, hol_wrapper=hol_wrapper)
@@ -201,8 +202,10 @@ class NoBacktrackProver(Prover):
     def __init__(self, prover_options: deephol_pb2.ProverOptions, hol_wrapper,
                  action_gen: action_generator.ActionGenerator,
                  theorem_db: proof_assistant_pb2.TheoremDatabase):
+
         super(NoBacktrackProver, self).__init__(
             prover_options, hol_wrapper, theorem_db, single_goal=True)
+
         self.action_gen = action_gen
 
     def prove_one(self, tree: proof_search_tree.ProofSearchTree,

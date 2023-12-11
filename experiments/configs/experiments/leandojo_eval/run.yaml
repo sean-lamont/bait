@@ -4,11 +4,11 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: test_dpo
-  experiment: leandojo
+  name: original_reprover
+  experiment: original_reprover
 
 logging_config:
-  project: dpo_eval
+  project: end_to_end
   offline: false
 
 
@@ -35,9 +35,7 @@ provers_per_gpu: 4
 
 tac_model:
   model: reprover
-#  model: dpo
   ckpt_path: last.ckpt
-#  ckpt_path: experiments/runs/dpo_beamsearch/dpo_beamsearch_2023_12_06/13_09_32/checkpoints/last_eval.ckpt
   distributed: true
   gpu_per_process: 0.9
   cpu_per_process: 1

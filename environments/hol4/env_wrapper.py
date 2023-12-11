@@ -12,8 +12,7 @@ import os
 from copy import deepcopy
 import re
 
-
-#todo move to config
+# todo move to config
 MORE_TACTICS = True
 if not MORE_TACTICS:
     thms_tactic = ["simp", "fs", "metis_tac"]
@@ -34,6 +33,7 @@ EXCLUDED_THEORIES = ["min"]
 
 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
+
 def parse_theory(pg):
     theories = re.findall(r'C\$(\w+)\$ ', pg)
     theories = set(theories)
@@ -41,10 +41,12 @@ def parse_theory(pg):
         theories.discard(th)
     return list(theories)
 
+
 def list_drop_duplicates(seq):
     seen = set()
     seen_add = seen.add
     return [x for x in seq if not (x in seen or seen_add(x))]
+
 
 def normalize_args(tactic):
     tac_args = re.findall(r'(.*?)\[(.*?)\]', tactic)
@@ -56,8 +58,9 @@ def normalize_args(tactic):
         tactic = re.sub("'", "", tactic)
     return tactic
 
+
 def remove_duplicates(tactic):
-    tac_args = re.findall(r'(.*?)\[(.*?)\]', tactic)    
+    tac_args = re.findall(r'(.*?)\[(.*?)\]', tactic)
     if tac_args:
         tactic_head = tac_args[0][0]
         arglist = tac_args[0][1].split(", ")
@@ -72,9 +75,10 @@ def revert_assumptions(context):
     target = context["plain"]
     assumptions = target["assumptions"]
     goal = target["goal"]
-    for i in assumptions: 
+    for i in assumptions:
         goal = "(" + i + ")" + " ==> " + "(" + goal + ")"
-    return goal    
+    return goal
+
 
 def get_process(pstring):
     pids = []
@@ -92,16 +96,16 @@ class HolEnv:
         with open("data/hol4/data/adjusted_db.json") as f:
             self.database = json.load(f)
 
-        self.reverse_database = {(value[0], value[1]) : key for key, value in self.database.items()}
+        self.reverse_database = {(value[0], value[1]): key for key, value in self.database.items()}
 
         self.handling = None
         self.using = None
         self.frequency = {}
         self.mean_frequency = 0
-        
+
         self.import_theories = ["probabilityTheory"]
         self.process = pexpect.spawn(HOLPATH, timeout=3)
-        
+
         # experimental feature
         self.process.delaybeforesend = None
 
@@ -122,7 +126,7 @@ class HolEnv:
         # self.process.sendline("delsimps {};".format(dels2))
         # # self.process.sendline("delsimps {};".format(dels3))
         # sleep(1)
-        
+
         # load utils
         # logging.debug("Loading modules...")
         self.process.sendline("use \"helper.sml\";")
@@ -132,7 +136,6 @@ class HolEnv:
         self.process.expect('\r\n>')
         # self.process.readline()
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
-
 
         # consumes hol4 head
         self.process.expect('\r\n>')
@@ -144,7 +147,7 @@ class HolEnv:
         self.fringe = {"content": self.polished_goal,
                        "parent": None,
                        "goal": None,
-                       "by_tactic":"",
+                       "by_tactic": "",
                        "reward": None}
 
         # a fringe is a list of the form
@@ -153,7 +156,7 @@ class HolEnv:
         #   ...]
 
         self.history = [self.fringe]
-        self.action_history = [] # list of tuples (id, id, tactic)
+        self.action_history = []  # list of tuples (id, id, tactic)
         self.subproofs = {}
         logging.debug("Initialization done. Main goal is:\n{}.".format(self.goal))
 
@@ -162,12 +165,12 @@ class HolEnv:
             cmd = "val _ = diminish_srw_ss {};".format([theory])
             cmd = re.sub("'", "\"", cmd)
             logging.debug("Removing simp lemmas from {}".format(theory))
-            
+
         else:
             cmd = "val _ = augment_srw_ss {};".format([theory])
             cmd = re.sub("'", "\"", cmd)
             logging.debug("Adding simp lemmas from {}".format(theory))
-            
+
         # self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         # # sleep(0.5)
         # self.process.sendline(cmd.encode("utf-8"))
@@ -191,7 +194,7 @@ class HolEnv:
             full_name = theory_name + "Theory." + theorem_name
             names.append(full_name)
         return names
-        
+
     def assemble_tactic(self, tac, args):
         # args is a list of strings
         if tac in thms_tactic:
@@ -209,7 +212,7 @@ class HolEnv:
             # no_arg_tactic are handled as is
             action = tac
         return action
-    
+
     def construct_goal(self, goal):
         s = "g " + "`" + goal + "`;"
         return s
@@ -223,7 +226,7 @@ class HolEnv:
 
     def reset(self, new_goal, frequency={}):
         # TODO: record the previous goal
-                
+
         self.goal = new_goal
 
         logging.debug("Resetting goal to be {}".format(self.goal))
@@ -233,7 +236,7 @@ class HolEnv:
         self.fringe = {"content": self.polished_goal,
                        "parent": None,
                        "goal": None,
-                       "by_tactic":"",
+                       "by_tactic": "",
                        "reward": None}
 
         self.history = [self.fringe]
@@ -243,21 +246,20 @@ class HolEnv:
         self.frequency = frequency
 
         if self.frequency:
-            self.mean_frequency = sum(self.frequency.values())/len(self.frequency.values())
+            self.mean_frequency = sum(self.frequency.values()) / len(self.frequency.values())
 
         logging.debug("Initialization done. Main goal is:\n{}.".format(self.goal))
 
-    def close(self):    
+    def close(self):
         pids = get_process("hol")
         pidsh = get_process("buildheap")
         print("Found HOL pids: {}".format(pids))
-        for pid in (pids+pidsh):
+        for pid in (pids + pidsh):
             try:
                 os.kill(int(pid), signal.SIGKILL)
-            except:                 
-                pass                             
+            except:
+                pass
             print("Tried closing {}".format(pid))
-            
 
     def get_polish(self, raw_goal):
         goal = self.construct_goal(raw_goal)
@@ -269,51 +271,51 @@ class HolEnv:
         self.process.expect("val it =")
         self.process.expect([": goal list", ":\r\n +goal list"])
         polished_raw = self.process.before.decode("utf-8")
-        polished_subgoals = re.sub("“|”","\"", polished_raw)
-        polished_subgoals = re.sub("\r\n +"," ", polished_subgoals)
+        polished_subgoals = re.sub("“|”", "\"", polished_raw)
+        polished_subgoals = re.sub("\r\n +", " ", polished_subgoals)
 
         # print("content:{}".format(subgoals))
         # exit()
         pd = eval(polished_subgoals)
-        
+
         self.process.expect("\r\n>")
         self.process.sendline("drop();".encode("utf-8"))
         self.process.expect("\r\n>")
         self.process.sendline("val _ = set_term_printer default_pt;".encode("utf-8"))
         self.process.expect("\r\n>")
 
-        data = [{"polished":{"assumptions": e[0][0], "goal":e[0][1]},
-                 "plain":{"assumptions": e[1][0], "goal":e[1][1]}}
+        data = [{"polished": {"assumptions": e[0][0], "goal": e[0][1]},
+                 "plain": {"assumptions": e[1][0], "goal": e[1][1]}}
                 for e in zip(pd, [([], raw_goal)])]
         return data
-    
+
     def query(self, raw_goal, tac, limited_time=True):
         # print("content1:{}".format(self.process.before.decode("utf-8")))
         # print("goal is: {}".format(raw_goal))
         # print("tac is: {}".format(tac))
         self.handling = raw_goal
         self.using = tac
-        
+
         # self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         # self.process.sendline("numSimps.clear_arith_caches();".encode("utf-8"))
         # self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
-        
+
         goal = self.construct_goal(raw_goal)
         self.process.sendline(goal.encode("utf-8"))
         self.process.expect("\r\n>")
-        
+
         # bug1 = self.process.before.decode("utf-8")
         # print("bug1: {}".format(bug1))
-        
+
         tactic = self.construct_tactic(tac, limited_time)
         self.process.sendline(tactic.encode("utf-8"))
-        
+
         # bug2 = self.process.before.decode("utf-8")
         # print("bug2: {}".format(bug2))
 
         # Note we may see "metis: proof translation error: trying again with types."]
-        
-        try: 
+
+        try:
             i = self.process.expect(
                 ["metis: proof translation error", "Initial goal proved", ": proof", ":\r\n +proof", "Exception",
                  "error"])
@@ -321,12 +323,11 @@ class HolEnv:
             # print("Exception: {} to {} to be debugged".format(tac, raw_goal))
             i = -1
 
-
         if i == -1:
             data = "unexpected"
             return data
         # print("i is {}".format(i))
-        
+
         # bug3 = self.process.before.decode("utf-8")
         # print("bug3: {}".format(bug3))
         # exit()
@@ -334,10 +335,12 @@ class HolEnv:
         # workaround
         while i == 0:
             # skip the proof translation error and read the Exception
-            i = self.process.expect(["metis: proof translation error", "Initial goal proved", ": proof", ":\r\n +proof" , "Exception", "error"])
+            i = self.process.expect(
+                ["metis: proof translation error", "Initial goal proved", ": proof", ":\r\n +proof", "Exception",
+                 "error"])
 
             # print("i is {}".format(i))
-        
+
         if i == 2 or i == 3:
             # bug4 = self.process.before.decode("utf-8")
             # print("bug4: {}".format(bug4))
@@ -353,14 +356,14 @@ class HolEnv:
                 logging.debug("Exception: {} to {} returned no goals".format(tac, raw_goal))
                 return "exception"
                 # exit()
-            
+
             # this (:\r\n) doesn't seem robust
             self.process.expect([": goal list", ":\r\n +goal list"])
             raw = self.process.before.decode("utf-8")
-            
+
             # print("sub: {}".format(raw))
-            subgoals = re.sub("“|”","\"", raw)
-            subgoals = re.sub("\r\n +"," ", subgoals)
+            subgoals = re.sub("“|”", "\"", raw)
+            subgoals = re.sub("\r\n +", " ", subgoals)
 
             # get Polished version
             self.process.expect("\r\n>")
@@ -369,10 +372,10 @@ class HolEnv:
             self.process.sendline("top_goals();".encode("utf-8"))
             self.process.expect("val it =")
             self.process.expect([": goal list", ":\r\n +goal list"])
-            polished_raw = self.process.before.decode("utf-8")         
+            polished_raw = self.process.before.decode("utf-8")
             # print("sub: {}".format(raw))
-            polished_subgoals = re.sub("“|”","\"", polished_raw)
-            polished_subgoals = re.sub("\r\n +"," ", polished_subgoals)
+            polished_subgoals = re.sub("“|”", "\"", polished_raw)
+            polished_subgoals = re.sub("\r\n +", " ", polished_subgoals)
 
             # print("content:{}".format(subgoals))
             # exit()
@@ -384,8 +387,8 @@ class HolEnv:
             d = eval(subgoals)
             # data = list(zip(pd, d))
             data = zip(pd, d)
-            data = [{"polished":{"assumptions": e[0][0], "goal":e[0][1]},
-                     "plain":{"assumptions": e[1][0], "goal":e[1][1]}}
+            data = [{"polished": {"assumptions": e[0][0], "goal": e[0][1]},
+                     "plain": {"assumptions": e[1][0], "goal": e[1][1]}}
                     for e in data]
             # data = (pd, d)
             # data = eval(subgoals)
@@ -402,7 +405,7 @@ class HolEnv:
             # if PRINT_EXCEPTION:
             #     print("Exception: {} to {}.".format(tac, raw_goal))
             data = "exception"
-        
+
         # clear stack and consume the remaining stdout
         self.process.expect("\r\n>")
         self.process.sendline("drop();".encode("utf-8"))
@@ -412,10 +415,10 @@ class HolEnv:
 
         return data
 
-    def step(self, action):            
+    def step(self, action):
         if action in self.action_history:
             reward = -1
-            return reward, False # TODO: make this reward zero?
+            return reward, False  # TODO: make this reward zero?
 
         fringe_id, goal_id, tactic = action
         target_fringe = self.history[fringe_id]
@@ -448,40 +451,40 @@ class HolEnv:
                     # if results in something occurred before
                     if new_content == f["content"]:
                         # print ('repeat\n')
-                        return -0.1, False # do not penalize the agent here
+                        return -0.1, False  # do not penalize the agent here
                         # return 0, False # do not penalize the agent here
 
                 coordinate = (fringe_id, goal_id)
                 if coordinate in self.subproofs:
-                    one_step = {"subgoals": d,"via": tactic}
+                    one_step = {"subgoals": d, "via": tactic}
                     current_branches = self.subproofs[coordinate]
                     current_branches.append(one_step)
                 else:
-                    self.subproofs[coordinate] = [{"subgoals": d,"via": tactic}]
-                    
+                    self.subproofs[coordinate] = [{"subgoals": d, "via": tactic}]
+
                 new_fringe = {"content": new_content,
                               "parent": fringe_id,
                               "goal": goal_id,
                               "by_tactic": tactic,
                               "reward": None}
-                reward = 0.1 # *(2 - tac_len * 0.2)
+                reward = 0.1  # *(2 - tac_len * 0.2)
                 self.action_history.append(action)
-                
+
                 # reward solving a subgoal
                 if d == []:
                     reward = 0.2
 
                 if new_content == []:
                     new = self.goal
-                    
+
                     # shape reward
                     if self.frequency:
                         self.frequency[self.goal] += 1
                         # mean_frequency = sum(self.frequency.values())/len(self.frequency.values())
                         if self.frequency[self.goal] >= self.mean_frequency:
-                            reward = 5 # make this 200?
+                            reward = 5  # make this 200?
                         else:
-                            reward = 15 # * (1 + mean_frequency - self.frequency[self.goal])
+                            reward = 15  # * (1 + mean_frequency - self.frequency[self.goal])
                     else:
                         reward = 5
 
@@ -489,10 +492,10 @@ class HolEnv:
                     new_fringe["reward"] = reward
                     self.history.append(new_fringe)
                     return reward, True
-                
+
                 new_fringe["reward"] = reward
                 self.history.append(new_fringe)
-                
+
             else:
                 # nothing changed
                 reward = -0.1
@@ -505,9 +508,8 @@ class HolEnv:
                 # not applicable
                 reward = -0.1
                 self.action_history.append(action)
-                
-        return reward, False
 
+        return reward, False
 
     def gen_fact_pool(self, goal):
         allowed_theories = list(set(re.findall(r'C\$(\w+)\$ ', goal[0])))
@@ -533,6 +535,7 @@ class HolEnv:
 
         return allowed_arguments_ids, candidate_args
 
+
 def extract_proof(history):
     qed = history[-1]
     path = []
@@ -546,11 +549,11 @@ def extract_proof(history):
         parent_goal = parent_fringe["content"][parent_goal_id]
         plain_text_goal = parent_goal["plain"]["goal"]
         proof.append((plain_text_goal, tactic))
-        
+
         if parent_fringe_id == 0:
             proof.reverse()
             return proof
-        
+
         content = parent_fringe["content"]
         parent_fringe_id = parent_fringe["parent"]
         parent_goal_id = parent_fringe["goal"]
@@ -560,7 +563,7 @@ def extract_proof(history):
 def annotate_origin(history):
     for fid, f in enumerate(history):
         parent_fringe_id = f["parent"]
-        
+
         parent_goal_id = f["goal"]
         if not fid:
             f["content"][0]["origin_fringe"] = 0
@@ -568,24 +571,22 @@ def annotate_origin(history):
             parent_fringe = history[parent_fringe_id]
             # parent_goal = parent_fringe["content"]["parent_goal_id"]
             # new_content = f["content"][len(parent_fringe["content"])-1:]
-            for i,e in enumerate(f["content"]):
-                if i < len(parent_fringe["content"])-1:
+            for i, e in enumerate(f["content"]):
+                if i < len(parent_fringe["content"]) - 1:
                     # parent_goal_id is the id of the removed parent goal
                     if i < parent_goal_id:
                         e["origin_fringe"] = parent_fringe["content"][i]["origin_fringe"]
                     else:
-                        e["origin_fringe"] = parent_fringe["content"][i+1]["origin_fringe"]
+                        e["origin_fringe"] = parent_fringe["content"][i + 1]["origin_fringe"]
                 else:
                     e["origin_fringe"] = fid
-            
-    return history
-                    
 
-                
-        
-def construct_map(history):    
+    return history
+
+
+def construct_map(history):
     history = annotate_origin(history)
-        
+
     dependency_table = {}
     qed = history[-1]
     path = []
@@ -602,8 +603,9 @@ def construct_map(history):
         plain_text_assumptions = parent_goal["plain"]["assumptions"]
         # two id's to distinguish different goals that have same expression
         # dependency_table[(revert_assumptions(parent_goal), parent_fringe_id, parent_goal_id)] = (tactic, [(p, current_fringe_id, content.index(p)) for p in content if p not in parent_fringe["content"]])
-        new_content = content[len(parent_fringe["content"])-1:]
-        dependency_table[(revert_assumptions(parent_goal), parent_goal["origin_fringe"])] = (remove_duplicates(tactic), new_content)
+        new_content = content[len(parent_fringe["content"]) - 1:]
+        dependency_table[(revert_assumptions(parent_goal), parent_goal["origin_fringe"])] = (
+        remove_duplicates(tactic), new_content)
 
         if parent_fringe_id == 0:
             break
@@ -623,7 +625,8 @@ def generate_script(key, m):
         for i in subgoals:
             new_key = (revert_assumptions(i), i["origin_fringe"])
             if i["plain"]["assumptions"]:
-                script = script + " >- (rpt (pop_assum mp_tac) >> rpt strip_tac >> {})".format(generate_script(new_key, m))
+                script = script + " >- (rpt (pop_assum mp_tac) >> rpt strip_tac >> {})".format(
+                    generate_script(new_key, m))
             else:
                 script = script + " >- ({})".format(generate_script(new_key, m))
     elif len(subgoals) == 1:
@@ -649,7 +652,7 @@ def check_proof(env, history):
     script = reconstruct_proof(history)
     goal = history[0]["content"][0]["plain"]["goal"]
     data = env.query(goal, script, False)
-    return (data==[])
+    return (data == [])
 
 
 def extract_path_id(history):
@@ -662,16 +665,16 @@ def extract_path_id(history):
     for _ in count():
         parent_fringe = history[parent_fringe_id]
         path.append(parent_fringe_id)
-        
+
         if parent_fringe_id == 0:
             return path
-        
+
         content = parent_fringe["content"]
         parent_fringe_id = parent_fringe["parent"]
         parent_goal_id = parent_fringe["goal"]
         tactic = parent_fringe["by_tactic"]
 
-        
+
 def extract_proof_replay(history):
     # this is used to replay a successful proof without querying HOL
     qed = history[-1]
@@ -686,7 +689,7 @@ def extract_proof_replay(history):
         if parent_fringe_id == 0:
             replay.reverse()
             return replay
-        
+
         content = parent_fringe["content"]
         parent_fringe_id = parent_fringe["parent"]
         parent_goal_id = parent_fringe["goal"]
@@ -699,39 +702,40 @@ def get_text(fringe):
     # texts = []
     if not fringe:
         return "QED"
-    
+
     text = ""
-    for i,p in enumerate(fringe):
-        text += "{}: {}<br>".format(i,p["plain"])
-        
+    for i, p in enumerate(fringe):
+        text += "{}: {}<br>".format(i, p["plain"])
+
     return text[:-4]
-    
+
 
 def make_tree(history):
     es = []
     for i in history:
         p = i["parent"]
-        if p != None: # p can be 0
-            es.append(((p, history.index(i)), # edge
-                       (i["goal"], i["by_tactic"]))) # label
+        if p != None:  # p can be 0
+            es.append(((p, history.index(i)),  # edge
+                       (i["goal"], i["by_tactic"])))  # label
 
     return es
 
-    
-def draw_tree(history):#, output_graph=False):
+
+def draw_tree(history):  # , output_graph=False):
     nv = len(history)
     eslb = make_tree(history)
     es = [i[0] for i in eslb]
     g = Graph(nv, es, True)
-    
+
     g.vs["goals"] = [get_text(i["content"]) for i in history]
     g.es["by applying tactic on"] = [i[1] for i in eslb]
-    g.es["by applying tactic on"] = ["Step: {}<br>Target: {}<br>Tactic: {}".format(n, i[1][0], i[1][1]) for (n,i) in enumerate(eslb)]
+    g.es["by applying tactic on"] = ["Step: {}<br>Target: {}<br>Tactic: {}".format(n, i[1][0], i[1][1]) for (n, i) in
+                                     enumerate(eslb)]
     g.vs["label"] = g.vs["goals"]
     g.es["label"] = g.es["by applying tactic on"]
     # g.add_vertices(nv)
     # g.add_edges(es)
-    
+
     # if output_graph:
     #     layout = g.layout("rt")
     #     plot(g, layout = layout, bbox = (1024, 1024))
@@ -743,30 +747,30 @@ def draw_tree(history):#, output_graph=False):
     position = {k: lay[k] for k in range(nv)}
     Y = [lay[k][1] for k in range(nv)]
     M = max(Y)
-    
+
     L = len(position)
     Xn = [position[k][0] for k in range(L)]
-    Yn = [2*M-position[k][1] for k in range(L)]
+    Yn = [2 * M - position[k][1] for k in range(L)]
     Xe = []
-    Ye = []    
+    Ye = []
     for edge in es:
-        Xe+=[position[edge[0]][0],position[edge[1]][0], None]
-        Ye+=[2*M-position[edge[0]][1],2*M-position[edge[1]][1], None]
+        Xe += [position[edge[0]][0], position[edge[1]][0], None]
+        Ye += [2 * M - position[edge[0]][1], 2 * M - position[edge[1]][1], None]
 
     # fs = [get_text(i["content"]) for i in history]
-    
+
     vlabels = [get_text(i["content"]) for i in history]
     elabels = g.es["by applying tactic on"]
-    
+
     # calculate the middle points for edge labels
     Xel = []
     Yel = []
     for edge in es:
-        Xel+=[0.5*(position[edge[0]][0]+position[edge[1]][0])]
-        Yel+=[0.5*(2*M-position[edge[0]][1]+2*M-position[edge[1]][1])]
-        
+        Xel += [0.5 * (position[edge[0]][0] + position[edge[1]][0])]
+        Yel += [0.5 * (2 * M - position[edge[0]][1] + 2 * M - position[edge[1]][1])]
+
     fig = go.Figure()
-    
+
     fig.add_trace(go.Scatter(x=Xe,
                              y=Ye,
                              mode='lines+text',
@@ -776,20 +780,20 @@ def draw_tree(history):#, output_graph=False):
                              # hoverinfo='text',
                              opacity=0.8
                              # hoverinfo='none'
-    ))
+                             ))
     fig.add_trace(go.Scatter(x=Xn,
                              y=Yn,
                              mode='markers',
                              name='Dead',
                              marker=dict(symbol='circle-dot',
                                          size=18,
-                                         color='#FF0000',    #'#DB4551',
+                                         color='#FF0000',  # '#DB4551',
                                          line=dict(color='rgb(50,50,50)', width=1)
-                             ),
+                                         ),
                              text=vlabels,
                              hoverinfo='text',
                              opacity=0.8
-    ))
+                             ))
     fig.add_trace(go.Scatter(x=Xel,
                              y=Yel,
                              mode='markers',
@@ -798,7 +802,7 @@ def draw_tree(history):#, output_graph=False):
                                          size=1),
                              text=elabels,
                              hoverinfo='text'
-    ))
+                             ))
     if "QED" in g.vs["goals"]:
         path = extract_path_id(history)
         pathXn = [Xn[i] for i in path]
@@ -811,19 +815,19 @@ def draw_tree(history):#, output_graph=False):
                                  name='Path',
                                  marker=dict(symbol='circle-dot',
                                              size=18,
-                                             color='#6175c1',    #'#DB4551',
+                                             color='#6175c1',  # '#DB4551',
                                              line=dict(color='rgb(50,50,50)', width=1)
-                                 ),
+                                             ),
                                  text=plabels,
                                  hoverinfo='text',
                                  opacity=0.8
-        ))
+                                 ))
 
     # fig.show()
     fig.write_html('first_figure.html', auto_open=True)
 
-def split_by_fringe(goal_set, goal_scores, fringe_sizes):
 
+def split_by_fringe(goal_set, goal_scores, fringe_sizes):
     # group the scores by fringe
     fs = []
     gs = []
@@ -834,6 +838,7 @@ def split_by_fringe(goal_set, goal_scores, fringe_sizes):
         gs.append(goal_set[counter:end])
         counter = end
     return gs, fs
+
 
 # def encode(s):
 #     # s is a string
@@ -905,7 +910,7 @@ def split_by_fringe(goal_set, goal_scores, fringe_sizes):
 #         representations.append(encoded.unsqueeze(0))
 #     return torch.stack(representations), goals,fringe_sizes
 
-#def revert_with_polish(context):
+# def revert_with_polish(context):
 #    target = context["polished"]
 #    assumptions = target["assumptions"]
 #    goal = target["goal"]
@@ -914,18 +919,17 @@ def split_by_fringe(goal_set, goal_scores, fringe_sizes):
 #    return goal    
 
 def revert_with_polish(context):
-   target = context["polished"]
-   assumptions = target["assumptions"]
-   goal = target["goal"]
-   for i in reversed(assumptions): 
-       #goal = "@ @ D$min$==> {} {}".format(i, goal)
-       goal = "@ @ C$min$ ==> {} {}".format(i, goal)
+    target = context["polished"]
+    assumptions = target["assumptions"]
+    goal = target["goal"]
+    for i in reversed(assumptions):
+        # goal = "@ @ D$min$==> {} {}".format(i, goal)
+        goal = "@ @ C$min$ ==> {} {}".format(i, goal)
 
-   return goal 
+    return goal
 
-   
 
-#def gather_encoded_content(history, encoder):
+# def gather_encoded_content(history, encoder):
 #    # figure out why this is slower than tests
 #    # figured out: remember to do strip().split()
 #    fringe_sizes = []

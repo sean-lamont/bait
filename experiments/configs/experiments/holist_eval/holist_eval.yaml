@@ -19,6 +19,7 @@ model_config:
 
 logging_config:
   project: holist_eval
+  offline: true
 
 # Setting ProverOptions Proto
 path_tactics: 'experiments/configs/holist/hollight_tactics.textpb'

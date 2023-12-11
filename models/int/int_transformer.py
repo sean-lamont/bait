@@ -40,7 +40,6 @@ class INTTransformer(nn.Module):
     def __init__(self, ntoken: int, d_model: int, nhead: int, d_hid: int,
                  nlayers: int, dropout: float = 0.5, enc=True, in_embed=False,
                  max_len=512):
-
         super().__init__()
 
         self.transformer_embedding = TransformerEmbedding(ntoken=None, d_model=d_model, nhead=nhead, d_hid=d_hid,
@@ -60,9 +59,6 @@ class INTTransformer(nn.Module):
             return torch.sum(out, dim=1)[0]
 
         return out
-
-
-
 
 
 """

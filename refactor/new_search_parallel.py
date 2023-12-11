@@ -30,9 +30,12 @@ from refactor.search_result import SearchResult
 from refactor.tac_models import get_tac_model
 
 
+# todo proof verification
 # todo option to suppress output from imports
 
 # todo merge refactor with original BAIT
+
+
 
 # todo move to common/utils
 def config_to_dict(conf):

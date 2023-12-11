@@ -49,9 +49,11 @@ def holist_eval(config):
 
     prover_tasks, prover_options, out_path = process_prover_flags(config, prover_options)
 
-    prover_runner.run_pipeline(prover_tasks=prover_tasks,
-                               prover_options=prover_options,
-                               config=config)
+    print ([task.goals[0].pretty_printed for task in prover_tasks])
+
+    # prover_runner.run_pipeline(prover_tasks=prover_tasks,
+    #                            prover_options=prover_options,
+    #                            config=config)
 
 
 if __name__ == '__main__':

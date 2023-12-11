@@ -1,16 +1,17 @@
 import itertools
+import os
+import signal
+from copy import deepcopy
+from itertools import count
+from sys import exit
+from time import sleep
+
 # import plotly.graph_objects as go
 # from igraph import Graph
 import pexpect
 import torch
 import torch.nn as nn
-from itertools import count
-from sys import exit
-from time import sleep
-import signal
-import os
 from experiments.hol4.rl.exp_config import *
-from copy import deepcopy
 
 # Updated environment for HOL4 based on graph goal structure (as opposed to fringes in original approach)
 

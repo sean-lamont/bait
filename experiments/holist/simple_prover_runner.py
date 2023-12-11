@@ -62,8 +62,8 @@ def run_pipeline(prover_tasks: List[proof_assistant_pb2.ProverTask],
         tasks_done = []
 
     prover.cache_embeddings(prover_options, config)
-    this_prover = prover.create_prover(prover_options, config)
 
+    this_prover = prover.create_prover(prover_options, config)
 
     logging.info(f"Evaluating {len(prover_tasks)} goals..")
 
@@ -87,7 +87,6 @@ def run_pipeline(prover_tasks: List[proof_assistant_pb2.ProverTask],
             'time_spent_seconds': aggregated_stats.time_spent_milliseconds / 1000.0,
             'time_spent_days': aggregated_stats.time_spent_milliseconds / (1000.0 * 24 * 60 * 60),
             'total_prediction_time_seconds': aggregated_stats.total_prediction_time / 1000.0})
-
 
     for i, task in tqdm(enumerate(prover_tasks)):
 

@@ -63,10 +63,6 @@ class GraphTransformer(nn.Module):
                                                nn.Dropout(dropout),
                                                nn.Linear(d_model * 2, d_model),
                                                nn.ReLU(), )
-                # nn.Dropout(dropout),
-                # nn.Linear(d_model, d_model),
-                # nn.ReLU())
-
 
             elif isinstance(in_size, nn.Module):
                 self.embedding = in_size
@@ -87,9 +83,6 @@ class GraphTransformer(nn.Module):
                                                         nn.Dropout(dropout),
                                                         nn.Linear(d_model * 2, d_model),
                                                         nn.ReLU(), )
-                    # nn.Dropout(dropout),
-                    # nn.Linear(d_model, d_model),
-                    # nn.ReLU())
                 else:
                     raise ValueError("Not implemented!")
             else:

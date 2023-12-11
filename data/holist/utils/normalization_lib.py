@@ -84,7 +84,9 @@ def normalize_genpvars(expr: Text):
 
 def normalize(theorem: proof_assistant_pb2.Theorem,
               consider_hypotheses=False) -> proof_assistant_pb2.Theorem:
+
   """Renames types and certain variables to more unique names."""
+
   terms = [theorem.conclusion]
   if consider_hypotheses:
     terms += [h for h in theorem.hypotheses if h]

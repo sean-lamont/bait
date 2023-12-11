@@ -43,7 +43,6 @@ class TransformerWrapper(nn.Module):
 
         super().__init__()
 
-
         self.global_pool = global_pool
 
         self.small_inner = small_inner
@@ -82,9 +81,6 @@ class TransformerWrapper(nn.Module):
             return torch.max(out, dim=1)[0]
 
         return out
-
-
-
 
 
 """

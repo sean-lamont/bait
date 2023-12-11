@@ -28,7 +28,6 @@ class AMREncoderLayer(nn.TransformerEncoderLayer):
                 edge_attr=None, ptr=None,
                 return_attn=False,
                 ):
-
         xs, xt = self.self_attn(
             x_source=xs,
             x_target=xt,
@@ -143,16 +142,8 @@ class AttentionAMR(gnn.MessagePassing):
             R = torch.cat([first, edge_attr, last], dim=1)
         else:
             R = torch.cat([first, last], dim=1)
-        # R = rearrange(R, "d n -> n d")
 
         # "complete_edge_index" which has "from" relations "to" source nodes, and "from" relations to the corresponding "target" nodes
-        # edge_index_source = torch.LongTensor([[i for i in torch.arange(edge_index.shape[1])], [edge_index[0][i] for i in torch.arange(edge_index.shape[1])]]).cuda()
-        #
-        # edge_index_target = torch.LongTensor([[i for i in torch.arange(edge_index.shape[1])], [edge_index[1][i] for i in torch.arange(edge_index.shape[1])]]).cuda()
-
-        # edge_index_source = torch.stack([torch.arange(edge_index.shape[1]), torch.index_select(edge_index[0],1, torch.arange(edge_index.shape[1]))])
-        # edge_index_target = torch.stack([torch.arange(edge_index.shape[1]), torch.index_select(edge_index[1],1,torch.arange(edge_index.shape[1]))])
-
         Q_source = self.to_q(x_source)
         Q_target = self.to_q(x_target)
 
@@ -162,10 +153,6 @@ class AttentionAMR(gnn.MessagePassing):
         K = self.to_k(R)
 
         attn = None
-
-        # print (f"R : {R}, Q_source: {Q_source}, Q_target: {Q_target}, V: {V}, K: {K}")
-
-        # print (f"ptr {ptr}")
 
         out_source = self.propagate(edge_index_source, v=V, qk=(K, Q_source), edge_attr=None, size=None,
                                     return_attn=return_attn, softmax_idx=softmax_idx)
@@ -358,13 +345,11 @@ class MPAttentionAggr(gnn.MessagePassing):
         return msg
 
 
-
 class AMREncoder(nn.TransformerEncoder):
     def forward(self, x, edge_index, edge_index_source, edge_index_target, softmax_idx,
                 edge_attr=None,
                 ptr=None, return_attn=False):
-
-        xs, xt = x,x
+        xs, xt = x, x
 
         for mod in self.layers:
             xs, xt = mod(xs, xt, edge_index, edge_index_source, edge_index_target,
@@ -373,19 +358,20 @@ class AMREncoder(nn.TransformerEncoder):
                          ptr=ptr,
                          return_attn=return_attn
                          )
+
         # if self.norm is not None:
         #     output = self.norm(output)
 
-        return torch.cat([xs,xt], dim = 1)
+        return torch.cat([xs, xt], dim=1)
 
 
 class AMRTransformer(nn.Module):
-    def __init__(self, in_size,  d_model, num_heads=4,
+    def __init__(self, in_size, d_model, num_heads=4,
                  dim_feedforward=512, dropout=0.2, num_layers=2,
                  layer_norm=False, abs_pe=False, abs_pe_dim=0,
                  use_edge_attr=False, num_edge_features=4,
                  in_embed=True, edge_embed=True, use_global_pool=True,
-                 global_pool='mean', device='cuda',**kwargs):
+                 global_pool='mean', device='cuda', **kwargs):
 
         super().__init__()
 
@@ -430,7 +416,7 @@ class AMRTransformer(nn.Module):
         encoder_layer = AMREncoderLayer(
             d_model, num_heads, dim_feedforward,
             dropout, layer_norm=layer_norm,
-            edge_dim=edge_dim,**kwargs)
+            edge_dim=edge_dim, **kwargs)
 
         self.encoder = AMREncoder(encoder_layer, num_layers)
 
@@ -452,8 +438,8 @@ class AMRTransformer(nn.Module):
 
         range_ids = torch.arange(edge_index.shape[1]).to(self.device)
 
-        edge_index_source = torch.stack([range_ids,edge_index[0]], dim = 0)
-        edge_index_target = torch.stack([range_ids,edge_index[1]], dim = 0)
+        edge_index_source = torch.stack([range_ids, edge_index[0]], dim=0)
+        edge_index_target = torch.stack([range_ids, edge_index[1]], dim=0)
 
         abs_pe = data.abs_pe if hasattr(data, 'abs_pe') else None
 
@@ -468,7 +454,6 @@ class AMRTransformer(nn.Module):
         else:
             edge_attr = None
 
-
         output = self.encoder(
             x=output,
             edge_index=edge_index,
@@ -479,7 +464,6 @@ class AMRTransformer(nn.Module):
             ptr=data.ptr,
             return_attn=return_attn
         )
-
 
         # if self.global_pool == 'cls' and self.use_global_pool:
         #     bsz = len(data.ptr) - 1
@@ -501,17 +485,14 @@ class AMRTransformer(nn.Module):
         #
         #     output = torch.cat((output, cls_tokens))
 
-
         if self.use_global_pool:
             if self.global_pool == 'cls':
                 bsz = len(data.ptr) - 1
-                output, attn = self.attn_pool(data=Data(x=output, edge_index=data.edge_index, ptr=data.ptr, batch=data.batch, num_nodes = data.num_nodes), return_attn=True)
+                output, attn = self.attn_pool(
+                    data=Data(x=output, edge_index=data.edge_index, ptr=data.ptr, batch=data.batch,
+                              num_nodes=data.num_nodes), return_attn=True)
                 output = output[-bsz:]
             else:
                 output = gnn.global_max_pool(output, data.batch)
 
         return output
-
-
-
-

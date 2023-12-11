@@ -19,6 +19,7 @@ Utility function to fetch model given a configuration dict
 '''
 
 
+# todo replace with hydra config instantiation
 def get_model(model_config):
     if model_config.model_type == 'tac_gen':
         return DPOTrainModule

@@ -25,7 +25,7 @@ class EnsembleEmbedder(nn.Module):
         outs = self.reduce_proj(outs)
         return outs
 
-        # # alternative ensemble could pool/attention across node representations from both encoders:
+        # # alternative ensemble could pool/attention across node representations from both encoders, e.g.:
         # if self.global_pool == 'sum':
         #     return torch.sum(outs, dim=0)
         # elif self.global_pool == 'max':

@@ -35,6 +35,7 @@ from experiments.holist.utils import error
 from data.holist.utils import theorem_fingerprint
 from environments.holist import proof_assistant_pb2, proof_assistant
 
+# todo most of this is included in the abstract ProofNode implementation
 
 def _extract_tactic_and_parameters(
     tactic_string: Text) -> Tuple[Text, List[deephol_pb2.TacticParameter]]:
@@ -186,6 +187,7 @@ class ProofSearchTree(object):
     return proof_log
 
 
+# todo should move to HOListEnv as post-processing
 class TacticApplication(object):
   """Result of tactic applications."""
 

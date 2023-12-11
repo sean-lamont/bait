@@ -8,10 +8,9 @@ from torch_geometric.utils.num_nodes import maybe_num_nodes
 import numpy as np
 from scipy.sparse.linalg import eigsh
 
-
 '''
 
-Code for Magnetic Laplacian (torch_geometric_signed_directed.utils.directed.get_magnetic_Laplacian)
+Code for Magnetic Laplacian (fork from torch_geometric_signed_directed.utils.directed.get_magnetic_Laplacian)
 
 '''
 
@@ -23,7 +22,6 @@ def get_magnetic_Laplacian(edge_index: torch.LongTensor, edge_weight: Optional[t
                            q: Optional[float] = 0.25,
                            return_eig: bool = True,
                            k=27):
-
     if normalization is not None:
         assert normalization in ['sym'], 'Invalid normalization'
 
@@ -74,9 +72,7 @@ def get_magnetic_Laplacian(edge_index: torch.LongTensor, edge_weight: Optional[t
         return edge_index, edge_weight.real, edge_weight.imag
     else:
         L = to_scipy_sparse_matrix(edge_index, edge_weight, num_nodes)
-        # print (f" Shape {L.shape}")
         k_ = min(k - 2, L.shape[0] - 2)
-        # print (k, L.shape[0])
         eig_vals, eig_vecs = eigsh(L, k=k_, which='LM', return_eigenvectors=True)
         eig_vals = torch.FloatTensor(eig_vals)
         eig_real = torch.FloatTensor(eig_vecs.real)
@@ -127,9 +123,7 @@ class MagLapNet(torch.nn.Module):
             torch.nn.ReLU()
         )
 
-
-
-        encoder_layer = torch.nn.TransformerEncoderLayer(d_model=eig_dim, nhead=num_heads,dropout=dropout_p)
+        encoder_layer = torch.nn.TransformerEncoderLayer(d_model=eig_dim, nhead=num_heads, dropout=dropout_p)
         self.PE_Transformer = torch.nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
 
         if norm:
@@ -160,7 +154,6 @@ class MagLapNet(torch.nn.Module):
             eigenvalues_ = einops.repeat(eigenvalues, "k 1-> n k 1", n=trans.shape[0])
             trans = torch.cat([eigenvalues_, trans], dim=-1)
 
-
         if self.use_attention:
             if self.norm is not None:
                 trans = self.norm(trans)
@@ -168,7 +161,6 @@ class MagLapNet(torch.nn.Module):
         trans = einops.rearrange(trans, "n k d -> k n d")
 
         pe = self.PE_Transformer(src=trans, src_key_padding_mask=mask)
-
 
         pe[torch.transpose(mask, 0, 1)] = float('nan')
 
@@ -182,7 +174,7 @@ class MagLapNet(torch.nn.Module):
         # if self.im_aggregate_mlp is None:
         #     return output
 
-#
+#   JAX implementation:
 # # class maglapnet(hk.module):
 # #   """for the magnetic laplacian's or combinatorial laplacian's eigenvectors.
 # #

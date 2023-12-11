@@ -76,3 +76,6 @@ def get_tac_model(config, device):
                 tac_model=tac_gen)
         else:
             return ReProverTacGen(tac_model=tac_gen)
+
+    # todo non-generative models..
+    # todo retriever

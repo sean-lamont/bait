@@ -187,9 +187,6 @@ class MPPositionalEncoding(nn.Module):
         """
 
         pe_ptr = torch.cat([self.pe[:(ptr[i + 1] - ptr[i])] for i in range(len(ptr) - 1)], dim=0)
-
-        # print (pe_ptr.shape)
-
         return pe_ptr
 
 
