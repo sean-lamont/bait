@@ -10,13 +10,6 @@ import grpc
 from environments.holist import proof_assistant_pb2
 from environments.holist import proof_assistant_pb2_grpc
 
-# tf.flags.DEFINE_string(
-#     'proof_assistant_server_address', 'localhost:2000',
-#     'address (including port) of the proof assistant server')
-#
-# FLAGS = tf.flags.FLAGS
-
-
 # address (including port) of the proof assistant server
 proof_assistant_server_address = 'localhost:2000'
 
@@ -25,23 +18,23 @@ GRPC_MAX_MESSAGE_LENGTH = GIGABYTE
 
 
 class ProofAssistant(object):
-  """Class for intefacing a proof assistant."""
+    """Class for intefacing with the HOL-Light proof assistant."""
 
-  def __init__(self):
-    self.channel = grpc.insecure_channel(
-        proof_assistant_server_address,
-        options=[('grpc.max_send_message_length', GRPC_MAX_MESSAGE_LENGTH),
-                 ('grpc.max_receive_message_length', GRPC_MAX_MESSAGE_LENGTH)])
-    self.stub = proof_assistant_pb2_grpc.ProofAssistantServiceStub(self.channel)
+    def __init__(self):
+        self.channel = grpc.insecure_channel(
+            proof_assistant_server_address,
+            options=[('grpc.max_send_message_length', GRPC_MAX_MESSAGE_LENGTH),
+                     ('grpc.max_receive_message_length', GRPC_MAX_MESSAGE_LENGTH)])
+        self.stub = proof_assistant_pb2_grpc.ProofAssistantServiceStub(self.channel)
 
-  def ApplyTactic(self, request: proof_assistant_pb2.ApplyTacticRequest
-                 ) -> proof_assistant_pb2.ApplyTacticResponse:
-    return self.stub.ApplyTactic(request)
+    def ApplyTactic(self, request: proof_assistant_pb2.ApplyTacticRequest
+                    ) -> proof_assistant_pb2.ApplyTacticResponse:
+        return self.stub.ApplyTactic(request)
 
-  def VerifyProof(self, request: proof_assistant_pb2.VerifyProofRequest
-                 ) -> proof_assistant_pb2.VerifyProofResponse:
-    return self.stub.VerifyProof(request)
+    def VerifyProof(self, request: proof_assistant_pb2.VerifyProofRequest
+                    ) -> proof_assistant_pb2.VerifyProofResponse:
+        return self.stub.VerifyProof(request)
 
-  def RegisterTheorem(self, request: proof_assistant_pb2.RegisterTheoremRequest
-                     ) -> proof_assistant_pb2.RegisterTheoremResponse:
-    return self.stub.RegisterTheorem(request)
+    def RegisterTheorem(self, request: proof_assistant_pb2.RegisterTheoremRequest
+                        ) -> proof_assistant_pb2.RegisterTheoremResponse:
+        return self.stub.RegisterTheorem(request)

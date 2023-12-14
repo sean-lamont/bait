@@ -449,7 +449,6 @@ def get_search_model(config, device):
         return UpDown(goal_model)
     elif config.search == 'htps':
         goal_model = SimpleGoalModel.load(config.ckpt_path, device=device, freeze=True)
-        # goal_model = StepGoalModel.load(config.ckpt_path, device=device, freeze=True)
 
         if config.distributed:
             goal_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(GoalModel).remote(

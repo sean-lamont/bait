@@ -90,8 +90,10 @@ def proof_linearization(proof_log: deephol_pb2.ProofLog
   """Turns a proof into a list of tactic applications."""
   if not proof_log.HasField('theorem_in_database'):
     raise ValueError('Proof log requires field theorem_in_database')
+
   node_dict = proof_log_as_dict(proof_log)
   fingerprint = theorem_fingerprint.Fingerprint(proof_log.theorem_in_database)
+
   if fingerprint not in node_dict:
     raise ValueError(
         'Fingerprint of proof_log.theorem_in_database missing in the proof log.'

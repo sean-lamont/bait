@@ -79,3 +79,27 @@ def get_tac_model(config, device):
 
     # todo non-generative models..
     # todo retriever
+    
+    
+    
+    # todo adapt holist:
+
+# tactics = io_util.load_tactics_from_file(
+#     str(options.path_tactics), str(options.path_tactics_replace))
+#
+# if options.action_generator_options.asm_meson_no_params_only:
+#     logging.warning('Note: Using Meson action generator with no parameters.')
+#     action_gen = action_generator.MesonActionGenerator()
+#
+# else:
+#     predictor = get_predictor(options, config)
+#     emb_store = None
+#
+#     if options.HasField('theorem_embeddings'):
+#         emb_store = embedding_store.TheoremEmbeddingStore(predictor)
+#         emb_store.read_embeddings(str(options.theorem_embeddings))
+#         assert emb_store.thm_embeddings.shape[0] == len(theorem_database.theorems)
+#
+#     action_gen = action_generator.ActionGenerator(
+#         theorem_database, tactics, predictor, options.action_generator_options,
+#         options.model_architecture, emb_store)
