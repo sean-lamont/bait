@@ -34,6 +34,7 @@ enum Request {
 // LINT.ThenChange(//hol_light/sandboxee.ml)
 
 constexpr int kTermEncodingSExpr = 2;
+//constexpr int kTermEncodingSExpr = 1;
 }  // namespace
 
 HolLightProver::HolLightProver(Comm* comm) : comm_(comm) {

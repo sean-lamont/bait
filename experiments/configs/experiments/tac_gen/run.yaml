@@ -13,7 +13,6 @@ logging_config:
 
 trainer:
   accelerator: gpu
-  max_epochs: 1
   devices: 1
   precision: bf16-mixed
   strategy:

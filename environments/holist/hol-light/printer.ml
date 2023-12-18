@@ -635,6 +635,8 @@ let string_of_goal = print_to_string pp_print_goal;;
 (* ------------------------------------------------------------------------- *)
 
 let rec sexp_term tm =
+(*  changes to standard PP: *)
+(*  if true then Sleaf ("`" ^ string_of_term tm ^ "`") else  (* For debugging purposes *) *)
   if false then Sleaf ("`" ^ string_of_term tm ^ "`") else  (* For debugging purposes *)
   match tm with
     Var (str, ty) -> Snode [Sleaf "v"; sexp_type ty; Sleaf str]

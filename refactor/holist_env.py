@@ -48,7 +48,12 @@ def _thm_string(thm: proof_assistant_pb2.Theorem):
     Returns:
       string: Joined hypotheses and conclusion.
     """
-    return thm.hypotheses[0] + '\n'.join([str(hyp) for hyp in thm.hypotheses[1:]]) + '\n|-' + str(thm.conclusion)
+    if len(thm.hypotheses) > 1:
+        return thm.hypotheses[0] + '\n'.join([str(hyp) for hyp in thm.hypotheses[1:]]) + '\n|-' + str(thm.conclusion)
+    elif (thm.hypotheses):
+        return thm.hypotheses[0] + '\n|-' + str(thm.conclusion)
+    else:
+        return '|-' + str(thm.conclusion)
 
 
 '''
@@ -68,14 +73,14 @@ class HOListEnv:
 
         self.thm, self.database_name = thm
 
+        self.theorem_database = load_theorem_database_from_file(
+            str(self.database_name))
+
         self.premises = self.retrieve_premises()
 
     def __enter__(self):
         try:
             # todo setup docker container and multiple instances?
-            self.theorem_database = load_theorem_database_from_file(
-                str(self.database_name))
-
             self.hol_wrapper = setup_prover(self.theorem_database)
 
             logger.info('HOList dependencies initialization complete.')
@@ -116,7 +121,9 @@ class HOListEnv:
         node, theorem = self.node_map[node.goal]
 
         # todo some kind of tactic pre-processing?
+
         # tactic_ = remove_marks(tactic)
+
         holist_request = proof_assistant_pb2.ApplyTacticRequest(tactic=tactic, goal=theorem)
 
         failed = False

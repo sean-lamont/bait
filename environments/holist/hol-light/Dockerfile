@@ -27,8 +27,9 @@ RUN sudo make -C grpc/third_party/protobuf install
 
 ### Install farmhash
 RUN git clone --depth 1 https://github.com/google/farmhash &&\
-  cd farmhash &&\
+  cd farmhash && autoreconf &&\
   ./configure CXXFLAGS="-DNAMESPACE_FOR_HASH_FUNCTIONS=farmhash"
+
 RUN sudo make -C farmhash install
 
 ### Build binaries

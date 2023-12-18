@@ -62,6 +62,7 @@ class ProofAssistantServiceImpl final : public ProofAssistantService::Service {
                          const RegisterTheoremRequest* request,
                          RegisterTheoremResponse* response) override {
     std::lock_guard<std::mutex> lock(mu_);
+
     auto statusor = prover_.get()->RegisterTheorem(*request);
     if (statusor.ok()) {
       *response = statusor.ValueOrDie();
@@ -70,6 +71,7 @@ class ProofAssistantServiceImpl final : public ProofAssistantService::Service {
       return grpc::Status(static_cast<grpc::StatusCode>(status.error_code()),
                           status.error_message());
     }
+
     return Status::OK;
   }
   HolLightProverWithComm prover_;

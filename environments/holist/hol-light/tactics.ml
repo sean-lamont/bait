@@ -1086,4 +1086,6 @@ let top_thm() =
 (* Disabled for native build: #install_printer print_goal;; *)
 (* Disabled for native build: #install_printer print_goalstack;; *)
 
+Printf.printf("tactics done");
+
 Pb_printer.clear_file_tags();;

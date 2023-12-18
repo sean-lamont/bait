@@ -41,11 +41,12 @@ let proof_of_goal (g: goal) : wrapped_proof =
     Hashtbl.remove has_to_be_checked goal_fp;
     res
   with Not_found ->
+    Printf.printf "Not found %d\n%!" goal_fp;
     failwith ("No proof found for goal with index " ^ string_of_int goal_fp);;
 
 (* Call this function to 'import' a proof. *)
 let register_proof (goal_fp: int) (t: wrapped_proof) (in_core: bool) : unit =
-  (* Printf.eprintf "register_proof for %d\n%!" goal_fp; *)
+   Printf.printf "register_proof for %d\n%!" goal_fp;
   if Hashtbl.mem proof_index goal_fp then
     Printf.printf "Error in register_proof: tried to register two proofs for fingerprint %d for the same goal.\n\!" goal_fp
   else

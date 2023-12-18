@@ -27,10 +27,12 @@ RUN sudo make -C grpc/third_party/protobuf install
 
 ### Install farmhash
 RUN git clone --depth 1 https://github.com/google/farmhash &&\
-  cd farmhash &&\
+  cd farmhash && autoreconf &&\
   ./configure CXXFLAGS="-DNAMESPACE_FOR_HASH_FUNCTIONS=farmhash"
 RUN sudo make -C farmhash install
 
+ENV PROOFLOG_PB_OUTPUT="/home/opam/prooflog"
+ENV THM_DB_OUTPUT="/home/opam/thm_db"
 ### Build binaries
 COPY --chown=opam:0 . src/
 RUN make -C src check_proofs

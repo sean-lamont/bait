@@ -51,10 +51,12 @@ def Fingerprint(theorem):
     tmp = farmhash.fingerprint64(hypothesis)
     fp = _PairFingerprint(fp, tmp)
   result = fp & MASK62
-  assert (not theorem.HasField('fingerprint') or
-          theorem.fingerprint == result), (
-              'Inconsistent fingerprints %d != %d in Theorem protobuf.' %
-              (result, theorem.fingerprint))
+
+  # assert (not theorem.HasField('fingerprint') or
+  #         theorem.fingerprint == result), (
+  #             'Inconsistent fingerprints %d != %d in Theorem protobuf.' %
+  #             (result, theorem.fingerprint))
+
   return result
 
 

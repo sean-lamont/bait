@@ -12,15 +12,21 @@ external str_list_fingerprint : string -> string list -> int list -> int = "Theo
 (* Fingerprinting for terms that are not considered theorems in the ocaml     *)
 (* typesystem, but of which we know that they are theorems.                   *)
 (* USE WITH CARE!                                                             *)
+
 let to_string = str_of_sexp o sexp_term;;
+
 let term_fingerprint ((hyp_terms, concl): term list * term) : int =
   str_list_fingerprint (to_string concl) (List.map to_string hyp_terms) [];;
+  (* --- update to be agnostic of s-expression or pretty printed --- *)
+  (* str_list_fingerprint (encode_term concl) (List.map encode_term hyp_terms) [];; *)
 
 let fingerprint (th: thm) : int = term_fingerprint (dest_thm th);;
 
 let goal_fingerprint ((assum, concl): thm list * term) : int =
   let assum_fps = List.map fingerprint assum in
   str_list_fingerprint ((str_of_sexp o sexp_term) concl) [] assum_fps;;
+  (* --- update to be agnostic of s-expression or pretty printed --- *)
+  (* str_list_fingerprint (encode_term concl) [] assum_fps;; *)
 
 
 let theorem_index = Hashtbl.create 1000;;

@@ -32,8 +32,8 @@ SubprocessComm::SubprocessComm()
   std::cout << "Waiting for hol-light to get ready." << std::endl << std::flush;
   comms_.ReceiveInt();
   std::cout << "HOL Light ready.\n";
-  // Hardcode SEXP encoding.
   comms_.SendInt(kSetEncoding);
+  // Hardcode SEXP encoding with '2'. Pretty print is '1' (see sanboxee.ml)
   comms_.SendInt(2);
   if (comms_.ReceiveInt() != kOk) {
     std::cerr << "Could not set encoding.\n";
