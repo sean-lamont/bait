@@ -230,10 +230,10 @@ class PerTokenIQL(nn.Module):
     #  want to remove all terminal/state_id/action_id stuff --------------
 
     def forward(self,
-                tokens: torch.Tensor,
-                attn_mask: Optional[torch.Tensor],
-                state_ids: torch.Tensor,
-                action_ids: torch.Tensor,
+                input_ids: torch.Tensor,
+                target_ids: torch.Tensor,
+                input_attn_mask: torch.Tensor,
+                target_attn_mask: torch.Tensor,
                 qv_kwargs=None, policy_kwargs=None, target_kwargs=None,
                 skip_policy_on_train=False,
                 detach_full_policy=False
@@ -245,15 +245,18 @@ class PerTokenIQL(nn.Module):
             target_kwargs = {}
         if policy_kwargs is None:
             policy_kwargs = {}
+
         if self.lm_target is None:
             qv_kwargs.update(target_kwargs)
         if self.lm_policy is None:
             qv_kwargs.update(policy_kwargs)
 
-        input_attn_mask = attn_mask
+        input_attn_mask = input_attn_mask
 
-        model_outputs = self.model(input_ids=tokens,
+        model_outputs = self.model(input_ids=input_ids,
                                    attention_mask=input_attn_mask,
+                                   decoder_input_ids=target_ids,
+                                   decoder_attention_mask=target_attn_mask,
                                    output_hidden_states=True,
                                    **qv_kwargs)
 
@@ -263,8 +266,6 @@ class PerTokenIQL(nn.Module):
             'target_model_outputs': model_outputs
         }
 
-        # hidden_state = (batch, seq_len, |tokens|)
-
         if self.advanced_mlp:
             hidden_states = model_outputs.decoder_hidden_states[-2]
         else:
@@ -273,10 +274,12 @@ class PerTokenIQL(nn.Module):
             target_hidden_states = hidden_states
         else:
             with torch.no_grad():
-                target_outputs = self.lm_target(input_ids=tokens,
-                                                attention_mask=input_attn_mask,
-                                                output_hidden_states=True,
-                                                **target_kwargs)
+                target_outputs = self.model(input_ids=input_ids,
+                                            attention_mask=input_attn_mask,
+                                            decoder_input_ids=target_ids,
+                                            decoder_attention_mask=target_attn_mask,
+                                            output_hidden_states=True,
+                                            **qv_kwargs)
 
             all_model_outputs['target_model_outputs'] = target_outputs
 
@@ -293,35 +296,30 @@ class PerTokenIQL(nn.Module):
             else:
                 if detach_full_policy:
                     with torch.no_grad():
-                        policy_outputs = self.lm_policy(input_ids=tokens,
-                                                        attention_mask=input_attn_mask,
-                                                        output_hidden_states=True,
-                                                        **policy_kwargs)
-                else:
-                    policy_outputs = self.lm_policy(input_ids=tokens,
+                        policy_outputs = self.model(input_ids=input_ids,
                                                     attention_mask=input_attn_mask,
+                                                    decoder_input_ids=target_ids,
+                                                    decoder_attention_mask=target_attn_mask,
                                                     output_hidden_states=True,
-                                                    **policy_kwargs)
+                                                    **qv_kwargs)
+                else:
+                    policy_outputs = self.model(input_ids=input_ids,
+                                                attention_mask=input_attn_mask,
+                                                decoder_input_ids=target_ids,
+                                                decoder_attention_mask=target_attn_mask,
+                                                output_hidden_states=True,
+                                                **qv_kwargs)
 
                 all_model_outputs['policy_model_outputs'] = policy_outputs
 
                 policy_hidden_states = policy_outputs.decoder_hidden_states[-1]
 
-        # state_hidden_states = torch.gather(input=hidden_states, dim=1,
-        #                                    index=state_ids.unsqueeze(2).repeat(1, 1, self.h_dim))
-
-        # action_hidden_states = torch.gather(input=hidden_states, dim=1,
-        #                                     index=action_ids.unsqueeze(2).repeat(1, 1, self.h_dim))
-        #
-        # action_target_hidden_states = torch.gather(input=target_hidden_states, dim=1,
-        #                                            index=action_ids.unsqueeze(2).repeat(1, 1, self.h_dim))
-
-        state_hidden_states = copy.deepcopy(hidden_states)
+        state_hidden_states = hidden_states
 
         # action hidden_states will just ignore the last token (as no valid Q value)
-        action_hidden_states = copy.deepcopy(hidden_states[:, :-1, :])
+        action_hidden_states = hidden_states[:, :-1, :]
 
-        action_target_hidden_states = copy.deepcopy(hidden_states[:, :-1, :])
+        action_target_hidden_states = target_hidden_states[:, :-1, :]
 
         vs = self.v(state_hidden_states.detach() if self.detach_v else state_hidden_states).squeeze(2)
 
@@ -362,8 +360,7 @@ class PerTokenIQL(nn.Module):
     def get_weights(self,
                     tokens: torch.Tensor,
                     vs: torch.Tensor,
-                    qs: Optional[torch.Tensor],
-                    action_ids: torch.Tensor):
+                    qs: Optional[torch.Tensor],):
 
         weights = torch.full(tokens.shape, self.transition_weight).to(self.device)
 
@@ -372,6 +369,8 @@ class PerTokenIQL(nn.Module):
         else:
             adv_sign = ((qs - vs) > 0.0).float()
             w_values = self.beta * adv_sign + (1 - self.beta) * (1 - adv_sign)
+
+        action_ids = torch.arange()
 
         if action_ids.shape[1] == 0:
             n = torch.zeros((tokens.shape[0],)).long().to(self.device)
@@ -418,6 +417,7 @@ class PerTokenIQL(nn.Module):
         return ((vns * gamma + rs - qs) ** 2).sum() / vns.shape[0]
 
     def get_cql_loss(self, qs):
+        select_tokens = torch.arange()
         if self.double_q:
             q1, q2 = qs
             b, t, d = q1.shape
@@ -436,12 +436,11 @@ class PerTokenIQL(nn.Module):
         prepared_inputs = items
 
         tokens, attn_mask = prepared_inputs['tokens'], prepared_inputs['attn_mask']
+        target, target_mask = prepared_inputs['target'], prepared_inputs['target_mask']
 
         rs = prepared_inputs['rewards']
 
-        # s_idx, a_idx = prepared_inputs['state_idxs'], prepared_inputs['action_ids']
-
-        self_outputs = self(tokens, attn_mask,  # s_idx, a_idx,
+        self_outputs = self(tokens, attn_mask, target, target_mask,
                             qv_kwargs, policy_kwargs, target_kwargs,
                             **kwargs)
 
@@ -454,24 +453,10 @@ class PerTokenIQL(nn.Module):
         # values for the Q updates (ignoring first)
         vtp1 = vs[:, 1:]
 
-        # select_tokens = torch.gather(tokens[:, 1:], dim=1, index=a_idx)
-
-        # select_tokens = torch.gather(tokens[:, 1:], dim=1, index=a_idx)
-
-        cql_term = self.get_cql_loss(qs)  # , select_tokens)
-
-        # if self.double_q:
-        #     q1, q2 = qs
-        #     q1 = torch.gather(q1, dim=2, index=select_tokens.unsqueeze(2)).squeeze(2)
-        #     q2 = torch.gather(q2, dim=2, index=select_tokens.unsqueeze(2)).squeeze(2)
-        #     qs = (q1, q2,)
-        # else:
-        #     qs = torch.gather(qs, dim=2, index=select_tokens.unsqueeze(2)).squeeze(2)
-
-        # target_qs = torch.gather(target_qs, dim=2, index=select_tokens.unsqueeze(2)).squeeze(2)
+        cql_term = self.get_cql_loss(qs)
 
         with torch.no_grad():
-            weights = self.get_weights(tokens, vt, target_qs)  # , a_idx)
+            weights = self.get_weights(tokens, vt, target_qs)
 
         return {
             'tokens': tokens,
