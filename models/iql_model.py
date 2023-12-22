@@ -118,6 +118,8 @@ class PerTokenIQL(nn.Module):
 
         super().__init__()
 
+        self.device = 'cuda'
+
         self.model = model
 
         self.max_len = max_len
@@ -226,13 +228,10 @@ class PerTokenIQL(nn.Module):
             return torch.clip(values, self.value_min, self.value_max)
         return values
 
-    # todo ---------------- want to redo this all so we just pass the state and target ,
-    #  want to remove all terminal/state_id/action_id stuff --------------
-
     def forward(self,
                 input_ids: torch.Tensor,
-                target_ids: torch.Tensor,
                 input_attn_mask: torch.Tensor,
+                target_ids: torch.Tensor,
                 target_attn_mask: torch.Tensor,
                 qv_kwargs=None, policy_kwargs=None, target_kwargs=None,
                 skip_policy_on_train=False,
@@ -357,10 +356,13 @@ class PerTokenIQL(nn.Module):
         gamma_tensor = torch.triu(gamma_row.unsqueeze(1) / gamma_row.unsqueeze(2))
         return (gamma_tensor * rs.unsqueeze(1)).sum(dim=2)
 
+    # retrieve token weightings from advantage estimates, with self.transition_weight for non-action tokens
     def get_weights(self,
                     tokens: torch.Tensor,
                     vs: torch.Tensor,
-                    qs: Optional[torch.Tensor],):
+                    qs: torch.Tensor,
+                    action_ids: torch.Tensor
+                    ):
 
         weights = torch.full(tokens.shape, self.transition_weight).to(self.device)
 
@@ -370,8 +372,6 @@ class PerTokenIQL(nn.Module):
             adv_sign = ((qs - vs) > 0.0).float()
             w_values = self.beta * adv_sign + (1 - self.beta) * (1 - adv_sign)
 
-        action_ids = torch.arange()
-
         if action_ids.shape[1] == 0:
             n = torch.zeros((tokens.shape[0],)).long().to(self.device)
         else:
@@ -379,7 +379,7 @@ class PerTokenIQL(nn.Module):
 
         for i in range(tokens.shape[0]):
             # updates weights[i] at inds action_ids[i, :n[i]] with w_values[i, :n[i]]
-            # keeping non action_ids as transition_weight?
+            # keeping non action_ids as transition_weight
             weights[i] = torch.scatter(weights[i], dim=0, index=action_ids[i, :n[i]], src=w_values[i, :n[i]])
 
         if self.clip_weight is not None:
@@ -388,7 +388,7 @@ class PerTokenIQL(nn.Module):
         return weights
 
     # Advantage Weighted Actor Critic (AWAC, https://arxiv.org/pdf/2006.09359.pdf)
-    # Looks like it's used to train the behavioural model
+    # Used to train the behavioural model \pi_{\beta}
     def awac_loss(self, tokens, attn_mask, logits, w):
         w = w.detach()
 
@@ -416,14 +416,13 @@ class PerTokenIQL(nn.Module):
 
         return ((vns * gamma + rs - qs) ** 2).sum() / vns.shape[0]
 
-    def get_cql_loss(self, qs):
-        select_tokens = torch.arange()
+    def get_cql_loss(self, qs, select_tokens):
         if self.double_q:
             q1, q2 = qs
             b, t, d = q1.shape
 
-            return (F.cross_entropy(qs.reshape(-1, d) / self.cql_temp, select_tokens.reshape(-1), reduction='sum') + (
-                F.cross_entropy(qs.reshape(-1, d) / self.cql_temp, select_tokens.reshape(-1), reduction='sum'))) / b
+            return (F.cross_entropy(q1.reshape(-1, d) / self.cql_temp, select_tokens.reshape(-1), reduction='sum') + (
+                F.cross_entropy(q2.reshape(-1, d) / self.cql_temp, select_tokens.reshape(-1), reduction='sum'))) / b
 
         b, t, d = qs.shape
 
@@ -453,14 +452,40 @@ class PerTokenIQL(nn.Module):
         # values for the Q updates (ignoring first)
         vtp1 = vs[:, 1:]
 
-        cql_term = self.get_cql_loss(qs)
+        # set action_ids as the non-masked target indices
+        b, t = vt.shape
+
+        action_ids = torch.arange(0, t, device=self.device).repeat(b)
+
+        action_ids = action_ids * target_mask[:, :-1]
+
+        select_tokens = torch.gather(target[:, 1:], dim=1, index=action_ids)
+
+        cql_term = self.get_cql_loss(qs, select_tokens)
+
+        if self.double_q:
+            q1, q2 = qs
+            q1 = torch.gather(q1, dim=2, index=select_tokens.unsqueeze(2)).squeeze(2)
+            q2 = torch.gather(q2, dim=2, index=select_tokens.unsqueeze(2)).squeeze(2)
+            qs = (q1, q2,)
+            # tok_seq = [self.tokenizer.decode([token]) for token in select_tokens[0].detach().cpu().tolist()]
+            # max_q_seq = torch.max(q1, q2)[0, :].detach().cpu().tolist()
+            # print(self.tokenizer.decode(tokens[0, :][:attn_mask[0, :].sum().long()].tolist(),
+            #                             clean_up_tokenization_spaces=False))
+            # print(list(zip(tok_seq, max_q_seq)))
+            # print(rs)
+        else:
+            qs = torch.gather(qs, dim=2, index=select_tokens.unsqueeze(2)).squeeze(2)
+
+        target_qs = torch.gather(target_qs, dim=2, index=action_ids.unsqueeze(2)).squeeze(2)
 
         with torch.no_grad():
-            weights = self.get_weights(tokens, vt, target_qs)
+            weights = self.get_weights(target, vt, target_qs, action_ids)
 
         return {
-            'tokens': tokens,
-            'attn_mask': attn_mask,
+            # tokens used are the targets
+            'tokens': target,
+            'attn_mask': target_mask,
             'model_outputs': model_outputs,
             'vs': vt,
             'qs': qs,
@@ -496,20 +521,25 @@ class PerTokenIQL(nn.Module):
 
         vns, target_qs, rs = get_qvs_outputs['vns'], get_qvs_outputs['target_qs'], get_qvs_outputs['rs']
 
-        terminals, logits, weights = get_qvs_outputs['terminals'], get_qvs_outputs['logits'], get_qvs_outputs['weights']
+        logits, weights = get_qvs_outputs['logits'], get_qvs_outputs['weights']
 
         rs_downstream = self.get_downstream_rs(rs, self.gamma)
 
         if mc_returns:
-            v_loss = self.get_v_loss(vs, rs_downstream, terminals)
+            v_loss = self.get_v_loss(vs, rs_downstream)
         else:
-            v_loss = self.get_v_loss(vs, target_qs, terminals)
+            v_loss = self.get_v_loss(vs, target_qs)
 
-        q_loss = self.get_q_loss(vns, qs, rs, self.gamma, terminals)
+        q_loss = self.get_q_loss(vns, qs, rs, self.gamma)
 
         cql_loss = get_qvs_outputs['cql_term']
 
         token_loss = self.awac_loss(tokens, attn_mask, logits, weights)
+
+        # self.log({'v_loss': v_loss,
+        #           'q_loss': q_loss,
+        #           'cql_loss': cql_loss,
+        #           'token_loss': token_loss})
 
         loss = awac_weight * token_loss + v_loss_weight * v_loss + q_loss_weight * q_loss + cql_loss_weight * cql_loss
 
