@@ -7,7 +7,7 @@ import torch
 from pymongo import MongoClient
 from tqdm import tqdm
 
-from refactor.proof_node import InternalNode, ErrorNode, ProofFinishedNode
+from refactor.proof_node import InternalNode, ErrorNode, ProofFinishedNode, Status
 
 
 def get_traces(path):
@@ -49,7 +49,12 @@ def full_trace_data(trace, visits):
             'tac_prob': edge.tac_logprob,
             'distance_to_proof': edge.distance_to_proof(),
             'visits': edge.visit_count(),
-            'time': edge.time, }
+            'time': edge.time,
+            # whether all goals in context are proven
+            # (note: doesn't consider edge case when top goal proven, but this sub-tree isn't )
+            'top_proven': trace.tree.status == Status.PROVED}
+
+
         # add children of edge
         if len(edge.dst) == 1 and isinstance(edge.dst[0], ErrorNode):
             # todo could record error message for e.g. self-correcting proof approach>
@@ -115,6 +120,7 @@ def transform_goal_proven(goal_datum, visit_threshold=256):
         return {'goal': goal_datum['goal'], 'target': 0}
     else:
         return None
+
 
 def transform_subgoal_proven(subgoal_data, visit_threshold=1024):
     proof_len = subgoal_data['distance_to_proof']
@@ -219,14 +225,16 @@ def rank_edges(goal, edges):
     invalid_edges = [edge for edge in edges if isinstance(edge.dst[0], ErrorNode)]
 
     # rank all valid_edges above all invalid_edges
-    w_l = [{'goal': goal, 'winner': w.tactic, 'winner_prob': w.tac_logprob, 'loser': l.tactic, 'loser_prob': l.tac_logprob,
-            'type': 'valid_rank'} for w in valid_edges for l in invalid_edges]
+    w_l = [
+        {'goal': goal, 'winner': w.tactic, 'winner_prob': w.tac_logprob, 'loser': l.tactic, 'loser_prob': l.tac_logprob,
+         'type': 'valid_rank'} for w in valid_edges for l in invalid_edges]
 
     # from valid_edges, rank proven goals above non_proven valid goals
     proven_edges = [edge for edge in valid_edges if edge.distance_to_proof() < math.inf]
     success_non_proven_edges = [edge for edge in valid_edges if edge.distance_to_proof() == math.inf]
 
-    w_l.extend([{'goal': goal, 'winner': w.tactic, 'winner_prob': w.tac_logprob, 'loser': l.tactic, 'loser_prob': l.tac_logprob,
+    w_l.extend([{'goal': goal, 'winner': w.tactic, 'winner_prob': w.tac_logprob, 'loser': l.tactic,
+                 'loser_prob': l.tac_logprob,
                  'type': 'proven_rank'} for w in proven_edges for l in success_non_proven_edges])
 
     # from proven edges, rank based on distance_to_proof, then execution time
@@ -269,7 +277,7 @@ def rank_edges(goal, edges):
 if __name__ == '__main__':
 
     client = MongoClient()
-    db = client['lean_e2e']
+    db = client['leandojo_initial']
 
     # todo how to merge different attempts of same proof?
     # For goal data, if proof length is lower, take that data point. If failed, and visit count higher, replace with that as well
@@ -282,7 +290,7 @@ if __name__ == '__main__':
 
     # Seems small/unlikely for this to make much of a difference. Worst case is a longer proof is ranked better than a shorter/slower one
 
-    traces = get_traces('../experiments/runs/leandojo/sample_bestfs_2_2023_11_30/15_32_02/traces/*')
+    traces = get_traces('../experiments/runs/original_reprover/original_reprover_2023_12_10/20_32_14/traces/*')
 
     rank_collection = db['dpo_data']
     goal_collection = db['goal_data']
@@ -317,19 +325,22 @@ if __name__ == '__main__':
             goal_collection.insert_many(goal_data)
 
         # add edge ranking data for DPO
-        for node in nodes.values():
-            if node.out_edges:
-                rank_edges_new(goal=node.goal, edges=node.out_edges)
+        # for node in nodes.values():
+        #     if node.out_edges:
+        #         rank_edges_new(goal=node.goal, edges=node.out_edges)
 
     logger.info(f'Adding processed goal data..')
 
     # add processed data for goal models
-    for datum in tqdm(goal_collection.find()):
-        proven_data = transform_goal_smooth(datum)
-        if proven_data:
-            goal_labels.insert_one(proven_data)
+    # for datum in tqdm(goal_collection.find()):
+    #     proven_data = transform_goal_smooth(datum)
+    #     if proven_data:
+    #         goal_labels.insert_one(proven_data)
 
     logger.info(f'Adding random field to enable shuffled, streamed dataloading..')
     # add random index for collections used in training (ensures shuffled and ordered data for distributed training)
-    add_rand_idx(goal_labels)
-    add_rand_idx(rank_collection)
+    # add_rand_idx(goal_labels)
+    # add_rand_idx(rank_collection)
+
+    add_rand_idx(trace_collection)
+    add_rand_idx(goal_collection)

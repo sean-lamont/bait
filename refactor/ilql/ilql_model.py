@@ -1,12 +1,18 @@
 import copy
 import math
-from typing import Callable, Optional, List
+from typing import Callable
+from typing import Dict, Any, Optional, List
 
+import lightning.pytorch as pl
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from loguru import logger
 from transformers.modeling_utils import PreTrainedModel
+
+from refactor.common import get_optimizers, load_checkpoint
+from refactor.dpo.model import GenTacModel
 
 select_batch_idxs = lambda x, idxs: torch.gather(x, dim=0, index=idxs.repeat(*x.shape[1:], 1).permute(len(x.shape) - 1,
                                                                                                       *list(range(
@@ -92,58 +98,29 @@ class TransformerMLP(nn.Module):
             self.ln2(x + F.dropout(self.ff2(F.gelu(self.ff1(self.ln1(x)))), p=self.dropout, training=self.training)))
 
 
-class PerTokenIQL(nn.Module):
-    def __init__(self,
-                 model: PreTrainedModel,
-                 tokenizer,
-                 alpha: float = 0.005,
-                 gamma=1.0,
-                 beta=1.0,
-                 transition_weight=0.0,
-                 clip_weight: Optional[float] = None,
-                 value_max: Optional[float] = None,
-                 value_min: Optional[float] = None,
-                 detach_v: bool = False,
-                 detach_pi: bool = False,
-                 detach_q: bool = False,
-                 double_q: bool = True,
-                 tau: float = 0.9,
-                 seperate_policy: bool = True,
-                 seperate_target: bool = True,
-                 exp_weights: bool = True,
-                 advanced_mlp: bool = False,
-                 cql_temp: float = 1.0,
-                 max_len: int = 2048,
-                 ):
+class PerTokenIQL(GenTacModel):
+    def __init__(self, config):
+        super().__init__(config)
 
-        super().__init__()
+        self.h_dim = self.generator.config.d_model
 
-        self.device = 'cuda'
-
-        self.model = model
-
-        self.max_len = max_len
-
-        self.h_dim = self.model.config.d_model
-
-        self.alpha = alpha
-        self.gamma = gamma
-        self.beta = beta
-        self.transition_weight = transition_weight
-        self.clip_weight = clip_weight
-        self.value_max = value_max
-        self.value_min = value_min
-        self.detach_v = detach_v
-        self.detach_pi = detach_pi
-        self.detach_q = detach_q
-        self.double_q = double_q
-        self.tau = tau
-        self.seperate_policy = seperate_policy
-        self.seperate_target = seperate_target
-        self.exp_weights = exp_weights
-        self.advanced_mlp = advanced_mlp
-        self.cql_temp = cql_temp
-        self.tokenizer = tokenizer
+        self.alpha = config.alpha
+        self.gamma = config.gamma
+        self.beta = config.beta
+        self.transition_weight = config.transition_weight
+        self.clip_weight = config.clip_weight
+        self.value_max = config.value_max
+        self.value_min = config.value_min
+        self.detach_v = config.detach_v
+        self.detach_pi = config.detach_pi
+        self.detach_q = config.detach_q
+        self.double_q = config.double_q
+        self.tau = config.tau
+        self.separate_policy = config.separate_policy
+        self.separate_target = config.separate_target
+        self.exp_weights = config.exp_weights
+        self.advanced_mlp = config.advanced_mlp
+        self.cql_temp = config.cql_temp
 
         if not self.advanced_mlp:
             self.v = nn.Sequential(
@@ -153,8 +130,8 @@ class PerTokenIQL(nn.Module):
             )
         else:
             self.v = TransformerMLP(self.h_dim,
-                                    4 * self.h_dim if self.model.config.n_inner is None else self.model.config.n_inner,
-                                    1, self.model.config.resid_pdrop)
+                                    4 * self.h_dim if self.generator.config.n_inner is None else self.generator.config.n_inner,
+                                    1, self.generator.config.resid_pdrop)
         if not self.advanced_mlp:
             self.q = nn.Sequential(
                 nn.Linear(self.h_dim, self.h_dim * 2),
@@ -163,8 +140,8 @@ class PerTokenIQL(nn.Module):
             )
         else:
             self.q = TransformerMLP(self.h_dim,
-                                    4 * self.h_dim if self.model.config.n_inner is None else self.model.config.n_inner,
-                                    self.tokenizer.vocab_size, self.model.config.resid_pdrop)
+                                    4 * self.h_dim if self.generator.config.n_inner is None else self.generator.config.n_inner,
+                                    self.tokenizer.vocab_size, self.generator.config.resid_pdrop)
         if self.double_q:
             if not self.advanced_mlp:
                 self.q2 = nn.Sequential(
@@ -174,9 +151,9 @@ class PerTokenIQL(nn.Module):
                 )
             else:
                 self.q2 = TransformerMLP(self.h_dim,
-                                         4 * self.h_dim if self.model.config.n_inner is None else self.model.config.n_inner,
+                                         4 * self.h_dim if self.generator.config.n_inner is None else self.generator.config.n_inner,
                                          self.tokenizer.vocab_size,
-                                         self.model.config.resid_pdrop)
+                                         self.generator.config.resid_pdrop)
         if not self.advanced_mlp:
             self.target_q = nn.Sequential(
                 nn.Linear(self.h_dim, self.h_dim * 2),
@@ -185,9 +162,9 @@ class PerTokenIQL(nn.Module):
             )
         else:
             self.target_q = TransformerMLP(self.h_dim,
-                                           4 * self.h_dim if self.model.config.n_inner is None else self.model.config.n_inner,
+                                           4 * self.h_dim if self.generator.config.n_inner is None else self.generator.config.n_inner,
                                            self.tokenizer.vocab_size,
-                                           self.model.config.resid_pdrop)
+                                           self.generator.config.resid_pdrop)
         if self.double_q:
             if not self.advanced_mlp:
                 self.target_q2 = nn.Sequential(
@@ -197,9 +174,9 @@ class PerTokenIQL(nn.Module):
                 )
             else:
                 self.target_q2 = TransformerMLP(self.h_dim,
-                                                4 * self.h_dim if self.model.config.n_inner is None else self.model.config.n_inner,
+                                                4 * self.h_dim if self.generator.config.n_inner is None else self.generator.config.n_inner,
                                                 self.tokenizer.vocab_size,
-                                                self.model.config.resid_pdrop)
+                                                self.generator.config.resid_pdrop)
 
         for target_param, local_param in zip(self.target_q.parameters(), self.q.parameters()):
             target_param.data.copy_(local_param.data)
@@ -208,18 +185,18 @@ class PerTokenIQL(nn.Module):
             for target_param, local_param in zip(self.target_q2.parameters(), self.q2.parameters()):
                 target_param.data.copy_(local_param.data)
 
-        if self.seperate_target:
-            self.lm_target = copy.deepcopy(self.model)
+        if self.separate_target:
+            self.lm_target = copy.deepcopy(self.generator)
         else:
             self.lm_target = None
 
-        if self.seperate_policy:
-            self.lm_policy = copy.deepcopy(self.model)
+        if self.separate_policy:
+            self.lm_policy = copy.deepcopy(self.generator)
         else:
             self.lm_policy = None
 
         if self.lm_policy is None:
-            self.pi = self.model.lm_head
+            self.pi = self.generator.lm_head
         else:
             self.pi = self.lm_policy.lm_head
 
@@ -227,6 +204,95 @@ class PerTokenIQL(nn.Module):
         if self.value_min is not None or self.value_max is not None:
             return torch.clip(values, self.value_min, self.value_max)
         return values
+
+    @classmethod
+    def load(cls, ckpt_path: str, device, freeze: bool):
+        return load_checkpoint(cls, ckpt_path, device, freeze)
+
+    def configure_optimizers(self) -> Dict[str, Any]:
+        return get_optimizers(
+            self.parameters(), self.trainer, self.lr, self.warmup_steps
+        )
+
+    # todo generation
+
+    def on_fit_start(self) -> None:
+        if self.logger is not None and self.global_rank == 0:
+            self.logger.log_hyperparams(self.hparams)
+            assert self.trainer is not None
+            logger.info(f"Logging to {self.trainer.log_dir}")
+
+    def training_step(self, batch, batch_idx: int):
+        loss, (v_loss, q_loss, cql_loss, token_loss) = self.get_loss(batch)
+
+        self.log_dict({'train_v_loss': v_loss,
+                       'train_q_loss': q_loss,
+                       'train_cql_loss': cql_loss,
+                       'train_token_loss': token_loss},
+                      on_step=True,
+                      on_epoch=True,
+                      sync_dist=True,
+                      batch_size=len(batch),
+                      prog_bar=True)
+
+        self.log(
+            "loss_train",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
+        )
+
+        self.log(
+            "loss_train",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
+        )
+
+        return loss
+
+    def run_eval(self) -> None:
+        pass
+
+    def validation_step(self, batch, batch_idx: int):
+        loss, (v_loss, q_loss, cql_loss, token_loss) = self.get_loss(batch)
+        self.log(
+            "loss_val",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
+        )
+
+        self.log(
+            "loss_val",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
+        )
+
+        self.log_dict({'val_v_loss': v_loss,
+                       'val_q_loss': q_loss,
+                       'val_cql_loss': cql_loss,
+                       'val_token_loss': token_loss},
+                      on_step=True,
+                      on_epoch=True,
+                      sync_dist=True,
+                      batch_size=len(batch),
+                      prog_bar=True)
+
+        return loss
 
     def forward(self,
                 input_ids: torch.Tensor,
@@ -252,12 +318,12 @@ class PerTokenIQL(nn.Module):
 
         input_attn_mask = input_attn_mask
 
-        model_outputs = self.model(input_ids=input_ids,
-                                   attention_mask=input_attn_mask,
-                                   decoder_input_ids=target_ids,
-                                   decoder_attention_mask=target_attn_mask,
-                                   output_hidden_states=True,
-                                   **qv_kwargs)
+        model_outputs = self.generator(input_ids=input_ids,
+                                       attention_mask=input_attn_mask,
+                                       decoder_input_ids=target_ids,
+                                       decoder_attention_mask=target_attn_mask,
+                                       output_hidden_states=True,
+                                       **qv_kwargs)
 
         all_model_outputs = {
             'qv_model_outputs': model_outputs,
@@ -273,12 +339,12 @@ class PerTokenIQL(nn.Module):
             target_hidden_states = hidden_states
         else:
             with torch.no_grad():
-                target_outputs = self.model(input_ids=input_ids,
-                                            attention_mask=input_attn_mask,
-                                            decoder_input_ids=target_ids,
-                                            decoder_attention_mask=target_attn_mask,
-                                            output_hidden_states=True,
-                                            **qv_kwargs)
+                target_outputs = self.generator(input_ids=input_ids,
+                                                attention_mask=input_attn_mask,
+                                                decoder_input_ids=target_ids,
+                                                decoder_attention_mask=target_attn_mask,
+                                                output_hidden_states=True,
+                                                **qv_kwargs)
 
             all_model_outputs['target_model_outputs'] = target_outputs
 
@@ -295,19 +361,19 @@ class PerTokenIQL(nn.Module):
             else:
                 if detach_full_policy:
                     with torch.no_grad():
-                        policy_outputs = self.model(input_ids=input_ids,
+                        policy_outputs = self.generator(input_ids=input_ids,
+                                                        attention_mask=input_attn_mask,
+                                                        decoder_input_ids=target_ids,
+                                                        decoder_attention_mask=target_attn_mask,
+                                                        output_hidden_states=True,
+                                                        **qv_kwargs)
+                else:
+                    policy_outputs = self.generator(input_ids=input_ids,
                                                     attention_mask=input_attn_mask,
                                                     decoder_input_ids=target_ids,
                                                     decoder_attention_mask=target_attn_mask,
                                                     output_hidden_states=True,
                                                     **qv_kwargs)
-                else:
-                    policy_outputs = self.model(input_ids=input_ids,
-                                                attention_mask=input_attn_mask,
-                                                decoder_input_ids=target_ids,
-                                                decoder_attention_mask=target_attn_mask,
-                                                output_hidden_states=True,
-                                                **qv_kwargs)
 
                 all_model_outputs['policy_model_outputs'] = policy_outputs
 
@@ -364,13 +430,13 @@ class PerTokenIQL(nn.Module):
                     action_ids: torch.Tensor
                     ):
 
-        weights = torch.full(tokens.shape, self.transition_weight).to(self.device)
-
         if self.exp_weights:
             w_values = torch.exp(self.beta * (qs - vs))
         else:
             adv_sign = ((qs - vs) > 0.0).float()
             w_values = self.beta * adv_sign + (1 - self.beta) * (1 - adv_sign)
+
+        weights = torch.full(tokens.shape, self.transition_weight, dtype=w_values.dtype).to(self.device)
 
         if action_ids.shape[1] == 0:
             n = torch.zeros((tokens.shape[0],)).long().to(self.device)
@@ -399,34 +465,37 @@ class PerTokenIQL(nn.Module):
 
         return (losses * w[:, :-1] * attn_mask[:, 1:]).sum() / attn_mask[:, 1:].sum()
 
-    def get_v_loss(self, vs, target_qs):
+    def get_v_loss(self, vs, target_qs, terminals):
         target_qs = target_qs.detach()
-
         return (((target_qs >= vs).int() * self.tau * (target_qs - vs) ** 2 + (target_qs < vs).int() * (
-                1 - self.tau) * (target_qs - vs) ** 2)).sum() / max(vs.shape[0], 1.0)
+                    1 - self.tau) * (target_qs - vs) ** 2) * (1 - terminals[:, :-1])).sum() / max(
+            (1 - terminals[:, :-1]).sum().item(), 1.0)
 
-    def get_q_loss(self, vns, qs, rs, gamma):
+    def get_q_loss(self, vns, qs, rs, gamma, terminals):
         vns = vns.detach()
-
         if self.double_q:
             q1, q2 = qs
-            l1 = ((vns * gamma + rs - q1) ** 2).sum() / vns.shape[0]
-            l2 = ((vns * gamma + rs - q2) ** 2).sum() / vns.shape[0]
+            l1 = ((((1 - terminals[:, 1:]) * vns * gamma + rs - q1) ** 2) * (1 - terminals[:, :-1])).sum() / max(
+                (1 - terminals[:, :-1]).sum().item(), 1.0)
+            l2 = ((((1 - terminals[:, 1:]) * vns * gamma + rs - q2) ** 2) * (1 - terminals[:, :-1])).sum() / max(
+                (1 - terminals[:, :-1]).sum().item(), 1.0)
             return l1 + l2
+        return ((((1 - terminals[:, 1:]) * vns * gamma + rs - qs) ** 2) * (1 - terminals[:, :-1])).sum() / max(
+            (1 - terminals[:, :-1]).sum().item(), 1.0)
 
-        return ((vns * gamma + rs - qs) ** 2).sum() / vns.shape[0]
-
-    def get_cql_loss(self, qs, select_tokens):
+    def get_cql_loss(self, qs, action_tokens, terminals):
+        n = (1 - terminals[:, :-1]).sum()
         if self.double_q:
             q1, q2 = qs
             b, t, d = q1.shape
-
-            return (F.cross_entropy(q1.reshape(-1, d) / self.cql_temp, select_tokens.reshape(-1), reduction='sum') + (
-                F.cross_entropy(q2.reshape(-1, d) / self.cql_temp, select_tokens.reshape(-1), reduction='sum'))) / b
-
+            return ((F.cross_entropy(q1.reshape(-1, d) / self.cql_temp, action_tokens.reshape(-1),
+                                     reduction='none').reshape(b, t) * (1 - terminals[:, :-1])) + (
+                                F.cross_entropy(q2.reshape(-1, d) / self.cql_temp, action_tokens.reshape(-1),
+                                                reduction='none').reshape(b, t) * (1 - terminals[:, :-1]))).sum() / max(
+                n.item(), 1.0)
         b, t, d = qs.shape
-
-        return F.cross_entropy(qs.reshape(-1, d) / self.cql_temp, select_tokens.reshape(-1), reduction='mean')
+        return (F.cross_entropy(qs.reshape(-1, d) / self.cql_temp, action_tokens.reshape(-1), reduction='none').reshape(
+            b, t) * (1 - terminals[:, :-1])).sum() / max(n.item(), 1.0)
 
     def get_qvs(self, items,
                 qv_kwargs=None, policy_kwargs=None, target_kwargs=None,
@@ -455,13 +524,17 @@ class PerTokenIQL(nn.Module):
         # set action_ids as the non-masked target indices
         b, t = vt.shape
 
-        action_ids = torch.arange(0, t, device=self.device).repeat(b)
+        action_ids = torch.arange(0, t, device=self.device).repeat(b, 1)
 
         action_ids = action_ids * target_mask[:, :-1]
 
         select_tokens = torch.gather(target[:, 1:], dim=1, index=action_ids)
 
-        cql_term = self.get_cql_loss(qs, select_tokens)
+        # want terminals to be 0 for sequence length in each sample, then 1 for remainder
+        # hence it is the opposite of attn_mask
+        terminals = torch.abs(1 - target_mask)
+
+        cql_term = self.get_cql_loss(qs, select_tokens, terminals)
 
         if self.double_q:
             q1, q2 = qs
@@ -477,7 +550,7 @@ class PerTokenIQL(nn.Module):
         else:
             qs = torch.gather(qs, dim=2, index=select_tokens.unsqueeze(2)).squeeze(2)
 
-        target_qs = torch.gather(target_qs, dim=2, index=action_ids.unsqueeze(2)).squeeze(2)
+        target_qs = torch.gather(target_qs, dim=2, index=select_tokens.unsqueeze(2)).squeeze(2)
 
         with torch.no_grad():
             weights = self.get_weights(target, vt, target_qs, action_ids)
@@ -497,6 +570,7 @@ class PerTokenIQL(nn.Module):
             'logits': logits,
             'weights': weights,
             'cql_term': cql_term,
+            'terminals': terminals
         }
 
     def get_loss(self,
@@ -523,27 +597,24 @@ class PerTokenIQL(nn.Module):
 
         logits, weights = get_qvs_outputs['logits'], get_qvs_outputs['weights']
 
+        terminals = get_qvs_outputs['terminals']
+
         rs_downstream = self.get_downstream_rs(rs, self.gamma)
 
         if mc_returns:
-            v_loss = self.get_v_loss(vs, rs_downstream)
+            v_loss = self.get_v_loss(vs, rs_downstream, terminals)
         else:
-            v_loss = self.get_v_loss(vs, target_qs)
+            v_loss = self.get_v_loss(vs, target_qs, terminals)
 
-        q_loss = self.get_q_loss(vns, qs, rs, self.gamma)
+        q_loss = self.get_q_loss(vns, qs, rs, self.gamma, terminals)
 
         cql_loss = get_qvs_outputs['cql_term']
 
         token_loss = self.awac_loss(tokens, attn_mask, logits, weights)
 
-        # self.log({'v_loss': v_loss,
-        #           'q_loss': q_loss,
-        #           'cql_loss': cql_loss,
-        #           'token_loss': token_loss})
-
         loss = awac_weight * token_loss + v_loss_weight * v_loss + q_loss_weight * q_loss + cql_loss_weight * cql_loss
 
-        return loss
+        return loss, (v_loss, q_loss, cql_loss, token_loss)
 
 
 class IQL_Policy:
