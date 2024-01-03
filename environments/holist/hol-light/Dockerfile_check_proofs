@@ -35,5 +35,8 @@ ENV PROOFLOG_PB_OUTPUT="/home/opam/prooflog"
 ENV THM_DB_OUTPUT="/home/opam/thm_db"
 ### Build binaries
 COPY --chown=opam:0 . src/
-RUN make -C src check_proofs
-CMD ["./src/check_proofs"]
+#RUN make -C src check_proofs
+RUN make -C src complex
+#CMD ["./src/check_proofs && /bin/bash"]
+# Run ./src/complex/ then copy files from PROOFLOG_PB_OUTPUT/THM_DM_OUTPUT using docker cp in another terminal
+CMD ["/bin/bash"]

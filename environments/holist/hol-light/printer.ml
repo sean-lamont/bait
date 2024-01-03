@@ -634,6 +634,9 @@ let string_of_goal = print_to_string pp_print_goal;;
 (* Parseable S-Expression printers                                           *)
 (* ------------------------------------------------------------------------- *)
 
+
+let rec new_pp_goal tm = Sleaf ("`" ^ string_of_term tm ^ "`");;
+
 let rec sexp_term tm =
 (*  changes to standard PP: *)
 (*  if true then Sleaf ("`" ^ string_of_term tm ^ "`") else  (* For debugging purposes *) *)

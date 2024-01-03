@@ -22,8 +22,8 @@ trainer:
     cpu_checkpointing: false
     logging_batch_size_per_gpu: 1
   gradient_clip_val: 1.0
-  max_steps: 500000
-  val_check_interval: 10000
+  max_steps: 10_000_000
+  val_check_interval: 10_000
   limit_val_batches: 5000
   callbacks:
     - _target_: lightning.pytorch.callbacks.LearningRateMonitor

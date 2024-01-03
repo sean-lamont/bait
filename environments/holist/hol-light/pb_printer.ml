@@ -31,6 +31,12 @@ let escape_backslashes : string -> string =
 
 let pp_print_string fmt s = pp_print_string fmt (escape_backslashes s);;
 
+
+let pb_string_of_goal th : string =
+  let th_string = string_of_goal th in
+  let no_newlines = Str.global_replace (Str.regexp "\n") " " th_string in
+  Str.global_replace (Str.regexp "  ") " " no_newlines;;
+
 let pb_string_of_thm (th: thm) : string =
   let th_string = string_of_thm th in
   let no_newlines = Str.global_replace (Str.regexp "\n") " " th_string in
@@ -57,9 +63,14 @@ let print_goal_pb (fmt: Format.formatter)
       (Theorem_fingerprint.term_fingerprint (assumptions, conclusion));
   List.iter
       (fun asm ->
-        print_sexp_pb_field fmt "hypotheses" (sexp_term asm))
+        print_sexp_pb_field fmt " hypotheses" (sexp_term asm))
       assumptions;
   print_sexp_pb_field fmt " conclusion" (sexp_term conclusion);
+(*  List.iter *)
+(*      (fun asm -> *)
+(*        print_sexp_pb_field fmt " hyps_pp" (new_pp_goal asm)) *)
+(*      assumptions; *)
+(*  print_sexp_pb_field fmt " goal_pp" (new_pp_goal conclusion); *)
   pp_print_string fmt (" tag: " ^ tag);
   match tag with
     "DEFINITION" -> (

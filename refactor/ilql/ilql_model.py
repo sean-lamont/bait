@@ -578,7 +578,7 @@ class PerTokenIQL(GenTacModel):
                  awac_weight=1.0,
                  v_loss_weight=1.0,
                  q_loss_weight=1.0,
-                 cql_loss_weight=0.25,  # 1e-4
+                 cql_loss_weight=1e-4,
                  mc_returns=False):
 
         get_qvs_outputs = self.get_qvs(items,

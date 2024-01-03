@@ -47,6 +47,14 @@
     - If we can get PP human labelled data, then would be a better platform.
      Still restricted by the number and type of tactics, but should be much more concise than s-expressions
 
+## Status
+- Environment gives PP expressions for both goals and theorems
+- Can get these for human proof logs as well, although it is some effort to get this running nicely 
+- Core and complex seem to come built in, and covered in the Makefile. 
+- Flyspeck is covered in `https://github.com/flyspeck/flyspeck/`
+  - Can look at the original theorem database to collect which theorems are necessary, however then have to build 
+  all of these within the docker container
+
 # HOL4
 - Should be much simpler, get_premises can come from gen_fact_pool
 - Remove all reward handling for now

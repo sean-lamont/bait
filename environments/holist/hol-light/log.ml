@@ -690,6 +690,11 @@ let print_tactic_application_pb
       match pl with Proof_log (subgoal, _, _) ->
         pp_print_string fmt " subgoals {";
         print_goal_pb fmt (goal_to_tuple subgoal) "GOAL" (fun _ -> ());
+
+        pp_print_string fmt " pretty_printed: ";
+        pp_print_string fmt (string_of_goal subgoal);
+        pp_print_string fmt " ";
+
         pp_print_string fmt "}"
     ) subgoals;
   pp_print_string fmt " result: SUCCESS";
@@ -711,6 +716,11 @@ let rec print_prooflog_pb
     pp_print_string fmt "nodes {";
     pp_print_string fmt " goal {";
     print_goal_pb fmt (goal_to_tuple g) "GOAL" (fun _ -> ());
+
+    pp_print_string fmt " pretty_printed: ";
+    pp_print_string fmt (string_of_goal g);
+    pp_print_string fmt " ";
+
     pp_print_string fmt "}";
     pp_print_string fmt " status: PROVED";
     print_tactic_application_pb fmt tl subgoals;
