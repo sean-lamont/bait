@@ -36,7 +36,6 @@ from refactor.tac_models import get_tac_model
 # todo merge refactor with original BAIT
 
 
-
 # todo move to common/utils
 def config_to_dict(conf):
     return OmegaConf.to_container(
@@ -91,7 +90,7 @@ class EndToEndProver:
         with open(f"{self.dir}/{theorem.full_name}", "wb") as f:
             pickle.dump(result, f)
 
-        return result
+        return  # result
 
     def get_tactics(self, goals, premises, tacs_per_goal=64):
         suggestions = []
@@ -167,9 +166,10 @@ class EndToEndProver:
                 root = ErrorNode(EnvironmentError(str(e)))
                 self.search_model.reset(root)
 
-        result = self._process_trace(env.thm)
+        # result = self._process_trace(env.thm)
+        self._process_trace(env.thm)
 
-        return result
+        return root.status == Status.PROVED
 
     def _search(self, env) -> None:
         try:
@@ -264,15 +264,13 @@ class DistributedProver:
             )
 
             proven = resume_proven
-            results = []
             for i, res in enumerate(results_):
                 logger.info(f'Result: {res}')
-                if res.proof:
+                if res:
                     proven += 1
                 wandb.log({'Step': i + 1 + resume_step, 'Proven': proven, 'Iteration': iteration})
-                results.append(res)
 
-            return results
+            return proven
 
         except ray.exceptions.RayActorError as ex:
             logger.error(ex)
@@ -292,7 +290,7 @@ def main(config) -> None:
 
     prev_theorems = []
     prev_proven = 0
-    results = []
+    # results = []
     if config.exp_config.resume:
         wandb.init(project=config.logging_config.project,
                    name=config.exp_config.name,
@@ -303,14 +301,24 @@ def main(config) -> None:
                    mode='offline' if config.logging_config.offline else 'online'
                    )
 
+        # prev_theorems = get_traces(config.exp_config.directory + '/traces/*')
+
         # Remove proven theorems if resuming
         final_theorems = []
         final_positions = []
 
-        prev_theorems = get_traces(config.exp_config.directory + '/traces/*')
+        trace_dir = glob.glob(config.exp_config.directory + '/traces/*')
+
+        for file in trace_dir:
+            with open(file, "rb") as f:
+                trace = pickle.load(f)
+            if trace.proof:
+                prev_proven += 1
+            prev_theorems.append(trace.theorem.full_name)
 
         for i, theorem in enumerate(theorems):
-            if theorem.full_name in [t.theorem.full_name for t in prev_theorems]:
+            # if theorem.full_name in [t.theorem.full_name for t in prev_theorems]:
+            if theorem.full_name in prev_theorems:
                 continue
             else:
                 final_theorems.append(theorem)
@@ -319,8 +327,9 @@ def main(config) -> None:
         theorems = final_theorems
         positions = final_positions
 
-        prev_proven = sum([1 if g.proof else 0 for g in prev_theorems])
-        results = prev_theorems
+        # prev_proven = sum([1 if g.proof else 0 for g in prev_theorems])
+
+        # results = prev_theorems
         logger.info(f'Resuming from {prev_proven} proofs')
     else:
         wandb.init(project=config.logging_config.project,
@@ -348,25 +357,11 @@ def main(config) -> None:
     theorems = theorems[:config.num_theorems]
 
     logger.info(f'Attempting {len(theorems)} proofs..')
-    results.extend(prover.search_unordered(theorems, iteration=0, resume_step=len(prev_theorems), resume_proven=prev_proven))
 
-
-    # Calculate the result statistics.
-    num_proved = num_failed = num_discarded = 0
-    for r in results:
-        if r is None:
-            num_discarded += 1
-        elif r.status == Status.PROVED:
-            num_proved += 1
-        else:
-            num_failed += 1
-
-    logger.info(
-        f"Iteration done! {num_proved} theorems proved, {num_failed} theorems failed, {num_discarded} non-theorems discarded"
-    )
+    num_proven = prover.search_unordered(theorems, iteration=0, resume_step=len(prev_theorems), resume_proven=prev_proven)
 
     # log as error for now, to minimise output for parent processes
-    logger.error(f"Pass@1: {num_proved / (num_proved + num_failed)}")
+    logger.error(f"Pass@1: {num_proven / config.num_theorems}")
 
     # todo add end-to-end training:
     # todo call separate process for training goal/tactic models (specify in config)
@@ -379,6 +374,7 @@ def main(config) -> None:
     # train goal/tactic models...
 
     # also would update retriever e.g. refresh embedding generation
+
 
 if __name__ == '__main__':
     main()
