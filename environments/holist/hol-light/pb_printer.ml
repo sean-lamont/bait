@@ -66,11 +66,6 @@ let print_goal_pb (fmt: Format.formatter)
         print_sexp_pb_field fmt " hypotheses" (sexp_term asm))
       assumptions;
   print_sexp_pb_field fmt " conclusion" (sexp_term conclusion);
-(*  List.iter *)
-(*      (fun asm -> *)
-(*        print_sexp_pb_field fmt " hyps_pp" (new_pp_goal asm)) *)
-(*      assumptions; *)
-(*  print_sexp_pb_field fmt " goal_pp" (new_pp_goal conclusion); *)
   pp_print_string fmt (" tag: " ^ tag);
   match tag with
     "DEFINITION" -> (

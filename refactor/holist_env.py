@@ -4,6 +4,7 @@ from typing import Tuple
 from loguru import logger
 from tqdm import tqdm
 
+from data.holist.utils import normalization_lib
 from data.holist.utils.io_util import load_theorem_database_from_file
 from data.holist.utils.theorem_fingerprint import Fingerprint
 from environments.holist import proof_assistant, proof_assistant_pb2
@@ -39,22 +40,18 @@ def setup_prover(theorem_database: proof_assistant_pb2.TheoremDatabase):
 
 # todo normalization lib? or do that in tac_gen. Seems like only normalised before running tactic
 def _thm_string(thm: proof_assistant_pb2.Theorem):
-    """Turn theorem into a string containing Hypotheses.
-     Similar format to LeanDojo.
+    # Turn theorem into a string
 
-    Args:
-      thm: Theorem to be turned into a string.
+    # if len(thm.hypotheses) > 1:
+    #     return thm.hypotheses[0] + '\n'.join([str(hyp) for hyp in thm.hypotheses[1:]]) + '\n|-' + str(thm.conclusion)
+    # elif (thm.hypotheses):
+    #     return thm.hypotheses[0] + '\n|-' + str(thm.conclusion)
+    # else:
+    #     return '|-' + str(thm.conclusion)
 
-    Returns:
-      string: Joined hypotheses and conclusion.
-    """
-    if len(thm.hypotheses) > 1:
-        return thm.hypotheses[0] + '\n'.join([str(hyp) for hyp in thm.hypotheses[1:]]) + '\n|-' + str(thm.conclusion)
-    elif (thm.hypotheses):
-        return thm.hypotheses[0] + '\n|-' + str(thm.conclusion)
-    else:
-        return '|-' + str(thm.conclusion)
+    # for now, just use normalized conclusion from original HOList model
 
+    return normalization_lib.normalize(thm).conclusion
 
 '''
 
@@ -121,7 +118,6 @@ class HOListEnv:
         node, theorem = self.node_map[node.goal]
 
         # todo some kind of tactic pre-processing?
-
         # tactic_ = remove_marks(tactic)
 
         holist_request = proof_assistant_pb2.ApplyTacticRequest(tactic=tactic, goal=theorem)

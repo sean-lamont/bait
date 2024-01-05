@@ -2,6 +2,7 @@ from torch import nn
 import einops
 import torch
 
+
 class TacticPrecdictor(nn.Module):
     def __init__(self, num_tactics, embedding_dim, dropout=0.3):
         super().__init__()
@@ -16,6 +17,7 @@ class TacticPrecdictor(nn.Module):
     def forward(self, x):
         x = self.mlp(x)
         return x
+
 
 class CombinerNetwork(nn.Module):
     def __init__(self, embedding_dim, num_tactics, tac_embed_dim, dropout=0.3):

@@ -1,4 +1,5 @@
 """Compute embeddings and predictions from a saved holparam checkpoint."""
+
 from __future__ import absolute_import
 from __future__ import division
 
@@ -153,9 +154,6 @@ class HolparamPredictor(predictions.Predictions):
         # The checkpoint should have exactly one value in this collection.
         with torch.no_grad():
             thms = self._thm_string_for_predictions(thms)
-
-            # thms_data = Batch.from_data_list(
-            #     [self.to_torch(sexpression_to_graph(t, all_data=True)) for t in thms])
 
             thms_data = [self.to_torch(sexpression_to_graph(t, type=self.config.data_config.type)) for t in thms]
 

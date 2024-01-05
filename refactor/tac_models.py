@@ -2,10 +2,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
+
 import ray
 from loguru import logger
 
+from data.holist.utils import io_util
 from refactor.dpo.model import RetrievalAugmentedGenerator, DPOTrainModule
+from refactor.holist_model import action_generator, embedding_store, holparam_predictor
 from refactor.proof_node import *
 
 
@@ -40,9 +44,10 @@ class ReProverTacGen(TacModel):
 
 
 # todo better loading for LoRA
-# todo add non-generative models
+
 def get_tac_model(config, device):
     if config.model == 'reprover':
+        # todo retriever
         # tac_gen = RetrievalAugmentedGenerator.load(
         #     config.ckpt_path, device=device, freeze=True
         # )
@@ -77,29 +82,55 @@ def get_tac_model(config, device):
         else:
             return ReProverTacGen(tac_model=tac_gen)
 
-    # todo non-generative models..
-    # todo retriever
-    
-    
-    
-    # todo adapt holist:
+    # todo
+    elif config.model == 'holist':
+        theorem_database = io_util.load_theorem_database_from_file(
+            str(config.path_theorem_database))
 
-# tactics = io_util.load_tactics_from_file(
-#     str(options.path_tactics), str(options.path_tactics_replace))
-#
-# if options.action_generator_options.asm_meson_no_params_only:
-#     logging.warning('Note: Using Meson action generator with no parameters.')
-#     action_gen = action_generator.MesonActionGenerator()
-#
-# else:
-#     predictor = get_predictor(options, config)
-#     emb_store = None
-#
-#     if options.HasField('theorem_embeddings'):
-#         emb_store = embedding_store.TheoremEmbeddingStore(predictor)
-#         emb_store.read_embeddings(str(options.theorem_embeddings))
-#         assert emb_store.thm_embeddings.shape[0] == len(theorem_database.theorems)
-#
-#     action_gen = action_generator.ActionGenerator(
-#         theorem_database, tactics, predictor, options.action_generator_options,
-#         options.model_architecture, emb_store)
+        tactics = io_util.load_tactics_from_file(
+            str(config.path_tactics), str(config.path_tactics_replace))
+
+        if config.action_generator_options.asm_meson_no_params_only:
+            logger.warning('Note: Using Meson action generator with no parameters.')
+            action_gen = action_generator.MesonActionGenerator()
+
+        else:
+            """Returns appropriate predictor based on prover options."""
+            model_arch = config.model_architecture
+
+            if model_arch == 'PAIR_DEFAULT':
+                predictor = holparam_predictor.HolparamPredictor(str(config.path_model_prefix), config=config)
+
+            elif model_arch == 'PARAMETERS_CONDITIONED_ON_TAC':
+                predictor = holparam_predictor.TacDependentPredictor(
+                    str(config.path_model_prefix), config=config)
+            else:
+                raise NotImplementedError
+
+            emb_path = str(config.theorem_embeddings)
+
+            emb_store = None
+
+            if config.HasField('theorem_embeddings'):
+                emb_store = embedding_store.TheoremEmbeddingStore(predictor)
+
+                if not os.path.exists(emb_path):
+                    logger.info(
+                        'theorem_embeddings file "%s" does not exist, computing & saving.',
+                        emb_path)
+
+                    emb_store.compute_embeddings_for_thms_from_db_file(
+                        str(config.path_theorem_database))
+
+                    emb_store.save_embeddings(emb_path)
+                else:
+                    emb_store.read_embeddings(str(config.theorem_embeddings))
+                    assert emb_store.thm_embeddings.shape[0] == len(theorem_database.theorems)
+
+            action_gen = action_generator.ActionGenerator(
+                theorem_database, tactics, predictor, config.action_generator_options,
+                config.model_architecture, emb_store)
+
+        return action_gen
+
+

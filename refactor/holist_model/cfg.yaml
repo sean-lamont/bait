@@ -1,0 +1,23 @@
+action_generator:
+  options:
+    random_tactic_probability: null
+    num_similar_parameters:
+      max_value: null
+      min_value: null
+    bag_of_words_similar: null
+    max_theorem_parameters: null
+    asm_meson_only: null
+  model_architecture: PARAMETERS_CONDITIONED_ON_TAC
+
+
+
+
+
+# Setting ProverOptions Proto
+path_tactics: 'experiments/configs/holist/hollight_tactics.textpb'
+path_tactics_replace: 'experiments/configs/holist/hollight_tactics_replacements.textpb'
+path_theorem_database: 'data/holist/theorem_database_v1.1.textpb'
+
+model_architecture: PARAMETERS_CONDITIONED_ON_TAC
+theorem_embeddings: 'experiments/holist/checkpoints/checkpoint.npy'
+path_model_prefix: 'experiments/holist/checkpoints/checkpoint'

@@ -87,8 +87,6 @@ def get_prover_options(config, prover_round_tag='manual',
 
         # todo num_similar_parameters
 
-
-
     if hasattr(config, 'bfs_options'):
         prover_options.bfs_options.max_top_suggestions = config.bfs_options.max_top_suggestions
         prover_options.bfs_options.max_successful_branches = config.bfs_options.max_successful_branches
@@ -186,8 +184,6 @@ def process_prover_flags(config, prover_options):
                                              config.tasks_by_fingerprint,
                                              theorem_db, splits_to_prove,
                                              library_tags)
-
-    # TODO(szegedy): Verify tasks that they all fit the theorem database(s)
 
     logging.info('Number of prover tasks: %d', len(prover_tasks))
 
