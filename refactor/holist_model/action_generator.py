@@ -9,7 +9,7 @@ from __future__ import division
 # Import Type Annotations
 from __future__ import print_function
 
-import logging
+from loguru import logger
 from typing import List, Tuple, Optional, Text
 
 import numpy as np
@@ -27,8 +27,7 @@ WORD_WEIGHTS_NOISE_SCALE = 1.0
 
 
 def _theorem_string_for_similarity_scorer(thm) -> Text:
-    # return process_sexp.process_sexp(str(thm.conclusion))
-    return process_sexp.process_sexp(thm)
+    return process_sexp.process_sexp(str(thm.conclusion))
 
 
 class SimilarityScorer(object):
@@ -60,13 +59,13 @@ class SimilarityScorer(object):
         freq_sum = sum(self.freq)
         self.inv_freq = np.array([1.0 / float(f) for f in self.freq])
 
-        logging.info('Vocab size: %d', self.num_words)
-        logging.info('Frequency sum: %d', freq_sum)
+        logger.info(f'Vocab size: {self.num_words}')
+        logger.info(f'Frequency sum: {freq_sum}')
         self.reset_word_weights()
 
     def reset_word_weights(self):
         """Reset word weights, and recompute premise_vectors."""
-        logging.info('Resetting word weights')
+        logger.info('Resetting word weights')
 
         self.word_weights = np.multiply(
             self.inv_freq,
@@ -140,9 +139,10 @@ class ActionGenerator(object):
             options,
             model_architecture,
             emb_store=None,
+            max_tactics=41
     ):
 
-
+        self.max_tactics = max_tactics
         self.theorem_database = theorem_database
         self.tactics = tactics
         self.predictor = predictor
@@ -205,7 +205,7 @@ class ActionGenerator(object):
         return self.predictor.batch_tactic_scores([proof_state_encoded])[0]
 
     def compute_closest(self, goal, thm_number):
-        if not (self.options.HasField('num_similar_parameters') and
+        if not (hasattr(self.options, 'num_similar_parameters') and
                 self.options.num_similar_parameters.max_value > 0):
             return None
         if self.options.bag_of_words_similar:
@@ -243,7 +243,7 @@ class ActionGenerator(object):
             'cosine').reshape(-1).tolist()
         ranked_closest = sorted(zip(distance_scores, self.thm_names))
         ranked_closest = ranked_closest[:MAX_CLOSEST]
-        logging.info(
+        logger.info(
             'Cosine closest in premise embedding space:\n%s', '\n'.join(
                 ['%s: %.6f' % (name, score) for score, name in ranked_closest]))
         # add some noise to top few and rerank
@@ -272,10 +272,12 @@ class ActionGenerator(object):
                       if name not in ranked_closest_names]
         return (ranked_closest + thm_ranked)[:self.options.max_theorem_parameters]
 
-    def step(self, goal, premises, max_tactics=5):
-        fp = premises.sections[0].before_premise
+    def get_tactics(self, goal, premises):
+        max_tactics = self.max_tactics
+        premises, thm_number = premises
 
-        thm_number = self.thm_index_by_fingerprint.get(fp)
+        # fp = premises.sections[0].before_premise
+        # thm_number = self.thm_index_by_fingerprint.get(fp)
 
         proof_state = predictions.ProofState(goal=goal)
 
@@ -307,7 +309,7 @@ class ActionGenerator(object):
         ranked_closest = self.compute_closest(goal, thm_number)
 
         if ranked_closest:
-            logging.info(
+            logger.info(
                 'Cosine closest picked:\n%s', '\n'.join(
                     ['%s: %.6f' % (name, score) for score, name in ranked_closest]))
 
@@ -325,8 +327,8 @@ class ActionGenerator(object):
                 no_params_score = self.predictor.batch_thm_scores(
                     proof_state_enc, empty_emb_batch, tactic_id)[0]
 
-                logging.debug('Theorem score for empty theorem: %f0.2',
-                              no_params_score)
+                logger.debug('Theorem score for empty theorem: %f0.2',
+                             no_params_score)
 
             thm_ranked = sorted(
                 zip(thm_scores, self.thm_names),
@@ -337,18 +339,19 @@ class ActionGenerator(object):
             # mix in additional theorems based on similarity wrt self.compute_closest
             thm_ranked = self.add_similar(thm_ranked, ranked_closest)
 
-            logging.debug('thm_ranked: %s', str(thm_ranked))
+            logger.debug('thm_ranked: %s', str(thm_ranked))
             tactic_str = str(tactic.name)
             try:
                 tactic_params = _compute_parameter_string(
                     list(tactic.parameter_types), pass_no_arguments, thm_ranked)
 
                 for params_str in tactic_params:
+                    # todo log softmax for scores?
                     ret.append((tactic_str + params_str, tactic_scores[tactic_id]))
 
             except ValueError as e:
-                logging.debug('Failed to compute parameters for tactic %s: %s',
-                              tactic.name, str(e))
+                logger.debug('Failed to compute parameters for tactic %s: %s',
+                             tactic.name, str(e))
 
         return ret
 

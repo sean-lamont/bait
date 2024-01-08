@@ -19,9 +19,12 @@ from loguru import logger
 from omegaconf import OmegaConf
 from ray.util.actor_pool import ActorPool
 
+from data.holist.utils import io_util
+from environments.holist import proof_assistant_pb2
 from refactor.common import set_logger
 from refactor.common import zip_strict
 from refactor.get_lean_theorems import _get_theorems
+from refactor.holist_env import HOListEnv
 from refactor.leandojo_env import LeanDojoEnv
 from refactor.process_traces import get_traces
 from refactor.proof_node import *
@@ -43,11 +46,21 @@ def config_to_dict(conf):
     )
 
 
+def get_thm_name(env, thm):
+    if env == 'holist':
+        return thm.fingerprint
+    elif env == 'leandojo':
+        return thm.full_name
+    else:
+        raise NotImplementedError
+
+
 class EndToEndProver:
-    def __init__(self, timeout, search_model, tac_model, directory):
+    def __init__(self, timeout, search_model, tac_model, directory, env_name='leandojo'):
         self.timeout = timeout
         self.search_model = search_model
         self.tac_model = tac_model
+        self.env_name = env_name
 
         self.total_time = 0
         self.search_time = 0
@@ -87,7 +100,7 @@ class EndToEndProver:
             data={'search_trace': self.search_model.search_trace} if hasattr(self.search_model, 'search_trace') else {}
         )
 
-        with open(f"{self.dir}/{theorem.full_name}", "wb") as f:
+        with open(f"{self.dir}/{get_thm_name(self.env_name, theorem)}", "wb") as f:
             pickle.dump(result, f)
 
         return  # result
@@ -161,7 +174,7 @@ class EndToEndProver:
             except Exception as e:
                 logger.warning(f'Environment error {e}')
                 # will only be raised if there is no valid root from search (e.g. error loading environment)
-                self.log_error(str(e), env.thm.full_name)
+                self.log_error(str(e), get_thm_name(self.env_name, env.thm))
 
                 root = ErrorNode(EnvironmentError(str(e)))
                 self.search_model.reset(root)
@@ -169,7 +182,7 @@ class EndToEndProver:
         # result = self._process_trace(env.thm)
         self._process_trace(env.thm)
 
-        return root.status == Status.PROVED
+        return self.search_model.root.status == Status.PROVED
 
     def _search(self, env) -> None:
         try:
@@ -220,6 +233,14 @@ class EndToEndProver:
                 raise Exception(e)
 
 
+def get_env(cfg):
+    if cfg == 'leandojo':
+        return LeanDojoEnv
+    elif cfg == 'holist':
+        return HOListEnv
+    else:
+        raise NotImplementedError
+
 class DistributedProver:
     """
     A distributed prover that uses Ray to parallelize the proof search.
@@ -241,7 +262,7 @@ class DistributedProver:
             prover_pool.extend(
                 [ray.remote(num_gpus=config.gpu_per_prover, num_cpus=config.cpu_per_prover)(EndToEndProver).remote(
                     tac_model=tac_model, search_model=search_model, timeout=config.env_timeout,
-                    directory=config.exp_config.directory
+                    directory=config.exp_config.directory, env_name=config.env
                 ) for _ in range(config.provers_per_gpu)])
 
         self.prover_pool = ActorPool(prover_pool)
@@ -251,21 +272,26 @@ class DistributedProver:
     # todo get env / theorems from config (e.g. HOListEnv, then theorems/positions and arguments to env will be
     #  different)
     def search_unordered(
-            self, theorems, iteration=0, resume_proven=0, resume_step=0
+            self, theorems, iteration=0, resume_proven=0, resume_step=0, env='leandojo'
     ) -> Any:
 
         """Parallel proof search for `theorems`. The order of the results is not guaranteed to match the order of the
         input."""
 
         try:
+            env_func = get_env(env)
+            # results_ = self.prover_pool.map_unordered(
+            #     lambda p, thm: p.search.remote(LeanDojoEnv(thm, self.total_timeout)),
+            #     theorems,
+            # )
+
             results_ = self.prover_pool.map_unordered(
-                lambda p, thm: p.search.remote(LeanDojoEnv(thm, self.total_timeout)),
+                lambda p, thm: p.search.remote(env_func(thm, self.total_timeout)),
                 theorems,
             )
 
             proven = resume_proven
             for i, res in enumerate(results_):
-                logger.info(f'Result: {res}')
                 if res:
                     proven += 1
                 wandb.log({'Step': i + 1 + resume_step, 'Proven': proven, 'Iteration': iteration})
@@ -277,6 +303,59 @@ class DistributedProver:
             sys.exit(1)
 
 
+def get_holist_theorems(thm_db, prev_theorems):
+    theorem_db = io_util.load_theorem_database_from_file(
+        str(thm_db))
+
+    # todo filter by config split, library etc.
+    theorems = [thm for thm in theorem_db.theorems if thm.tag == proof_assistant_pb2.Theorem.THEOREM]
+
+    # Remove proven theorems if resuming
+    final_theorems = []
+
+    for i, theorem in enumerate(theorems):
+        # if theorem.full_name in [t.theorem.full_name for t in prev_theorems]:
+        if theorem.fingerprint in prev_theorems:
+            continue
+        else:
+            final_theorems.append(theorem)
+
+    theorems = final_theorems
+    theorems = list(zip_strict(theorems, [theorem_db] * len(theorems)))
+
+    return theorems
+
+
+def get_lean_thms(config, prev_theorems):
+    repo, theorems, positions = _get_theorems(config)
+
+    # Remove proven theorems if resuming
+    final_theorems = []
+    final_positions = []
+
+    for i, theorem in enumerate(theorems):
+        # if theorem.full_name in [t.theorem.full_name for t in prev_theorems]:
+        if theorem.full_name in prev_theorems:
+            continue
+        else:
+            final_theorems.append(theorem)
+            final_positions.append(positions[i])
+
+    theorems = final_theorems
+    positions = final_positions
+
+    theorems = list(zip_strict([repo] * len(theorems), theorems, positions))
+
+    return theorems
+
+
+def get_theorems(cfg, prev_theorems):
+    if cfg.env == 'leandojo':
+        return get_lean_thms(cfg, prev_theorems)
+    elif cfg.env == 'holist':
+        return get_holist_theorems(cfg.env_config.path_theorem_database, prev_theorems)
+
+
 @hydra.main(config_path="../experiments/configs/experiments")
 def main(config) -> None:
     OmegaConf.resolve(config)
@@ -285,12 +364,9 @@ def main(config) -> None:
     os.makedirs(config.exp_config.directory + '/traces', exist_ok=True)
     os.makedirs(config.exp_config.directory + '/error_logs', exist_ok=True)
 
-    # todo make this system agnostic
-    repo, theorems, positions = _get_theorems(config)
-
     prev_theorems = []
     prev_proven = 0
-    # results = []
+
     if config.exp_config.resume:
         wandb.init(project=config.logging_config.project,
                    name=config.exp_config.name,
@@ -301,12 +377,7 @@ def main(config) -> None:
                    mode='offline' if config.logging_config.offline else 'online'
                    )
 
-        # prev_theorems = get_traces(config.exp_config.directory + '/traces/*')
-
-        # Remove proven theorems if resuming
-        final_theorems = []
-        final_positions = []
-
+        prev_theorems = get_traces(config.exp_config.directory + '/traces/*')
         trace_dir = glob.glob(config.exp_config.directory + '/traces/*')
 
         for file in trace_dir:
@@ -314,22 +385,8 @@ def main(config) -> None:
                 trace = pickle.load(f)
             if trace.proof:
                 prev_proven += 1
-            prev_theorems.append(trace.theorem.full_name)
+            prev_theorems.append(get_thm_name(config.env, trace.theorem))
 
-        for i, theorem in enumerate(theorems):
-            # if theorem.full_name in [t.theorem.full_name for t in prev_theorems]:
-            if theorem.full_name in prev_theorems:
-                continue
-            else:
-                final_theorems.append(theorem)
-                final_positions.append(positions[i])
-
-        theorems = final_theorems
-        positions = final_positions
-
-        # prev_proven = sum([1 if g.proof else 0 for g in prev_theorems])
-
-        # results = prev_theorems
         logger.info(f'Resuming from {prev_proven} proofs')
     else:
         wandb.init(project=config.logging_config.project,
@@ -338,6 +395,8 @@ def main(config) -> None:
                    dir=config.exp_config.directory,
                    mode='offline' if config.logging_config.offline else 'online'
                    )
+
+    theorems = get_theorems(config, prev_theorems)
 
     set_logger(config.log_level)
 
@@ -349,8 +408,6 @@ def main(config) -> None:
 
     prover = DistributedProver(config)
 
-    theorems = list(zip_strict([repo] * len(theorems), theorems, positions))
-
     if config.shuffle:
         random.shuffle(theorems)
 
@@ -358,7 +415,8 @@ def main(config) -> None:
 
     logger.info(f'Attempting {len(theorems)} proofs..')
 
-    num_proven = prover.search_unordered(theorems, iteration=0, resume_step=len(prev_theorems), resume_proven=prev_proven)
+    num_proven = prover.search_unordered(theorems, iteration=0, resume_step=len(prev_theorems),
+                                         resume_proven=prev_proven, env=config.env)
 
     # log as error for now, to minimise output for parent processes
     logger.error(f"Pass@1: {num_proven / config.num_theorems}")

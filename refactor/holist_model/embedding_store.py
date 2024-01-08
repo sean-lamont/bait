@@ -17,7 +17,7 @@ from experiments.holist.agent import predictions
 from data.holist.utils import normalization_lib, io_util
 from environments.holist import proof_assistant_pb2
 
-import logging
+from loguru import logger
 
 
 class TheoremEmbeddingStore(object):
@@ -46,7 +46,7 @@ class TheoremEmbeddingStore(object):
             normalization_lib.normalize(thm).conclusion
             for thm in theorem_database.theorems
         ]
-        logging.info("Computing all theorem embeddings, this might take a while..")
+        logger.info("Computing all theorem embeddings, this might take a while..")
         self.thm_embeddings = self.predictor.batch_thm_embedding(normalized_thms)
 
     def compute_embeddings_for_thms_from_db_file(self, file_path: Text) -> None:
@@ -57,7 +57,7 @@ class TheoremEmbeddingStore(object):
       file_path: Path to the text protobuf file containing the theorem database.
     """
 
-        logging.info('Reading theorems database from "%s"', file_path)
+        logger.info('Reading theorems database from "%s"', file_path)
         theorem_database = io_util.load_theorem_database_from_file(file_path)
         self.compute_embeddings_for_thms_from_db(theorem_database)
 
@@ -69,7 +69,7 @@ class TheoremEmbeddingStore(object):
       file_path: Path to the file in which the embeddings are stored.
     """
 
-        logging.info('Reading embeddings from "%s"', file_path)
+        logger.info(f'Reading embeddings from {file_path}')
         with open(file_path, 'rb') as f:
             self.thm_embeddings = np.load(f)
 
@@ -81,7 +81,7 @@ class TheoremEmbeddingStore(object):
         The directory and all parent directories are created if necessary.
     """
         dir_name = os.path.dirname(file_path)
-        logging.info('Writing embeddings "%s"', file_path)
+        logger.info('Writing embeddings "%s"', file_path)
 
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)

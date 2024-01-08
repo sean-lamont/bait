@@ -19,13 +19,14 @@ class EnvInitError(Exception):
 # todo abstract environment class with init, enter, exit, run_tactic, retrieve_premises
 
 
+# todo don't think this needs to be done for every new theorem..
 def setup_prover(theorem_database: proof_assistant_pb2.TheoremDatabase):
     """Starts up HOL and seeds it with given TheoremDatabase."""
 
     logger.info('Setting up and registering theorems with proof assistant...')
     proof_assistant_obj = proof_assistant.ProofAssistant()
 
-    for thm in tqdm(theorem_database.theorems):
+    for thm in theorem_database.theorems:
         response = proof_assistant_obj.RegisterTheorem(
             proof_assistant_pb2.RegisterTheoremRequest(theorem=thm))
 
@@ -68,10 +69,7 @@ class HOListEnv:
         # dictionary mapping goals to the corresponding HOList Theorem
         self.node_map = {}
 
-        self.thm, self.database_name = thm
-
-        self.theorem_database = load_theorem_database_from_file(
-            str(self.database_name))
+        self.thm, self.theorem_database = thm
 
         self.premises = self.retrieve_premises()
 
@@ -106,7 +104,7 @@ class HOListEnv:
 
         thm_number = thm_index_by_fingerprint.get(fp)
 
-        return self.theorem_database.theorems[:thm_number]
+        return self.theorem_database.theorems[:thm_number], thm_number
 
     def run_tactic(self, node: Tuple[InternalNode, float], tactic: Tuple[str, float]):  # -> Tuple[Edge, List]:
         t0 = time.monotonic()
@@ -219,9 +217,11 @@ class HOListEnv:
                     result.append(result_node)
 
         # self-loop sanity check (should never happen)
+        #  occasionally happens for holist
+        #  from testing, same conclusion different hypotheses, so it fails is_same_expr, but node hash is the same
+        #  should be fixed when assumptions are considered
         if result_node == node:
-            logger.error(f'Self loop found')
-            response = TreeError('Self-loop')
+            response = TreeError(f'Self-loop, {node.goal, response}')
             result_node = ErrorNode(response)
             result = [result_node]
 

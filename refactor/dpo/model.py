@@ -35,7 +35,7 @@ class GenTacModel(pl.LightningModule):
         # todo
         self.retriever = None
 
-        if hasattr(config, 'lora_config'):
+        if hasattr(config, 'lora_config') and config.lora_config:
             config = LoraConfig(
                 target_modules=list(config.lora_config.target_modules),
                 task_type=config.lora_config.task_type,

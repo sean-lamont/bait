@@ -43,6 +43,17 @@ class ReProverTacGen(TacModel):
         return tactics
 
 
+# todo make tac_gen and retriever more system agnostic
+class HOListTacGen(TacModel):
+    def __init__(self, tac_model):
+        super().__init__()
+        self.tac_model = tac_model
+
+    def get_tactics(self, goals, premises):
+        tactics = self.tac_model.get_tactics(goals, premises)
+        return tactics
+
+
 # todo better loading for LoRA
 
 def get_tac_model(config, device):
@@ -99,19 +110,19 @@ def get_tac_model(config, device):
             model_arch = config.model_architecture
 
             if model_arch == 'PAIR_DEFAULT':
-                predictor = holparam_predictor.HolparamPredictor(str(config.path_model_prefix), config=config)
+                predictor = holparam_predictor.HolparamPredictor(str(config.ckpt_path), config=config)
 
             elif model_arch == 'PARAMETERS_CONDITIONED_ON_TAC':
                 predictor = holparam_predictor.TacDependentPredictor(
-                    str(config.path_model_prefix), config=config)
+                    str(config.ckpt_path), config=config)
             else:
                 raise NotImplementedError
 
-            emb_path = str(config.theorem_embeddings)
-
             emb_store = None
 
-            if config.HasField('theorem_embeddings'):
+            if hasattr(config, 'theorem_embeddings'):
+                emb_path = str(config.theorem_embeddings)
+
                 emb_store = embedding_store.TheoremEmbeddingStore(predictor)
 
                 if not os.path.exists(emb_path):
@@ -131,6 +142,8 @@ def get_tac_model(config, device):
                 theorem_database, tactics, predictor, config.action_generator_options,
                 config.model_architecture, emb_store)
 
-        return action_gen
-
-
+        if config.distributed:
+            return ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(HOListTacGen).remote(
+                tac_model=action_gen)
+        else:
+            return HOListTacGen(tac_model=action_gen)

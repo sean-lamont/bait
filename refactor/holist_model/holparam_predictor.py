@@ -92,7 +92,7 @@ class HolparamPredictor(predictions.Predictions):
             num_tactics=41,
             tac_embed_dim=128).cuda()
 
-        self.load_pretrained_model(ckpt)
+        # self.load_pretrained_model(ckpt)
 
         self.embedding_model_goal.eval()
         self.embedding_model_premise.eval()
@@ -108,8 +108,7 @@ class HolparamPredictor(predictions.Predictions):
 
         self.vocab = {k['_id']: k['index'] for k in vocab_col.find()}
 
-        logging.info("Loading expression dictionary..")
-
+    # todo better loading
     def load_pretrained_model(self, ckpt_dir):
         logging.info(f"Loading checkpoint from {ckpt_dir}")
         ckpt = torch.load(ckpt_dir + '.ckpt', map_location={'cuda:1': 'cuda:0'})['state_dict']
@@ -278,6 +277,7 @@ class TacDependentPredictor(HolparamPredictor):
 
         # The checkpoint should have only one value in this collection.
         with torch.no_grad():
+            # todo copy np array
             scores = self.combiner_model(torch.Tensor(state_encodings).unsqueeze(0).cuda(),
                                          torch.Tensor(thm_embeddings).unsqueeze(0).cuda(),
                                          torch.LongTensor([tactic_id]).cuda()).squeeze(0).cpu().numpy()

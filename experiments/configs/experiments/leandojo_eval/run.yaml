@@ -9,9 +9,9 @@ exp_config:
 
 logging_config:
   project: end_to_end
-  offline: false
+  offline: true
 
-
+env: leandojo
 data_path: data/leandojo/data/leandojo_benchmark/random/
 split: test
 file_path: null
