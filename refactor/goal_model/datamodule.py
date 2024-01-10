@@ -1,109 +1,19 @@
-"""Data module for the tactic generator."""
-
-from itertools import islice
+import math
 from typing import Optional
 
-# import pytorch_lightning as pl
 import lightning.pytorch as pl
-import torch
 from loguru import logger
 from pymongo import MongoClient
 from torch.utils.data import DataLoader
-from torch.utils.data import DataLoader
+from tqdm import tqdm
 from transformers import AutoTokenizer
 
 from refactor.common import (
     Batch,
 )
-from refactor.dpo.datamodule import worker_init_fn, CursorIter
-
-
-# todo reloading dataset every 38912??
-class GoalStreamDataset(torch.utils.data.IterableDataset):
-    def __init__(self,
-                 db,
-                 col_name,
-                 fields,
-                 filter_,
-                 gpu_id=0,
-                 num_gpus=1,
-                 worker_id=0,
-                 num_workers=1,
-                 buf_size=2048,
-                 start_idx=0):
-        super(GoalStreamDataset).__init__()
-
-        self.ds = None
-        self.db = db
-        self.col_name = col_name
-        self.worker_id = worker_id
-        self.fields = fields
-        self.buf_size = buf_size
-        self.filter_ = filter_
-        self.num_workers = num_workers
-        self.gpu_id = gpu_id
-        self.num_gpus = num_gpus
-        self.start_idx = start_idx
-
-        self.query = self.filter_ + [{'$project': {v: 1 for v in self.fields}},
-                                     {'$skip': self.start_idx}]
-
-        if '_id' not in self.fields:
-            self.query[-2]['$project']['_id'] = 0
-
-        collection = MongoClient()[self.db][self.col_name]
-
-        # run through once to get the length of cursor
-        length = list(collection.aggregate(
-            self.filter_ + [{'$count': 'length'}]))[0][
-            'length']
-
-        self.length = length // num_gpus
-
-        cursor = collection.aggregate(self.query)
-
-        self.cursor_iter = CursorIter(cursor, fields=self.fields, buf_size=self.buf_size)
-
-        self.setup()
-
-    def __len__(self):
-        return self.length
-
-    def __iter__(self):
-        return self
-
-    def reset(self, idx):
-        self.__init__(self.db,
-                      self.col_name,
-                      self.fields,
-                      self.filter_,
-                      self.gpu_id,
-                      self.num_gpus,
-                      self.worker_id,
-                      self.num_workers,
-                      self.buf_size,
-                      idx)
-
-    def __next__(self):
-        try:
-            next_ = next(self.ds)
-            self.start_idx += 1
-            return next_
-        except StopIteration:
-            self.reset(0)
-            return next(self.ds)
-        except Exception as e:
-            self.reset(self.start_idx)
-            logger.warning(f'Loader exception {e}, reloading dataset {len(self)}..')
-            return next(self.ds)
-
-    def setup(self):
-        total_workers = self.num_gpus * self.num_workers
-        global_idx = (self.gpu_id * self.num_workers) + self.worker_id
-
-        # make the dataset iterator return unique values for each worker, and ensure they all have the same number of
-        # elements
-        self.ds = islice(self.cursor_iter, global_idx, None, total_workers)
+from refactor.process_traces import get_traces, add_rand_idx
+from refactor.proof_node import ErrorNode
+from refactor.stream_dataset import GoalStreamDataset, worker_init_fn
 
 
 class GoalProvableDataModule(pl.LightningDataModule):
@@ -117,8 +27,10 @@ class GoalProvableDataModule(pl.LightningDataModule):
             critic_tok: str,
             provable_tok: str,
             unprovable_tok: str,
+            trace_dir='',
             database='lean_e2e',
-            collection='goal_labels'
+            collection='goal_labels',
+            visit_threshold=2048
     ) -> None:
 
         super().__init__()
@@ -133,11 +45,48 @@ class GoalProvableDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-        self.fields = ["subgoal", "target"]
+        self.fields = ["goal", "target"]
         self.collection = collection
         self.database = database
+        self.trace_dir = trace_dir
 
-        # self.test_col = MongoClient()['lean_dojo']['test_col']
+        self.visit_threshold = visit_threshold
+
+    def prepare_data(self):
+        traces = get_traces(self.trace_dir)
+
+        if not traces:
+            return
+
+        logger.info('Processing traces for goal model...')
+
+        collection = MongoClient()[self.database][self.collection]
+
+        for trace in tqdm(traces):
+            if isinstance(trace.tree, ErrorNode):
+                continue
+
+            nodes = trace.nodes
+            nodes[trace.tree.goal] = trace.tree
+
+            visits = {node: nodes[node].visit_count for node in nodes.keys()}
+
+            for goal, node in nodes.items():
+                for a in node.ancestors:
+                    visits[a] += node.visit_count
+
+            for node in trace.nodes:
+                node_data = {'goal': node.goal}
+                proof_len = node.distance_to_proof
+                if proof_len < math.inf:
+                    node_data['target'] = 1
+                elif visits[node.goal] >= self.visit_threshold:
+                    node_data['target'] = 0
+                else:
+                    continue
+                collection.insert_one(node_data)
+
+        add_rand_idx(collection)
 
     def setup(self, stage: Optional[str] = None) -> None:
         # 90/10 train/val ratio
@@ -148,7 +97,7 @@ class GoalProvableDataModule(pl.LightningDataModule):
                         {'$sort': {'rand_idx': 1}}]
 
         val_filter = [{'$match': {'rand_idx': {'$gt': val_range[0], '$lt': val_range[1]}, 'target': {'$in': [0, 1]}}},
-                        {'$sort': {'rand_idx': 1}}]
+                      {'$sort': {'rand_idx': 1}}]
 
         if stage in (None, "fit"):
             self.ds_train = GoalStreamDataset(db=self.database,
@@ -188,10 +137,7 @@ class GoalProvableDataModule(pl.LightningDataModule):
                           )
 
     def collate_fn(self, examples) -> Batch:
-        # goals = examples['goals']
-        # targets = examples['targets']
-        # self.test_col.insert_many(examples)
-        goals = [g['subgoal'] for g in examples]
+        goals = [g['goal'] for g in examples]
         targets = [g['target'] for g in examples]
 
         state = [self.critic_tok + ex for ex in goals]

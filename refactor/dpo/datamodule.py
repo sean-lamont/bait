@@ -1,143 +1,147 @@
 """Data module for the tactic generator."""
-from itertools import islice
+import math
 from typing import Optional
 
 # import pytorch_lightning as pl
 import lightning.pytorch as pl
-
-
 import torch
 from loguru import logger
 from pymongo import MongoClient
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 from transformers import AutoTokenizer
 
 from refactor.common import (
     Batch,
 )
-from utils.mongodb_utils import get_batches
+from refactor.process_traces import get_traces, add_rand_idx
+from refactor.proof_node import ErrorNode
+from refactor.stream_dataset import GoalStreamDataset, worker_init_fn
 
 
-class CursorIter(torch.utils.data.IterableDataset):
-    def __init__(self, cursor, fields, buf_size=4096):
-        super(CursorIter).__init__()
-        self.cursor = cursor
-        self.batches = get_batches(self.cursor, batch_size=buf_size)
-        self.curr_batches = next(self.batches)
-        self.remaining = len(self.curr_batches)
-        self.fields = fields
+# new ranking:
+# - restricted to max_pairs per goal
+# - prioritise rankings: (proven, error), (no error, error)
+# - try find pairs with closer length
+def rank_edges_new(goal, edges, max_pairs=16):
+    valid_edges = [edge for edge in edges if not isinstance(edge.dst[0], ErrorNode)]
+    invalid_edges = [('error', edge) for edge in edges if isinstance(edge.dst[0], ErrorNode)]
 
-    def __iter__(self):
-        return self
+    # proven edges
+    proven_edges = [('proven', edge) for edge in valid_edges if edge.distance_to_proof() < math.inf]
 
-    def __next__(self):
-        if self.remaining == 0:
-            self.curr_batches = next(self.batches)
-            self.remaining = len(self.curr_batches)
-        self.remaining -= 1
-        if self.remaining >= 0:
-            ret = self.curr_batches.pop()
-            return {field: ret[field] for field in self.fields}
+    # non-error edges
+    success_non_proven_edges = [('no_error', edge) for edge in valid_edges if edge.distance_to_proof() == math.inf]
 
+    all_edges = sorted(invalid_edges + proven_edges + success_non_proven_edges, key=lambda x: len(x[1].tactic))
 
-# todo reloading dataset every 38912??
-class GoalStreamDataset(torch.utils.data.IterableDataset):
-    def __init__(self,
-                 db,
-                 col_name,
-                 fields,
-                 range,
-                 gpu_id=0,
-                 num_gpus=1,
-                 worker_id=0,
-                 num_workers=1,
-                 buf_size=2048,
-                 shard_field='rand_idx',
-                 start_idx=0):
-        super(GoalStreamDataset).__init__()
+    num_proven = len(proven_edges)
+    num_failed = len(invalid_edges)
+    num_success = len(success_non_proven_edges)
 
-        self.db = db
-        self.col_name = col_name
-        self.range = range
-        self.fields = fields
-        self.buf_size = buf_size
-        self.shard_field = shard_field
-        self.worker_id = worker_id
-        self.num_workers = num_workers
-        self.gpu_id = gpu_id
-        self.num_gpus = num_gpus
-        self.start_idx = start_idx
+    pairs = []
 
-        # todo query should be parameter e.g. val_set or range as below. Keep sort, but only if chosen as a parameter
-        self.query = [{'$match': {self.shard_field: {'$gt': self.range[0], '$lt': self.range[1]}}},
-                      {'$sort': {self.shard_field: 1}},
-                      {'$project': {v: 1 for v in self.fields}},
-                      {'$skip': self.start_idx}]
+    while len(pairs) < max_pairs and num_failed >= 0:
+        winner = None
+        loser = None
+        win_type = None
+        last_error = None
+        for (i, (edge_type, edge)) in enumerate(all_edges):
+            if not winner:
+                if edge_type == 'proven':
+                    winner = edge
+                    all_edges.pop(i)
+                    num_proven -= 1
+                    win_type = edge_type
+                elif num_proven <= 0 and edge_type == 'no_error':
+                    winner = edge
+                    all_edges.pop(i)
+                    num_success -= 1
+                    win_type = edge_type
+                elif edge_type == 'error':
+                    last_error = edge
 
-        if '_id' not in self.fields:
-            self.query[-2]['$project']['_id'] = 0
+            # will be called once winner is found
+            elif edge_type == 'error':
+                # nearest error edge will be either last_error or this error, take the closest in tactic length
+                if not last_error:
+                    loser = edge
+                    num_failed -= 1
+                    all_edges.pop(i)
+                    break
+                elif (len(last_error.tactic) - len(winner.tactic)) ** 2 <= (len(edge.tactic) - len(edge.tactic)) ** 2:
+                    loser = last_error
+                    num_failed -= 1
+                    all_edges.pop(i)
+                    break
+                else:
+                    loser = edge
+                    num_failed -= 1
+                    all_edges.pop(i)
+                    break
 
-        collection = MongoClient()[self.db][self.col_name]
+        if winner and loser and win_type:
+            pairs.append((winner, loser, win_type))
+        else:
+            return
 
-        # run through once to get the length of cursor
-        length = list(collection.aggregate(
-            [{'$match': {self.shard_field: {'$gt': self.range[0], '$lt': self.range[1]}}}, {'$count': 'length'}]))[0][
-            'length']
+        w_l = [
+            {'goal': goal, 'winner': w.tactic, 'winner_prob': w.tac_logprob, 'loser': l.tactic,
+             'loser_prob': l.tac_logprob,
+             'type': tac_type} for (w, l, tac_type) in pairs]
 
-        self.length = length // num_gpus
-
-        cursor = collection.aggregate(self.query)
-
-        self.cursor_iter = CursorIter(cursor, fields=self.fields, buf_size=self.buf_size)
-
-        self.setup()
-
-    def __len__(self):
-        return self.length
-
-    def __iter__(self):
-        return self
-
-    def reset(self, idx):
-        self.__init__(self.db,
-                      self.col_name,
-                      self.fields,
-                      self.range,
-                      self.gpu_id,
-                      self.num_gpus,
-                      self.worker_id,
-                      self.num_workers,
-                      self.buf_size,
-                      self.shard_field,
-                      idx)
-
-    def __next__(self):
-        try:
-            next_ = next(self.ds)
-            self.start_idx += 1
-            return next_
-        except StopIteration:
-            self.reset(0)
-            return next(self.ds)
-        except Exception as e:
-            self.reset(self.start_idx)
-            logger.warning(f'Loader exception {e}, reloading dataset {len(self)}..')
-            return next(self.ds)
-
-    def setup(self):
-        total_workers = self.num_gpus * self.num_workers
-        global_idx = (self.gpu_id * self.num_workers) + self.worker_id
-
-        # make the dataset iterator return unique values for each worker, and ensure they all have the same number of elements
-        self.ds = islice(self.cursor_iter, global_idx, None, total_workers)
+        return w_l
 
 
-def worker_init_fn(_):
-    worker_info = torch.utils.data.get_worker_info()
-    dataset = worker_info.dataset
-    dataset.worker_id = worker_info.id
-    dataset.num_workers = worker_info.num_workers
-    dataset.setup()
+def rank_edges(goal, edges):
+    valid_edges = [edge for edge in edges if not isinstance(edge.dst[0], ErrorNode)]
+    invalid_edges = [edge for edge in edges if isinstance(edge.dst[0], ErrorNode)]
+
+    # rank all valid_edges above all invalid_edges
+    w_l = [
+        {'goal': goal, 'winner': w.tactic, 'winner_prob': w.tac_logprob, 'loser': l.tactic, 'loser_prob': l.tac_logprob,
+         'type': 'valid_rank'} for w in valid_edges for l in invalid_edges]
+
+    # from valid_edges, rank proven goals above non_proven valid goals
+    proven_edges = [edge for edge in valid_edges if edge.distance_to_proof() < math.inf]
+    success_non_proven_edges = [edge for edge in valid_edges if edge.distance_to_proof() == math.inf]
+
+    w_l.extend([{'goal': goal, 'winner': w.tactic, 'winner_prob': w.tac_logprob, 'loser': l.tactic,
+                 'loser_prob': l.tac_logprob,
+                 'type': 'proven_rank'} for w in proven_edges for l in success_non_proven_edges])
+
+    # from proven edges, rank based on distance_to_proof, then execution time
+    ranked_proofs = sorted(proven_edges, key=lambda x: (x.distance_to_proof(), x.time))
+
+    w_l.extend(
+        [{'goal': goal, 'winner': ranked_proofs[i].tactic,
+          'winner_prob': ranked_proofs[i].tac_logprob, 'loser': ranked_proofs[j].tactic,
+          'loser_prob': ranked_proofs[j].tac_logprob,
+          'type': 'time_len_rank'} for i in range(len(ranked_proofs)) for j in
+         range(i + 1, len(ranked_proofs))])
+
+    # among successful without proof, rank those that lead to the same outcome based on time only
+    for i, edge in enumerate(success_non_proven_edges):
+        same_outcome_ranks = []
+        for j in range((i + 1), len(success_non_proven_edges)):
+            edge_2 = success_non_proven_edges[j]
+            edge_1_outcome = [g.goal for g in edge.dst] if isinstance(edge.dst[0], InternalNode) else [
+                'Error'] if isinstance(edge.dst[0], ErrorNode) else ['Proven']
+            edge_2_outcome = [g.goal for g in edge_2.dst] if isinstance(edge_2.dst[0], InternalNode) else [
+                'Error'] if isinstance(edge_2.dst[0], ErrorNode) else ['Proven']
+            if set(edge_1_outcome) == set(edge_2_outcome):
+                if edge.time < edge_2.time:
+                    same_outcome_ranks.append(
+                        {'goal': goal, 'winner': edge.tactic, 'winner_prob': edge.tac_logprob, 'loser': edge_2.tactic,
+                         'loser_prob': edge_2.tac_logprob, 'type': 'same_outcome'})
+                else:
+                    same_outcome_ranks.append(
+                        {'goal': goal, 'winner': edge_2.tactic, 'winner_prob': edge_2.tac_logprob, 'loser': edge.tactic,
+                         'loser_prob': edge.tac_logprob, 'type': 'same_outcome'})
+
+        w_l.extend(same_outcome_ranks)
+
+    return w_l
 
 
 class DPODataModule(pl.LightningDataModule):
@@ -173,6 +177,34 @@ class DPODataModule(pl.LightningDataModule):
     def load_state_dict(self, state_dict):
         self.current_train_batch_index = state_dict["current_train_batch_index"]
         self.setup()
+
+    def prepare_data(self):
+        traces = get_traces(self.trace_dir)
+
+        if not traces:
+            return
+
+        logger.info('Processing traces for DPO model...')
+
+        collection = MongoClient()[self.database][self.collection]
+
+        for trace in tqdm(traces):
+            if isinstance(trace.tree, ErrorNode):
+                continue
+
+            nodes = trace.nodes
+            nodes[trace.tree.goal] = trace.tree
+
+            # add edge ranking data for DPO
+            for node in nodes.values():
+                if node.out_edges:
+                    # select which ranking approach here
+                    w_l = rank_edges_new(goal=node.goal, edges=node.out_edges)
+
+                    if w_l:
+                        collection.insert_many(w_l)
+
+        add_rand_idx(collection)
 
     def setup(self, stage: Optional[str] = None) -> None:
         # 90/10 train/val ratio

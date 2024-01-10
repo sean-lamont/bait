@@ -212,7 +212,11 @@ class BestFS(Search):
         return
 
 
-# Similar to BestFS, but score each goal in a state and take the product, then take the first goal
+# todo
+# Fringe approach from TacticZero.
+# Similar to BestFS, except scored by goal rather than tactic logprob
+# Score each goal in a fringe and take the product, then take the first goal.
+# At most one new fringe generated per tactic application, hence UpDown is superior in that it finds all possible fringes
 class FringeSearch(Search):
     def get_goals(self):
         pass
@@ -224,6 +228,8 @@ class FringeSearch(Search):
         pass
 
 
+# todo
+# Breadth First Search
 class BFS(Search):
     def reset(self, root):
         pass

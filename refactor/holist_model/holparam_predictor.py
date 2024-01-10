@@ -67,6 +67,7 @@ Torch Reimplementation of original TF1 HolparamPredictor
 '''
 
 
+# todo lightning training and data modules
 class HolparamPredictor(predictions.Predictions):
     """Compute embeddings and make predictions from a save checkpoint."""
 

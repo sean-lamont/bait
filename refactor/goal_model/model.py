@@ -18,27 +18,9 @@ torch.set_float32_matmul_precision("medium")
 
 from torchmetrics.classification import BinaryConfusionMatrix
 
+
 # todo live evaluation as with tactic models
-
-class GoalModel(ABC):
-    """A tactic generator takes a state and generates multiple tactic candidates."""
-
-    @abstractmethod
-    def generate(
-            self,
-            state: str,
-    ) -> List[Tuple[str, float]]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def batch_generate(
-            self,
-            state: List[str],
-    ) -> List[List[Tuple[str, float]]]:
-        raise NotImplementedError
-
-
-class SimpleGoalModel(GoalModel, pl.LightningModule):
+class SimpleGoalModel(pl.LightningModule):
     def __init__(
             self,
             model_name: str,
