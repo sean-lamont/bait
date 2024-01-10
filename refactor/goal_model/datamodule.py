@@ -1,4 +1,5 @@
 import math
+import pickle
 from typing import Optional
 
 import lightning.pytorch as pl
@@ -27,13 +28,16 @@ class GoalProvableDataModule(pl.LightningDataModule):
             critic_tok: str,
             provable_tok: str,
             unprovable_tok: str,
-            trace_dir='',
+            trace_files=None,
             database='lean_e2e',
             collection='goal_labels',
             visit_threshold=2048
     ) -> None:
 
         super().__init__()
+
+        if trace_files is None:
+            trace_files = []
 
         self.critic_tok = critic_tok
         self.provable_tok = provable_tok
@@ -48,12 +52,16 @@ class GoalProvableDataModule(pl.LightningDataModule):
         self.fields = ["goal", "target"]
         self.collection = collection
         self.database = database
-        self.trace_dir = trace_dir
+        self.trace_files = trace_files
 
         self.visit_threshold = visit_threshold
 
     def prepare_data(self):
-        traces = get_traces(self.trace_dir)
+        # traces = get_traces(self.trace_dir)
+        traces = []
+        for file in self.trace_files:
+            with open(file, 'rb') as f:
+                traces.append(pickle.load(f))
 
         if not traces:
             return

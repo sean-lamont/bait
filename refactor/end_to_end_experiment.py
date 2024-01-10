@@ -9,7 +9,9 @@ import random
 import sys
 import time
 import traceback
-from typing import Any
+from subprocess import CalledProcessError
+
+from lean_dojo.utils import execute
 
 import hydra
 import ray
@@ -33,13 +35,6 @@ from refactor.search_result import SearchResult
 from refactor.tac_models import get_tac_model
 
 
-# todo proof verification
-# todo option to suppress output from imports
-
-# todo merge refactor with original BAIT
-
-
-# todo move to common/utils
 def config_to_dict(conf):
     return OmegaConf.to_container(
         conf, resolve=True, throw_on_missing=True
@@ -56,7 +51,7 @@ def get_thm_name(env, thm):
 
 
 class EndToEndProver:
-    def __init__(self, timeout, search_model, tac_model, directory, env_name='leandojo'):
+    def __init__(self, timeout, search_model, tac_model, directory, env_name='leandojo', iteration=0):
         self.timeout = timeout
         self.search_model = search_model
         self.tac_model = tac_model
@@ -70,8 +65,12 @@ class EndToEndProver:
 
         self.trace = []
 
-        self.dir = directory + '/traces'
-        self.error_dir = directory + '/error_logs'
+        self.dir = f'{directory}/traces/{iteration}'
+        self.error_dir = f'{directory}/{iteration}/error_logs'
+
+        os.makedirs(self.dir, exist_ok=True)
+        os.makedirs(self.error_dir, exist_ok=True)
+
         # maps goals to tactics once generated
         self.remaining_tacs = {}
 
@@ -103,7 +102,7 @@ class EndToEndProver:
         with open(f"{self.dir}/{get_thm_name(self.env_name, theorem)}", "wb") as f:
             pickle.dump(result, f)
 
-        return  # result
+        return
 
     def get_tactics(self, goals, premises, tacs_per_goal=64):
         suggestions = []
@@ -179,7 +178,6 @@ class EndToEndProver:
                 root = ErrorNode(EnvironmentError(str(e)))
                 self.search_model.reset(root)
 
-        # result = self._process_trace(env.thm)
         self._process_trace(env.thm)
 
         return self.search_model.root.status == Status.PROVED
@@ -247,8 +245,10 @@ class DistributedProver:
     A distributed prover that uses Ray to parallelize the proof search.
     """
 
-    def __init__(self, config) -> None:
+    def __init__(self, config, iteration=0) -> None:
         self.total_timeout = config.total_timeout
+
+        self.iteration = iteration
 
         ray.init(num_gpus=config.num_gpus, num_cpus=config.num_cpus)
 
@@ -263,29 +263,17 @@ class DistributedProver:
             prover_pool.extend(
                 [ray.remote(num_gpus=config.gpu_per_prover, num_cpus=config.cpu_per_prover)(EndToEndProver).remote(
                     tac_model=tac_model, search_model=search_model, timeout=config.env_timeout,
-                    directory=config.exp_config.directory, env_name=config.env
+                    directory=config.exp_config.directory, env_name=config.env, iteration=iteration
                 ) for _ in range(config.provers_per_gpu)])
 
         self.prover_pool = ActorPool(prover_pool)
 
         return
 
-    # todo get env / theorems from config (e.g. HOListEnv, then theorems/positions and arguments to env will be
-    #  different)
-    def search_unordered(
-            self, theorems, iteration=0, resume_proven=0, resume_step=0, env='leandojo'
-    ) -> Any:
-
-        """Parallel proof search for `theorems`. The order of the results is not guaranteed to match the order of the
-        input."""
-
+    def search_unordered(self, theorems, resume_proven=0, resume_step=0, env='leandojo'):
         try:
+            iteration = self.iteration
             env_func = get_env(env)
-            # results_ = self.prover_pool.map_unordered(
-            #     lambda p, thm: p.search.remote(LeanDojoEnv(thm, self.total_timeout)),
-            #     theorems,
-            # )
-
             results_ = self.prover_pool.map_unordered(
                 lambda p, thm: p.search.remote(env_func(thm, self.total_timeout)),
                 theorems,
@@ -315,7 +303,6 @@ def get_holist_theorems(thm_db, prev_theorems):
     final_theorems = []
 
     for i, theorem in enumerate(theorems):
-        # if theorem.full_name in [t.theorem.full_name for t in prev_theorems]:
         if theorem.fingerprint in prev_theorems:
             continue
         else:
@@ -335,7 +322,6 @@ def get_lean_thms(config, prev_theorems):
     final_positions = []
 
     for i, theorem in enumerate(theorems):
-        # if theorem.full_name in [t.theorem.full_name for t in prev_theorems]:
         if theorem.full_name in prev_theorems:
             continue
         else:
@@ -362,13 +348,13 @@ def main(config) -> None:
     OmegaConf.resolve(config)
 
     os.makedirs(config.exp_config.directory + '/checkpoints', exist_ok=True)
-    os.makedirs(config.exp_config.directory + '/traces', exist_ok=True)
-    os.makedirs(config.exp_config.directory + '/error_logs', exist_ok=True)
 
     prev_theorems = []
     prev_proven = 0
+    iteration = 0
 
     if config.exp_config.resume:
+        iteration = config.resume_iteration
         wandb.init(project=config.logging_config.project,
                    name=config.exp_config.name,
                    config=config_to_dict(config),
@@ -378,8 +364,8 @@ def main(config) -> None:
                    mode='offline' if config.logging_config.offline else 'online'
                    )
 
-        prev_theorems = get_traces(config.exp_config.directory + '/traces/*')
-        trace_dir = glob.glob(config.exp_config.directory + '/traces/*')
+        prev_theorems = get_traces(f'{config.exp_config.directory}/traces/{iteration}/*')
+        trace_dir = glob.glob(f'{config.exp_config.directory}/traces/{iteration}/*')
 
         for file in trace_dir:
             with open(file, "rb") as f:
@@ -404,36 +390,33 @@ def main(config) -> None:
     logger.info(f"PID: {os.getpid()}")
     logger.info(f"Config: {config}")
 
-    # todo loop over iterations
-    # for i in range(len(self.num_iterations)): ...
-
-    prover = DistributedProver(config)
-
     if config.shuffle:
         random.shuffle(theorems)
 
     theorems = theorems[:config.num_theorems]
 
-    logger.info(f'Attempting {len(theorems)} proofs..')
+    num_iterations = config.num_iterations if hasattr(config, 'num_iterations') else 1
 
-    num_proven = prover.search_unordered(theorems, iteration=0, resume_step=len(prev_theorems),
-                                         resume_proven=prev_proven, env=config.env)
+    for i in range(num_iterations):
+        prover = DistributedProver(config, iteration)
 
-    # log as error for now, to minimise output for parent processes
-    logger.error(f"Pass@1: {num_proven / config.num_theorems}")
+        logger.info(f'Attempting {len(theorems)} proofs..')
 
-    # todo add end-to-end training:
-    # - filter new traces and combine them with old
-    # - E.g. Keep most recent attempt for each goal if not proven, otherwise take last/shortest proof?
-    # - Can keep good quality data from human traces? (processing will vary on system)
+        num_proven = prover.search_unordered(theorems, resume_step=len(prev_theorems),
+                                             resume_proven=prev_proven, env=config.env)
 
-    # - call separate process for training goal/tactic models (specify in config, with frequency for retraining)
+        # log as error for now, to minimise output for parent processes
+        logger.error(f"Pass@1: {num_proven / config.num_theorems}")
 
-    # self.process_result(results, config) (e.g. process and add results to mongodb)
+        if hasattr(config, 'train_after_eval') and num_iterations > 1:
+            for cmd in config.train_after_eval:
+                logger.info(f'Running training with {cmd}')
 
-    # train goal/tactic models...
-
-    # also would update retriever e.g. refresh embedding generation
+                try:
+                    _, err = execute(cmd, capture_output=True)
+                except CalledProcessError as ex:
+                    logger.error(ex)
+                    logger.error("Failed to train.")
 
 
 if __name__ == '__main__':

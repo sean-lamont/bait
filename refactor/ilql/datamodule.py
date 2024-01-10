@@ -1,5 +1,6 @@
 """Data module for the tactic generator."""
 import math
+import pickle
 from typing import Optional
 
 # import pytorch_lightning as pl
@@ -28,12 +29,15 @@ class ILQLDataModule(pl.LightningDataModule):
             eval_batch_size: int,
             max_seq_len: int,
             num_workers: int = 0,
-            trace_dir='',
+            trace_files=None,
             database='leandojo_initial',
             collection='edge_data'
     ) -> None:
 
         super().__init__()
+
+        if trace_files is None:
+            trace_files = []
 
         self.batch_size = batch_size
         self.eval_batch_size = eval_batch_size
@@ -45,10 +49,13 @@ class ILQLDataModule(pl.LightningDataModule):
         self.collection = collection
         self.database = database
 
-        self.trace_dir = trace_dir
+        self.trace_files = trace_files
 
     def prepare_data(self):
-        traces = get_traces(self.trace_dir)
+        traces = []
+        for file in self.trace_files:
+            with open(file, 'rb') as f:
+                traces.append(pickle.load(f))
 
         if not traces:
             return

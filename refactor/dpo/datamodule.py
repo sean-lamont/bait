@@ -1,5 +1,6 @@
 """Data module for the tactic generator."""
 import math
+import pickle
 from typing import Optional
 
 # import pytorch_lightning as pl
@@ -152,12 +153,15 @@ class DPODataModule(pl.LightningDataModule):
             eval_batch_size: int,
             max_seq_len: int,
             num_workers: int,
+            trace_files=None,
             database='lean_e2e',
             collection='dpo'
     ) -> None:
 
         super().__init__()
 
+        if trace_files is None:
+            trace_files = []
         self.batch_size = batch_size
         self.eval_batch_size = eval_batch_size
         self.max_seq_len = max_seq_len
@@ -168,6 +172,7 @@ class DPODataModule(pl.LightningDataModule):
         self.collection = collection
         self.database = database
         self.current_train_batch_index = 0
+        self.trace_files = trace_files
 
     def state_dict(self):
         self.current_train_batch_index = self.ds_train.start_idx
@@ -179,7 +184,10 @@ class DPODataModule(pl.LightningDataModule):
         self.setup()
 
     def prepare_data(self):
-        traces = get_traces(self.trace_dir)
+        traces = []
+        for file in self.trace_files:
+            with open(file, 'rb') as f:
+                traces.append(pickle.load(f))
 
         if not traces:
             return
