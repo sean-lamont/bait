@@ -13,14 +13,14 @@ logging_config:
 
 trainer:
   accelerator: gpu
-  devices: 1
+  devices: 2
   precision: bf16-mixed
   strategy:
     _target_: lightning.pytorch.strategies.DeepSpeedStrategy
     stage: 2
     offload_optimizer: false
     cpu_checkpointing: false
-    logging_batch_size_per_gpu: 1
+    logging_batch_size_per_gpu: 4
   gradient_clip_val: 1.0
   max_steps: 5000000
   val_check_interval: 30000
@@ -37,7 +37,8 @@ trainer:
       auto_insert_metric_name: true
       filename: "{epoch}-{step}-{Pass@1_val:.2f}"
 
-model_config:
+experiment:
+  _target_: refactor.dpo.model.DPOTrainModule
   model_type: 'tac_gen'
   model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
   lr: 1e-6
@@ -59,9 +60,14 @@ model_config:
     lora_alpha: 16
     lora_dropout: 0.01
 
-data_config:
-  batch_size: 1
+
+data_module:
+  _target_: refactor.goal_model.datamodule.GoalProvableDataModule
   model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
+  batch_size: 4  # effective_batch_size == batch_size * accumulate_grad_batches * devices
   eval_batch_size: 4
   max_seq_len: 2300
   num_workers: 0
+  trace_files: null
+#  database: null
+#  collection: null

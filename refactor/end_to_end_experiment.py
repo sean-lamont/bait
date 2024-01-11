@@ -20,6 +20,7 @@ import wandb
 from loguru import logger
 from omegaconf import OmegaConf
 from ray.util.actor_pool import ActorPool
+from tqdm import tqdm
 
 from data.holist.utils import io_util
 from environments.holist import proof_assistant_pb2
@@ -364,17 +365,19 @@ def main(config) -> None:
                    mode='offline' if config.logging_config.offline else 'online'
                    )
 
-        prev_theorems = get_traces(f'{config.exp_config.directory}/traces/{iteration}/*')
+        # prev_theorems = get_traces(f'{config.exp_config.directory}/traces/{iteration}/*')
         trace_dir = glob.glob(f'{config.exp_config.directory}/traces/{iteration}/*')
 
-        for file in trace_dir:
+        logger.info('Loading previous proofs..')
+
+        for file in tqdm(trace_dir):
             with open(file, "rb") as f:
                 trace = pickle.load(f)
             if trace.proof:
                 prev_proven += 1
             prev_theorems.append(get_thm_name(config.env, trace.theorem))
 
-        logger.info(f'Resuming from {prev_proven} proofs')
+        logger.info(f'Resuming from {prev_proven} proofs over {len(prev_theorems)} attempts..')
     else:
         wandb.init(project=config.logging_config.project,
                    name=config.exp_config.name,
@@ -408,6 +411,7 @@ def main(config) -> None:
         # log as error for now, to minimise output for parent processes
         logger.error(f"Pass@1: {num_proven / config.num_theorems}")
 
+        # todo reload checkpoints for newly trained models
         if hasattr(config, 'train_after_eval') and num_iterations > 1:
             for cmd in config.train_after_eval:
                 logger.info(f'Running training with {cmd}')
