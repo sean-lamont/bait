@@ -1,0 +1,13 @@
+exp_config:
+  name: ???
+  directory: runs/${.experiment}/${.name}_${now:%Y_%m_%d}/${now:%H_%M_%S}
+  checkpoint_dir: ${.directory}/checkpoints
+  accelerator: gpu
+  device: [0]
+  resume: False
+
+hydra:
+  run:
+    dir: ${exp_config.directory}
+  job:
+    chdir: False

@@ -19,8 +19,8 @@ from lean_dojo import (
     DojoInitError,
     DojoCrashError,
     DojoHardTimeoutError,
-    # TacticError,
-    LeanError,
+    TacticError,
+    # LeanError,
     TimeoutError,
     TacticState,
     ProofGivenUp
@@ -38,6 +38,7 @@ Environment Wrapper over LeanDojo. Adds premise retrieval and processing of proo
 '''
 
 
+# todo option to not split subgoals
 class LeanDojoEnv:
     def __init__(self, thm, timeout):
         self.timeout = timeout
@@ -101,8 +102,8 @@ class LeanDojoEnv:
         result_node = []
 
         if type(response) in (
-                # TacticError,
-                LeanError,
+                TacticError,
+                # LeanError,
                 TimeoutError,
                 ProofGivenUp,
         ):

@@ -115,7 +115,6 @@ To run a premise selection experiment, from the root directory of the project si
 where {dataset} is the desired dataset, and {model} is the desired model. 
 To change model hyperparameters, modify the appropriate {dataset}/{model} config file. 
 
-
 ### HOList Supervised
 To run a premise selection experiment, from the root directory of the project simply run:
 
@@ -138,8 +137,6 @@ The default value, where you can copy HOList supervised checkpoints to is:
 The first run of the experiment will generate a checkpoint.npy file in the `theorem_embeddings` 
 directory specified in the configuration. If the file exists, it will load from the specified directory. 
 
-
-
 ### TacticZero
 To run a TacticZero experiment, from the root directory of the project simply run:
 
@@ -153,4 +150,63 @@ To resume a run, you should add the following fields to the final configuration 
 - `exp_config.directory: {base_dir}` where `base_dir` is the root of the directory created from the resuming run.
 By default, this is in the format: 
     `experiments/runs/${.experiment}/${.name}_${%Y_%m_%d}/${%H_%M_%S}`
+
+
+
+# End to End training
+
+A central feature of BAIT is the abstraction over core components utilised across many ITP automation methods.
+Implementing this functionality are the following modules as part of the end_to_end experiment:
+- `proof_node`
+- `search_models`
+- `search_result`
+- `tac_models`
+
+The `end_to_end_experiment` module links these together. A configuration file specifying the tactic model,
+search model, environment, how to process traces for model training, and what modules to call for training.
+
+
+## proof_node
+Implements the Proof Search Tree datastructure. 
+
+## search_models
+Implements abstract and concrete search models.
+
+## tac_models
+Implements abstract and concrete tactic selection models
+
+
+## search_result
+Class which contains a SearchResult object, which includes all relevant information from a proof search 
+
+## visualise_trace
+Allows for an interactive visualisation of the proof search. 
+Requires separate implementations for each new search 
+
+
+## Tactic/Search models with Lightning
+Both tactic and search models are lightning modules.
+
+They should each have an associated DataModule.
+This should define how to process proof traces before training. For example, goal_model takes 
+all proven nodes as a 1, and all unproven goals over a visit count as 0. DPO ranks edges based on errors,
+and generator just takes a seq2seq loss over proven goals. 
+
+Tactic models need to implement a get_tactic method which maps a string to a tactic. 
+Aside from this, the models have no restrictions.
+Current models include HOList Tactic Generator, generative models with Seq2Seq training, DPO and ILQL training,
+Goal models with varying objectives etc. Once these are implemented, they can be added to tac_models or search_models 
+respectively.
+
+# Environments 
+
+## holist_env
+Wrapper over HOList. Modified to include pretty printed expressions.
+Modified proof logging to include pretty printed expressions, replicating original HOList dataset over core and complex
+now with PP. 
+todo extend this to arbitrary github repos like LeanDojo, and test on flyspeck to reconstruct full HOList benchmark
+
+## leandojo
+Wrapper over the standard LeadDojo environment.
+Unlike ReProver, this separates subgoals which has several advantages...
 

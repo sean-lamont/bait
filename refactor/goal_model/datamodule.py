@@ -12,7 +12,7 @@ from transformers import AutoTokenizer
 from refactor.common import (
     Batch,
 )
-from refactor.process_traces import get_traces, add_rand_idx
+from refactor.process_traces import get_traces, add_rand_idx, filter_traces
 from refactor.proof_node import ErrorNode
 from refactor.stream_dataset import GoalStreamDataset, worker_init_fn
 
@@ -57,16 +57,18 @@ class GoalProvableDataModule(pl.LightningDataModule):
         self.visit_threshold = visit_threshold
 
     def prepare_data(self):
-        # traces = get_traces(self.trace_dir)
+
+        trace_files = filter_traces(self.trace_files)
         traces = []
-        for file in self.trace_files:
+
+        for file in trace_files:
             with open(file, 'rb') as f:
                 traces.append(pickle.load(f))
 
         if not traces:
             return
 
-        logger.info('Processing traces for goal model...')
+        logger.info(f'Processing {len(traces)} traces for goal model...')
 
         collection = MongoClient()[self.database][self.collection]
 
@@ -83,7 +85,7 @@ class GoalProvableDataModule(pl.LightningDataModule):
                 for a in node.ancestors:
                     visits[a] += node.visit_count
 
-            for node in trace.nodes:
+            for node in trace.nodes.values():
                 node_data = {'goal': node.goal}
                 proof_len = node.distance_to_proof
                 if proof_len < math.inf:
@@ -98,8 +100,8 @@ class GoalProvableDataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None) -> None:
         # 90/10 train/val ratio
-        train_range = (0., 0.9)
-        val_range = (0.9, 1.)
+        train_range = (0., 0.5)
+        val_range = (0.5, 1.)
 
         train_filter = [{'$match': {'rand_idx': {'$gt': train_range[0], '$lt': train_range[1]}}},
                         {'$sort': {'rand_idx': 1}}]

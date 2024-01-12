@@ -6,17 +6,17 @@ import glob
 import os
 import pickle
 import random
+import re
 import sys
 import time
 import traceback
 from subprocess import CalledProcessError
 
-from lean_dojo.utils import execute
-
 import hydra
 import ray
 import torch
 import wandb
+from lean_dojo.utils import execute
 from loguru import logger
 from omegaconf import OmegaConf
 from ray.util.actor_pool import ActorPool
@@ -29,7 +29,6 @@ from refactor.common import zip_strict
 from refactor.get_lean_theorems import _get_theorems
 from refactor.holist_env import HOListEnv
 from refactor.leandojo_env import LeanDojoEnv
-from refactor.process_traces import get_traces
 from refactor.proof_node import *
 from refactor.search_models import get_search_model
 from refactor.search_result import SearchResult
@@ -344,7 +343,7 @@ def get_theorems(cfg, prev_theorems):
         return get_holist_theorems(cfg.env_config.path_theorem_database, prev_theorems)
 
 
-@hydra.main(config_path="../experiments/configs/experiments")
+@hydra.main(config_path="../configs/experiments")
 def main(config) -> None:
     OmegaConf.resolve(config)
 
@@ -411,8 +410,10 @@ def main(config) -> None:
         # log as error for now, to minimise output for parent processes
         logger.error(f"Pass@1: {num_proven / config.num_theorems}")
 
-        # todo reload checkpoints for newly trained models
+        ray.shutdown()
+
         if hasattr(config, 'train_after_eval') and num_iterations > 1:
+            new_ckpt_dirs = []
             for cmd in config.train_after_eval:
                 logger.info(f'Running training with {cmd}')
 
@@ -421,6 +422,23 @@ def main(config) -> None:
                 except CalledProcessError as ex:
                     logger.error(ex)
                     logger.error("Failed to train.")
+                    raise Exception("Failed to train")
+
+                m = re.search(r"checkpoint_dir: (\S+)", err)
+                assert m is not None, err
+
+                logger.warning(str(m.group(1)))
+                new_ckpt_dirs.append(str(m.group(1)).split('$')[0])
+
+                logger.info('Done.')
+
+            to_update = config.update_checkpoints
+
+            # update checkpoint paths in config with newly trained versions
+            logger.info('Updating checkpoints..')
+            for i, ckpt in enumerate(new_ckpt_dirs):
+                model, ckpt_dir = to_update[i]
+                setattr(getattr(config, model), ckpt_dir, str(ckpt))
 
 
 if __name__ == '__main__':

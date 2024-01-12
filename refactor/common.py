@@ -1,5 +1,6 @@
 import os
 import logging
+import pathlib
 import re
 import sys
 import json
@@ -463,6 +464,7 @@ def get_optimizers(
 
 def _is_deepspeed_checkpoint(path: str):
     if not os.path.exists(path):
+        print (os.stat(path))
         raise FileExistsError(f"Checkpoint {path} does not exist.")
     return os.path.isdir(path) and os.path.exists(os.path.join(path, "zero_to_fp32.py"))
 
