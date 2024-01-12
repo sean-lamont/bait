@@ -1,0 +1,262 @@
+\begin{thebibliography}{38}
+\providecommand{\natexlab}[1]{#1}
+
+\bibitem[{Bansal et~al.(2019{\natexlab{a}})Bansal, Loos, Rabe, Szegedy, and
+  Wilcox}]{bansal_holist_2019}
+Bansal, K.; Loos, S.; Rabe, M.; Szegedy, C.; and Wilcox, S. 2019{\natexlab{a}}.
+\newblock Holist: {An} environment for machine learning of higher order logic
+  theorem proving.
+\newblock In \emph{International {Conference} on {Machine} {Learning}},
+  454--463. PMLR.
+
+\bibitem[{Bansal et~al.(2019{\natexlab{b}})Bansal, Szegedy, Rabe, Loos, and
+  Toman}]{bansal_learning_2019}
+Bansal, K.; Szegedy, C.; Rabe, M.~N.; Loos, S.~M.; and Toman, V.
+  2019{\natexlab{b}}.
+\newblock Learning to {Reason} in {Large} {Theories} without {Imitation}.
+\newblock ArXiv:1905.10501.
+
+\bibitem[{Biewald(2020)}]{wandb}
+Biewald, L. 2020.
+\newblock Experiment Tracking with Weights and Biases.
+\newblock Software available from wandb.com.
+
+\bibitem[{Chen, O’Bray, and Borgwardt(2022)}]{chen_structure-aware_2022}
+Chen, D.; O’Bray, L.; and Borgwardt, K.~M. 2022.
+\newblock Structure-Aware Transformer for Graph Representation Learning.
+\newblock In \emph{International Conference on Machine Learning}.
+
+\bibitem[{Crouse et~al.(2020)Crouse, Abdelaziz, Cornelio, Thost, Wu, Forbus,
+  and Fokoue}]{crouse_improving_2020}
+Crouse, M.; Abdelaziz, I.; Cornelio, C.; Thost, V.; Wu, L.; Forbus, K.; and
+  Fokoue, A. 2020.
+\newblock Improving {Graph} {Neural} {Network} {Representations} of {Logical}
+  {Formulae} with {Subgraph} {Pooling}.
+\newblock ArXiv:1911.06904.
+
+\bibitem[{Evans et~al.(2018)Evans, Saxton, Amos, Kohli, and
+  Grefenstette}]{evans_can_2018}
+Evans, R.; Saxton, D.; Amos, D.; Kohli, P.; and Grefenstette, E. 2018.
+\newblock Can Neural Networks Understand Logical Entailment?
+\newblock In \emph{International Conference on Learning Representations}.
+
+\bibitem[{Gauthier and Kaliszyk(2015)}]{gauthier_sharing_2015}
+Gauthier, T.; and Kaliszyk, C. 2015.
+\newblock Sharing HOL4 and HOL Light Proof Knowledge.
+\newblock In \emph{Logic Programming and Automated Reasoning}.
+
+\bibitem[{Gauthier et~al.(2021)Gauthier, Kaliszyk, Urban, Kumar, and
+  Norrish}]{gauthier_tactictoe_2021}
+Gauthier, T.; Kaliszyk, C.; Urban, J.; Kumar, R.; and Norrish, M. 2021.
+\newblock {TacticToe}: {Learning} to {Prove} with {Tactics}.
+\newblock \emph{Journal of Automated Reasoning}, 65(2): 257--286.
+
+\bibitem[{Gonthier(2008)}]{gonthier_four_2008}
+Gonthier, G. 2008.
+\newblock The {Four} {Colour} {Theorem}: {Engineering} of a {Formal} {Proof}.
+\newblock In Kapur, D., ed., \emph{Computer {Mathematics}}, Lecture {Notes} in
+  {Computer} {Science}, 333--333. Berlin, Heidelberg: Springer.
+\newblock ISBN 978-3-540-87827-8.
+
+\bibitem[{Han et~al.(2022)Han, Rute, Wu, Ayers, and Polu}]{han_proof_2021}
+Han, J.~M.; Rute, J.; Wu, Y.; Ayers, E.; and Polu, S. 2022.
+\newblock Proof Artifact Co-Training for Theorem Proving with Language Models.
+\newblock In \emph{International Conference on Learning Representations}.
+
+\bibitem[{Huang et~al.(2019)Huang, Dhariwal, Song, and
+  Sutskever}]{huang_gamepad_2018}
+Huang, D.; Dhariwal, P.; Song, D.; and Sutskever, I. 2019.
+\newblock GamePad: A Learning Environment for Theorem Proving.
+\newblock In \emph{International Conference on Learning Representations}.
+
+\bibitem[{Jiang et~al.(2021)Jiang, Li, Han, and Wu}]{jiang_lisa_2021}
+Jiang, A.~Q.; Li, W.; Han, J.~M.; and Wu, Y. 2021.
+\newblock {LISA}: {Language} models of {ISAbelle} proofs.
+\newblock In \emph{6th {Conference} on {Artificial} {Intelligence} and
+  {Theorem} {Proving}}.
+
+\bibitem[{Kaliszyk, Chollet, and Szegedy(2017)}]{kaliszyk_holstep_2017}
+Kaliszyk, C.; Chollet, F.; and Szegedy, C. 2017.
+\newblock HolStep: A Machine Learning Dataset for Higher-order Logic Theorem
+  Proving.
+\newblock In \emph{International Conference on Learning Representations}.
+
+\bibitem[{Kaliszyk and Urban(2015)}]{kaliszyk_mizar_2015}
+Kaliszyk, C.; and Urban, J. 2015.
+\newblock {MizAR} 40 for {Mizar} 40.
+\newblock \emph{Journal of Automated Reasoning}, 55(3): 245--256.
+
+\bibitem[{Klein et~al.(2009)Klein, Elphinstone, Heiser, Andronick, Cock,
+  Derrin, Elkaduwe, Engelhardt, Kolanski, Norrish, Sewell, Tuch, and
+  Winwood}]{klein_sel4_2009}
+Klein, G.; Elphinstone, K.; Heiser, G.; Andronick, J.; Cock, D.; Derrin, P.;
+  Elkaduwe, D.; Engelhardt, K.; Kolanski, R.; Norrish, M.; Sewell, T.; Tuch,
+  H.; and Winwood, S. 2009.
+\newblock {seL4}: formal verification of an {OS} kernel.
+\newblock In \emph{Proceedings of the {ACM} {SIGOPS} 22nd symposium on
+  {Operating} systems principles}, {SOSP} '09, 207--220. New York, NY, USA:
+  Association for Computing Machinery.
+\newblock ISBN 978-1-60558-752-3.
+
+\bibitem[{Lample et~al.(2022)Lample, Lacroix, anne Lachaux, Rodriguez, Hayat,
+  Lavril, Ebner, and Martinet}]{lample_hypertree_2022}
+Lample, G.; Lacroix, T.; anne Lachaux, M.; Rodriguez, A.; Hayat, A.; Lavril,
+  T.; Ebner, G.; and Martinet, X. 2022.
+\newblock HyperTree Proof Search for Neural Theorem Proving.
+\newblock In Oh, A.~H.; Agarwal, A.; Belgrave, D.; and Cho, K., eds.,
+  \emph{Advances in Neural Information Processing Systems}.
+
+\bibitem[{Lan et~al.(2022)Lan, Wang, Zhang, Lan, Dai, Wang, Zhang, and
+  Lim}]{lan_mwptoolkit_2022}
+Lan, Y.; Wang, L.; Zhang, Q.; Lan, Y.; Dai, B.~T.; Wang, Y.; Zhang, D.; and
+  Lim, E.-P. 2022.
+\newblock {MWPToolkit}: {An} {Open}-{Source} {Framework} for {Deep}
+  {Learning}-{Based} {Math} {Word} {Problem} {Solvers}.
+\newblock \emph{Proceedings of the AAAI Conference on Artificial Intelligence},
+  36(11): 13188--13190.
+\newblock Number: 11.
+
+\bibitem[{Leroy(2014)}]{leroy_compcert_2014}
+Leroy, X. 2014.
+\newblock The {CompCert} {C} verified compiler: {Documentation} and user’s
+  manual.
+\newblock Avalailable at https://compcert.org/man/manual.pdf.
+
+\bibitem[{Li et~al.(2021)Li, Yu, Wu, and Paulson}]{li_isarstep_2020}
+Li, W.; Yu, L.; Wu, Y.; and Paulson, L.~C. 2021.
+\newblock IsarStep: a Benchmark for High-level Mathematical Reasoning.
+\newblock In \emph{International Conference on Learning Representations}.
+
+\bibitem[{Luo, Thost, and Shi(2023)}]{luo_transformers_2023}
+Luo, Y.; Thost, V.; and Shi, L. 2023.
+\newblock Transformers over Directed Acyclic Graphs.
+\newblock In \emph{Thirty-seventh Conference on Neural Information Processing
+  Systems}.
+
+\bibitem[{Mishra et~al.(2022)Mishra, Finlayson, Lu, Tang, Welleck, Baral,
+  Rajpurohit, Tafjord, Sabharwal, Clark, and Kalyan}]{mishra_lila_2022}
+Mishra, S.; Finlayson, M.; Lu, P.; Tang, L.; Welleck, S.; Baral, C.;
+  Rajpurohit, T.; Tafjord, O.; Sabharwal, A.; Clark, P.; and Kalyan, A. 2022.
+\newblock {LILA}: A Unified Benchmark for Mathematical Reasoning.
+\newblock In Goldberg, Y.; Kozareva, Z.; and Zhang, Y., eds., \emph{Proceedings
+  of the 2022 Conference on Empirical Methods in Natural Language Processing},
+  5807--5832. Abu Dhabi, United Arab Emirates: Association for Computational
+  Linguistics.
+
+\bibitem[{Paliwal et~al.(2020)Paliwal, Loos, Rabe, Bansal, and
+  Szegedy}]{paliwal_graph_2020}
+Paliwal, A.; Loos, S.; Rabe, M.; Bansal, K.; and Szegedy, C. 2020.
+\newblock Graph {Representations} for {Higher}-{Order} {Logic} and {Theorem}
+  {Proving}.
+\newblock \emph{Proceedings of the AAAI Conference on Artificial Intelligence},
+  34(03): 2967--2974.
+\newblock Number: 03.
+
+\bibitem[{Poesia and Goodman(2023)}]{poesia_peano_2023}
+Poesia, G.; and Goodman, N.~D. 2023.
+\newblock Peano: learning formal mathematical reasoning.
+\newblock \emph{Philosophical Transactions of the Royal Society A:
+  Mathematical, Physical and Engineering Sciences}, 381(2251): 20220044.
+
+\bibitem[{Polu et~al.(2023)Polu, Han, Zheng, Baksys, Babuschkin, and
+  Sutskever}]{polu_formal_2022}
+Polu, S.; Han, J.~M.; Zheng, K.; Baksys, M.; Babuschkin, I.; and Sutskever, I.
+  2023.
+\newblock Formal Mathematics Statement Curriculum Learning.
+\newblock In \emph{The Eleventh International Conference on Learning
+  Representations}.
+
+\bibitem[{Polu and Sutskever(2020)}]{polu_generative_2020}
+Polu, S.; and Sutskever, I. 2020.
+\newblock Generative {Language} {Modeling} for {Automated} {Theorem} {Proving}.
+\newblock ArXiv:2009.03393.
+
+\bibitem[{Powell(2022)}]{powell_reinforcement_2022}
+Powell, W.~B. 2022.
+\newblock \emph{Reinforcement {Learning} and {Stochastic} {Optimization}: {A}
+  {Unified} {Framework} for {Sequential} {Decisions}}.
+\newblock John Wiley \& Sons.
+\newblock ISBN 978-1-119-81505-1.
+\newblock Google-Books-ID: 6ahsEAAAQBAJ.
+
+\bibitem[{Sutton and Barto(2018)}]{sutton_reinforcement_2018}
+Sutton, R.~S.; and Barto, A.~G. 2018.
+\newblock \emph{Reinforcement {Learning}: {An} {Introduction}}.
+\newblock Cambridge, MA, USA: A Bradford Book.
+\newblock ISBN 978-0-262-03924-6.
+
+\bibitem[{Tan et~al.(2019)Tan, Myreen, Kumar, Fox, Owens, and
+  Norrish}]{tan_verified_2019}
+Tan, Y.~K.; Myreen, M.~O.; Kumar, R.; Fox, A.; Owens, S.; and Norrish, M. 2019.
+\newblock The verified {CakeML} compiler backend.
+\newblock \emph{Journal of Functional Programming}, 29: e2.
+\newblock Publisher: Cambridge University Press.
+
+\bibitem[{Vaswani et~al.(2017)Vaswani, Shazeer, Parmar, Uszkoreit, Jones,
+  Gomez, Kaiser, and Polosukhin}]{vaswani_attention_2017}
+Vaswani, A.; Shazeer, N.; Parmar, N.; Uszkoreit, J.; Jones, L.; Gomez, A.~N.;
+  Kaiser, L.~u.; and Polosukhin, I. 2017.
+\newblock Attention is All you Need.
+\newblock In Guyon, I.; Luxburg, U.~V.; Bengio, S.; Wallach, H.; Fergus, R.;
+  Vishwanathan, S.; and Garnett, R., eds., \emph{Advances in Neural Information
+  Processing Systems}, volume~30. Curran Associates, Inc.
+
+\bibitem[{Wang et~al.(2017)Wang, Tang, Wang, and Deng}]{wang_premise_2017}
+Wang, M.; Tang, Y.; Wang, J.; and Deng, J. 2017.
+\newblock Premise {Selection} for {Theorem} {Proving} by {Deep} {Graph}
+  {Embedding}.
+\newblock In \emph{Advances in {Neural} {Information} {Processing} {Systems}},
+  volume~30. Curran Associates, Inc.
+
+\bibitem[{Whalen(2016)}]{whalen_holophrasm_2016}
+Whalen, D. 2016.
+\newblock Holophrasm: a neural Automated Theorem Prover for higher-order logic.
+\newblock ArXiv:1608.02644.
+
+\bibitem[{Wu et~al.(2021{\natexlab{a}})Wu, Norrish, Walder, and
+  Dezfouli}]{wu_tacticzero_2021}
+Wu, M.; Norrish, M.; Walder, C.; and Dezfouli, A. 2021{\natexlab{a}}.
+\newblock {TacticZero}: {Learning} to {Prove} {Theorems} from {Scratch} with
+  {Deep} {Reinforcement} {Learning}.
+\newblock In \emph{NeurIPS}, volume~34.
+
+\bibitem[{Wu et~al.(2021{\natexlab{b}})Wu, Jiang, Ba, and Grosse}]{wu_int_2020}
+Wu, Y.; Jiang, A.~Q.; Ba, J.; and Grosse, R. 2021{\natexlab{b}}.
+\newblock {INT}: {An} {Inequality} {Benchmark} for {Evaluating}
+  {Generalization} in {Theorem} {Proving}.
+\newblock In \emph{ICLR}.
+
+\bibitem[{Yadan(2019)}]{yadan_hydra_2019}
+Yadan, O. 2019.
+\newblock Hydra - {A} framework for elegantly configuring complex applications.
+\newblock Software available at https://github.com/facebookresearch/hydra.
+
+\bibitem[{Yang and Deng(2019)}]{yang_learning_2019}
+Yang, K.; and Deng, J. 2019.
+\newblock Learning to prove theorems via interacting with proof assistants.
+\newblock In \emph{36th International Conference on Machine Learning, ICML
+  2019}, 36th International Conference on Machine Learning, ICML 2019,
+  12079--12094. International Machine Learning Society (IMLS).
+\newblock 36th International Conference on Machine Learning, ICML 2019 ;
+  Conference date: 09-06-2019 Through 15-06-2019.
+
+\bibitem[{Yang et~al.(2023)Yang, Swope, Gu, Chalamala, Song, Yu, Godil,
+  Prenger, and Anandkumar}]{yang_leandojo_2023}
+Yang, K.; Swope, A.; Gu, A.; Chalamala, R.; Song, P.; Yu, S.; Godil, S.;
+  Prenger, R.; and Anandkumar, A. 2023.
+\newblock {LeanDojo}: Theorem Proving with Retrieval-Augmented Language Models.
+\newblock In \emph{Neural Information Processing Systems (NeurIPS)}.
+
+\bibitem[{Zhang et~al.(2019)Zhang, Tong, Xu, and
+  Maciejewski}]{zhang_graph_2019}
+Zhang, S.; Tong, H.; Xu, J.; and Maciejewski, R. 2019.
+\newblock Graph convolutional networks: a comprehensive review.
+\newblock \emph{Computational Social Networks}, 6(1): 11.
+
+\bibitem[{Zheng, Han, and Polu(2022)}]{zheng_minif2f_2021}
+Zheng, K.; Han, J.~M.; and Polu, S. 2022.
+\newblock miniF2F: a cross-system benchmark for formal Olympiad-level
+  mathematics.
+\newblock In \emph{International Conference on Learning Representations}.
+
+\end{thebibliography}
