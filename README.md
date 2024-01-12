@@ -1,3 +1,6 @@
+# AAAI24 Code
+This branch reflects the code submitted to AAAI24 for the paper BAIT: Benchmarking (Embedding) Architectures for Interactive Theorem-Proving.
+
 # Setup Instructions
 
 ## Python packages
