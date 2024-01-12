@@ -10,20 +10,14 @@ import torch
 import torch.utils.data as data_handler
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
-from omegaconf import OmegaConf
 
-from environments.int_environment.algos.eval import eval_agent
-from environments.int_environment.algos.lib.obs import nodename2index, thm2index, batch_process
-from environments.int_environment.algos.model.thm_model import ThmNet
-from environments.int_environment.algos.model.thm_model_transformer import ThmNet as TransThmNet
-from environments.int_environment.data_generation.generate_problems import generate_multiple_problems
-from environments.int_environment.data_generation.utils import Dataset
-
-
-def config_to_dict(conf):
-    return OmegaConf.to_container(
-        conf, resolve=True, throw_on_missing=True
-    )
+from environments.INT.algos.eval import eval_agent
+from environments.INT.algos.lib.obs import nodename2index, thm2index, batch_process
+from environments.INT.algos.model.thm_model import ThmNet
+from environments.INT.algos.model.thm_model_transformer import ThmNet as TransThmNet
+from environments.INT.data_generation.generate_problems import generate_multiple_problems
+from environments.INT.data_generation.utils import Dataset
+from utils.utils import config_to_dict
 
 
 def load_data(data_dir, mode="train"):
@@ -165,13 +159,16 @@ class INTDataModule(pl.LightningDataModule):
         # batcher = data_handler.BatchSampler(sampler, batch_size=self.config.batch_size, drop_last=False)
         # batch = self.train_dataset.get_multiple(indices=indices)
         # batch_states, batch_actions, batch_name_actions = batch_process(batch, mode=self.config.obs_mode)
-        return torch.utils.data.DataLoader(self.train_dataset, batch_size=self.config.batch_size, collate_fn=self.collate)
+        return torch.utils.data.DataLoader(self.train_dataset, batch_size=self.config.batch_size,
+                                           collate_fn=self.collate)
 
     def val_dataloader(self):
-        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=self.config.batch_size, collate_fn=self.collate)
+        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=self.config.batch_size,
+                                           collate_fn=self.collate)
 
     def test_dataloader(self):
-        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=self.config.batch_size, collate_fn=self.collate)
+        return torch.utils.data.DataLoader(self.eval_dataset, batch_size=self.config.batch_size,
+                                           collate_fn=self.collate)
 
 
 class INTLoop(pl.LightningModule):
@@ -324,7 +321,7 @@ class INTLoop(pl.LightningModule):
             print(f"Error in backward: {e}")
 
 
-@hydra.main(config_path="configs/experiments", config_name="int_base")
+@hydra.main(config_path="../configs/experiments")
 def int_experiment(config):
     os.makedirs(config.exp_config.checkpoint_dir, exist_ok=True)
     config.dump = os.path.join(config.exp_config.directory, config.dump)
@@ -367,7 +364,7 @@ def int_experiment(config):
         print('resuming')
         logger = WandbLogger(project=config.logging_config.project,
                              name=config.exp_config.name,
-                             # config=config_to_dict(config),
+                             config=config_to_dict(config),
                              notes=config.logging_config.notes,
                              offline=config.logging_config.offline,
                              save_dir=config.exp_config.directory,
@@ -378,7 +375,7 @@ def int_experiment(config):
     else:
         logger = WandbLogger(project=config.logging_config.project,
                              name=config.exp_config.name,
-                             # config=config_to_dict(config),
+                             config=config_to_dict(config),
                              notes=config.logging_config.notes,
                              offline=config.logging_config.offline,
                              save_dir=config.exp_config.directory,

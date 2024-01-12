@@ -7,13 +7,14 @@ import wandb
 from lightning.pytorch.callbacks import ModelCheckpoint
 from omegaconf import OmegaConf
 
-from data.get_data import get_data
+from experiments.premise_selection.datamodule import PremiseDataModule
 
 warnings.filterwarnings('ignore')
 import lightning.pytorch as pl
 from lightning.pytorch.loggers import WandbLogger
 from models.get_model import get_model
-from models.gnn.formula_net.formula_net import BinaryClassifier
+
+from models.embedding_models.gnn.formula_net.formula_net import BinaryClassifier
 import torch
 
 
@@ -106,7 +107,7 @@ Premise selection experiment with separate encoders for goal and premise
 '''
 
 
-@hydra.main(config_path="../../configs/experiments")#, config_name="experiments/ho")
+@hydra.main(config_path="../../configs/experiments")
 def premise_selection_experiment(config):
     torch.set_float32_matmul_precision('medium')
 
@@ -119,7 +120,7 @@ def premise_selection_experiment(config):
                                   lr=config.optimiser_config.learning_rate,
                                   batch_size=config.batch_size)
 
-    data_module = get_data(config.data_config)
+    data_module = PremiseDataModule(config=config.data_config)
 
     if config.exp_config.resume:
         logging.info('Resuming run..')
@@ -202,47 +203,3 @@ def premise_selection_experiment(config):
 
 if __name__ == '__main__':
     premise_selection_experiment()
-
-# @hydra.main(config_path="configs/", config_name="formula_net_hol4")
-# def run_experiment(cfg):
-#     (cfg)
-# print(OmegaConf.to_yaml(cfg.exp_config))
-
-# wandb.config = OmegaConf.to_container(
-#     cfg, resolve=True, throw_on_missing=True
-# )
-# wandb.init(project=cfg.wandb.project)
-# wandb.log({"loss": loss})
-# model = Model(**wandb.config.model.configs)
-
-# run = wandb.init(entity=cfg.wandb.entity, project=cfg.wandb.project)
-# wandb.log({"loss": loss})
-
-# if __name__ == '__main__':
-#     run_experiment()
-# if __name__ == '__main__':
-# sweep_config = {
-#     'method': 'random',
-#     'name': 'first_sweep',
-#     'metric': {
-#         'goal': 'minimize',
-#         'name': 'validation_loss'
-#     },
-#     'parameters': {
-#         'n_hidden': {'values': [2, 3, 5, 10]},
-#         'lr': {'max': 1.0, 'min': 0.0001},
-#         'noise': {'max': 1.0, 'min': 0.}
-#     }
-# }
-#
-# sweep_id = wandb.sweep(sweep_config, project="test_sweep")
-# wandb.agent(sweep_id=sweep_id, function=run_experiment, count=5)
-
-
-# def main():
-#     cfg = pyrallis.parse(config_class=PremiseSelectionConfig)
-#     experiment = SeparateEncoderPremiseSelection(cfg)
-#     experiment.run()
-#
-# if __name__ == '__main__':
-#     main()

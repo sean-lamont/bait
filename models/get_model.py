@@ -1,25 +1,26 @@
-from models.amr.amr import AMRTransformer
-from models.gnn.digae.digae_model import DigaeEmbedding
-from models.gnn.formula_net.formula_net import FormulaNet, FormulaNetEdges
-from models.gnn.gcn import GCNGNN, DiGCNGNN
-from models.gnn_transformer import GNNTransformer
-from models.relation_transformer.relation_transformer_new import AttentionRelations
-from models.relation_transformer.relation_transformer_small import AttentionRelationSmall
-from models.sat.models import GraphTransformer
-from models.holist_models.sat.models import GraphTransformer as HOListSAT
-from models.tacticzero_autoencoder.tacticzero_autoencoder import TacticZeroAutoEncoder
-from models.transformer.transformer_encoder_model import TransformerWrapper
-from models.holist_models.gnn.gnn_encoder import GNNEncoder
-from models.holist_models.transformer.transformer_encoder_model import TransformerWrapper as HOListTransformer
-from models.ensemble.ensemble import EnsembleEmbedder
-from refactor.dpo.model import DPOTrainModule
+from models.embedding_models.amr.amr import AMRTransformer
+from models.embedding_models.gnn.digae.digae_model import DigaeEmbedding
+from models.embedding_models.gnn.formula_net.formula_net import FormulaNet, FormulaNetEdges
+from models.embedding_models.gnn.gcn import GCNGNN, DiGCNGNN
+from models.embedding_models.gnn_transformer import GNNTransformer
+from models.embedding_models.relation_transformer.relation_transformer_new import AttentionRelations
+from models.embedding_models.relation_transformer.relation_transformer_small import AttentionRelationSmall
+from models.embedding_models.sat.models import GraphTransformer
+from models.embedding_models.holist_models.sat.models import GraphTransformer as HOListSAT
+from models.tactic_zero.autoencoder.tacticzero_autoencoder import TacticZeroAutoEncoder
+from models.embedding_models.transformer.transformer_encoder_model import TransformerWrapper
+from models.embedding_models.holist_models.gnn.gnn_encoder import GNNEncoder
+from models.embedding_models.holist_models.transformer.transformer_encoder_model import \
+    TransformerWrapper as HOListTransformer
+from models.embedding_models.ensemble.ensemble import EnsembleEmbedder
+from models.end_to_end.dpo.model import DPOTrainModule
 
 '''
 Utility function to fetch model given a configuration dict
 '''
 
 
-# todo replace with hydra config instantiation
+# todo replace with hydra config instantiation as in end_to_end experiments
 def get_model(model_config):
     if model_config.model_type == 'tac_gen':
         return DPOTrainModule
