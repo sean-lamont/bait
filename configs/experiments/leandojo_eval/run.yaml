@@ -76,6 +76,7 @@ tac_model:
 
 search_model:
 #  search: bestfs
+
     search: updown
     ckpt_path: goal_model.ckpt
     distributed: true
@@ -88,12 +89,6 @@ search_model:
   #    gpu_per_process: 0.45
   #    cpu_per_process: 0.5
   #    exploration_constant: 1
-
-  #  search: updown
-  #  ckpt_path: goal_model.ckpt
-  #  distributed: true
-  #  gpu_per_process: 0.45 #0.225
-  #  cpu_per_process: 1 # 0.5
 
 # commands to run for retraining the model after every evaluation
 train_after_eval:
