@@ -2,10 +2,8 @@ main:
   - title: "About"
     url: /about/
 
-
-
 docs:
   - title: Setup
-  children:
-    - title: Installation
-    url: /docs/install/
+    children:
+      - title: Installation
+        url: /docs/install/
