@@ -20,7 +20,7 @@ email:
 description: >- # this means to ignore newlines until "baseurl:"
 twitter_username: username
 github_username: username
-minimal_mistakes_skin: default
+minimal_mistakes_skin: dirt #default
 search: false
 
 # Build settings
