@@ -2,8 +2,7 @@
 layout: splash
 permalink: /
 title: "BAIT: Benchmarking Architectures for Interactive Theorem-Proving"
-hidden: true
-
+order: 1
 ---
 
 Test 2
