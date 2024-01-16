@@ -4,6 +4,8 @@ title: "Documentation"
 
 layout: single
 
+collection: docs
+
 read_time: false
 author_profile: false
 share: false
