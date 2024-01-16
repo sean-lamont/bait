@@ -1,5 +1,5 @@
 ---
-permalink: /
+permalink: /test/
 title: "BAIT"
 ---
 
