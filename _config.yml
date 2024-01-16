@@ -14,7 +14,8 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 
-title: "BAIT: Benchmarking Architectures for Interactive Theorem-Proving"
+title: "BAIT"
+subtitle: Benchmarking Architectures for Interactive Theorem-Proving
 masthead_title: "BAIT"
 email: 
 description: >- # this means to ignore newlines until "baseurl:"
