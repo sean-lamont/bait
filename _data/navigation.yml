@@ -20,3 +20,7 @@ docs:
         url: /docs/supervised
   - title: Examples
     url: /docs/examples/
+  - title: Models
+    url: /docs/models
+  - title: Environments
+    url: /docs/environments
