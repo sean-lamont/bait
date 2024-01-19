@@ -9,14 +9,14 @@ docs:
     children:
       - title: Installation
         url: /docs/install/
-      -title: Setup
+      - title: Setup
         url: /docs/setup/
   - title: Experiments
     url: /docs/experiments/
     children: 
-      -title: End-to-End
+      - title: End-to-End
         url: /docs/end-to-end/
-      -title: Supervised
+      - title: Supervised
         url: /docs/supervised
-  -title: Examples
+  - title: Examples
     url: /docs/examples/
