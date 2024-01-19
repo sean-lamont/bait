@@ -5,7 +5,18 @@ main:
     url: /docs/
 
 docs:
-  - title: Setup
+  - title: Get Started
     children:
       - title: Installation
         url: /docs/install/
+      -title: Setup
+        url: /docs/setup/
+  - title: Experiments
+    url: /docs/experiments/
+    children: 
+      -title: End-to-End
+        url: /docs/end-to-end/
+      -title: Supervised
+        url: /docs/supervised
+  -title: Examples
+    url: /docs/examples/
