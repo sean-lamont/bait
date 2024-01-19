@@ -46,4 +46,4 @@ To resume a run, you should add the following fields to the final configuration 
 - `logging_config.id: {wandb_id}` where `wandb_id` is the id associated with the resuming run
 - `exp_config.directory: {base_dir}` where `base_dir` is the root of the directory created from the resuming run.
   By default, this is in the format:
-  `experiments/runs/${.experiment}/${.name}_${%Y_%m_%d}/${%H_%M_%S}`
+  <!-- `experiments/runs/${.experiment}/${.name}_${%Y_%m_%d}/${%H_%M_%S}` -->
