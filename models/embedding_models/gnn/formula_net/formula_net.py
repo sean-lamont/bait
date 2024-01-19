@@ -34,6 +34,9 @@ class CombinedAggregation(nn.Module):
 class BinaryClassifier(nn.Module):
     def __init__(self, input_shape):
         super(BinaryClassifier, self).__init__()
+
+        input_shape = input_shape * 2
+
         self.fc1 = nn.Linear(input_shape, input_shape)
         self.fc2 = nn.Linear(input_shape, 1)
         self.bn = nn.BatchNorm1d(input_shape)

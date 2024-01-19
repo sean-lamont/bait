@@ -44,7 +44,7 @@ def get_logger(config):
     return wandb_logger
 
 
-@hydra.main(config_path="../../configs/experiments")
+@hydra.main(config_path="../../configs")
 def lightning_experiment(config):
     torch.set_float32_matmul_precision('medium')
 

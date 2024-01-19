@@ -1,0 +1,20 @@
+# @package _global_
+defaults:
+  - mizar_new
+  - /data_type/gnn@_here_
+
+exp_config:
+    name: test_gnn
+
+experiment:
+  goal_embedding_module:
+    _target_: models.embedding_models.gnn.formula_net.formula_net.FormulaNetEdges
+    embedding_dim: 128
+    num_iterations: 4
+    batch_norm: true
+
+  premise_embedding_module:
+    _target_: models.embedding_models.gnn.formula_net.formula_net.FormulaNetEdges
+    embedding_dim: 128
+    num_iterations: 4
+    batch_norm: true

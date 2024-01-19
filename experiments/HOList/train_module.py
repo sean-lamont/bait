@@ -24,8 +24,8 @@ bce_loss = torch.nn.BCEWithLogitsLoss()
 
 class HOListTraining_(pl.LightningModule):
     def __init__(self,
-                 embedding_model_goal,
-                 embedding_model_premise,
+                 goal_embedding_module,
+                 premise_embedding_module,
                  tac_model,
                  combiner_model,
                  batch_size=16,
@@ -33,8 +33,8 @@ class HOListTraining_(pl.LightningModule):
         super().__init__()
 
         torch.set_float32_matmul_precision('medium')
-        self.embedding_model_goal = embedding_model_goal
-        self.embedding_model_premise = embedding_model_premise
+        self.embedding_model_goal = goal_embedding_module
+        self.embedding_model_premise = premise_embedding_module
         self.tac_model = tac_model
         self.combiner_model = combiner_model
         self.eps = 1e-6

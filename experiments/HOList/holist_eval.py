@@ -20,7 +20,7 @@ DeepHOL non-distributed prover.
 """
 
 
-@hydra.main(config_path="configs/experiments")#, config_name="experiments/holist_eval")
+@hydra.main(config_path="configs/experiments")
 def holist_eval(config):
     OmegaConf.resolve(config)
 

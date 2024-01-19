@@ -11,7 +11,7 @@ from omegaconf import OmegaConf
 from experiments.HOList.datamodule import HOListDataModule
 from experiments.HOList.train_module import HOListTraining_
 from models.get_model import get_model
-from models.embedding_models.holist_models.tactic_predictor import TacticPrecdictor, CombinerNetwork
+from models.embedding_models.holist_models.tactic_predictor import CombinerNetwork, TacticPredictor
 from utils.utils import config_to_dict
 
 
@@ -26,7 +26,7 @@ def holist_pretrain_experiment(config):
     experiment = HOListTraining_(embedding_model_goal=get_model(config.model_config),
                                  embedding_model_premise=get_model(config.model_config),
 
-                                 tac_model=TacticPrecdictor(
+                                 tac_model=TacticPredictor(
                                      embedding_dim=config.final_embed_dim,
                                      num_tactics=config.num_tactics),
 

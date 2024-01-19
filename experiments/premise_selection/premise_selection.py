@@ -30,21 +30,21 @@ def binary_loss(preds, targets):
 
 class PremiseSelection(pl.LightningModule):
     def __init__(self,
-                 embedding_model_goal,
-                 embedding_model_premise,
+                 goal_embedding_module,
+                 premise_embedding_module,
                  classifier,
                  batch_size=32,
                  lr=1e-4):
         super().__init__()
 
-        self.embedding_model_goal = embedding_model_goal
-        self.embedding_model_premise = embedding_model_premise
+        self.embedding_model_goal = goal_embedding_module
+        self.embedding_model_premise = premise_embedding_module
         self.classifier = classifier
         self.eps = 1e-6
         self.lr = lr
         self.batch_size = batch_size
 
-        # self.save_hyperparameters()
+    # self.save_hyperparameters()
 
     def forward(self, goal, premise):
         embedding_goal = self.embedding_model_goal(goal)
@@ -143,7 +143,6 @@ def premise_selection_experiment(config):
                              save_dir=config.exp_config.directory,
                              )
 
-
     callbacks = []
 
     checkpoint_callback = ModelCheckpoint(monitor="acc", mode="max",
@@ -170,7 +169,6 @@ def premise_selection_experiment(config):
     if config.limit_val_batches:
         trainer.limit_val_batches = config.val_size // config.batch_size
 
-
     if config.exp_config.resume:
 
         logging.debug("Resuming experiment from last checkpoint..")
@@ -196,7 +194,6 @@ def premise_selection_experiment(config):
         if config.test_on_finish:
             logging.info("Testing best model from run..")
             trainer.test(model=experiment, datamodule=data_module)
-
 
     logger.experiment.finish()
 

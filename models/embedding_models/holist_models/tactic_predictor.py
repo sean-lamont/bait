@@ -3,7 +3,7 @@ import einops
 import torch
 
 
-class TacticPrecdictor(nn.Module):
+class TacticPredictor(nn.Module):
     def __init__(self, num_tactics, embedding_dim, dropout=0.3):
         super().__init__()
         self.mlp = nn.Sequential(nn.Linear(embedding_dim, 256),
