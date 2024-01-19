@@ -1,9 +1,8 @@
 ---
-permalink: docs/supervised/
+permalink: /docs/supervised/
 title: "Supervised Experiments"
 ---
 
-[//]: # (todo move these to models?)
 ## Premise Selection
 
 ## HOList Training

@@ -1,5 +1,5 @@
 ---
-permalink: docs/setup/
+permalink: /docs/setup/
 title: "Setup"
 ---
 
@@ -45,6 +45,7 @@ Install Lean3:
 - Run `bash data/holstep/get_holstep.sh`
 - Run `python -m data.holstep.process_holstep`
 
+<!-- 
 [//]: # (### INT)
 
 [//]: # (sudo apt-get install libopenmpi-dev)
@@ -53,4 +54,4 @@ Install Lean3:
 
 [//]: # (pip install git+https://github.com/openai/baselines@ea25b9e8)
 
-[//]: # ()
+[//]: # () -->

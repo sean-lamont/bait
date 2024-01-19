@@ -1,5 +1,5 @@
 ---
-permalink: docs/examples/
+permalink: /docs/examples/
 title: "Examples"
 ---
 

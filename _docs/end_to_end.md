@@ -1,5 +1,5 @@
 ---
-permalink: docs/end-to-end/
+permalink: /docs/end-to-end/
 title: "End-to-End Experiments"
 ---
 

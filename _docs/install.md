@@ -1,5 +1,5 @@
 ---
-permalink: docs/install/
+permalink: /docs/install/
 title: "Installation"
 ---
 

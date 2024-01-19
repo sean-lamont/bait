@@ -1,10 +1,9 @@
 ---
-permalink: docs/models/
+permalink: /docs/models/
 title: "Models"
 ---
 
-
-[//]: # (todo How best to characterise experiments vs models?? Include model architecture vs model trainers?)
+<!-- (todo How best to characterise experiments vs models?? Include model architecture vs model trainers?) -->
 
 # Models
 

@@ -1,5 +1,5 @@
 ---
-permalink: docs/environment/
+permalink: /docs/environment/
 title: "Environments"
 ---
 

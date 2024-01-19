@@ -1,5 +1,5 @@
 ---
-permalink: docs/experiments/
+permalink: /docs/experiments/
 title: "Experiments"
 ---
 
