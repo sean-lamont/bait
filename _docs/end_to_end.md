@@ -3,10 +3,6 @@ permalink: /docs/end-to-end/
 title: "End-to-End Experiments"
 ---
 
-## TacticZero
-
-## HOList Evaluation
-
 ## Abstract End-to-End Loop (work in progress)
 The End-to-End experiment aims to implement the AI-ITP loop directly in a general way, 
 where the user only needs to specify the Model, Search and Environment with minimal additional boilerplate.

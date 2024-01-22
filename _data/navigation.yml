@@ -13,11 +13,20 @@ docs:
         url: /docs/setup/
   - title: Experiments
     url: /docs/experiments/
-    children: 
+    children:
+      - title: Premise Selection
+        url: /docs/premise_selection/
+      - title: TacticZero
+        url: /docs/tacticzero/
+      - title: HOList Eval
+        url: /docs/holist
       - title: End-to-End
         url: /docs/end-to-end/
-      - title: Supervised
-        url: /docs/supervised
+        children:
+          - title: Search
+            url: /docs/search/
+          - title: Tactic Models
+            url: /docs/tac_models/
   - title: Examples
     url: /docs/examples/
   - title: Models
