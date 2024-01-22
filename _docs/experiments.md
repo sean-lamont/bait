@@ -45,6 +45,14 @@ To resume a run, you should add the following fields to the final configuration 
 - `exp_config.directory: {base_dir}` where `base_dir` is the root of the directory created from the resuming run.
   By default, this is in the format:
 
+# Logging
+Weights and Biases is the default logging platform used in BAIT, and is automatically integrated into all current experiments.
+This can be changed if desired, by modifying the logging source defined in the relevant experiment module.
+
+# Checkpointing
+Checkpointing for all experiments which use a LightningModule is easily configured through the associated callbacks 
+for the trainer in the corresponding `yaml` file. 
+
 # Supervised 
 
 Many experiments naturally conform to what we call a 'Supervised' pattern. In these cases,

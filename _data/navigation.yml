@@ -1,6 +1,6 @@
 main:
-#  - title: "About"
-#    url: /about/
+  - title: "Results"
+    url: /results/
   - title: "Docs"
     url: /docs/
 
