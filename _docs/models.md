@@ -3,34 +3,47 @@ permalink: /docs/models/
 title: "Models"
 ---
 
-<!-- (todo How best to characterise experiments vs models?? Include model architecture vs model trainers?) -->
+The Model module includes model architectures.
 
-# Models
+# Embedding Models
+Contains the Embedding architectures currently used for TacticZero, HOList and Premise Selection experiments.
 
-## Embedding Models
-### GNN
-### Transformer
-### SAT
-### Ensemble
+## GNN
 
-## Premise Selection
+## Transformer
 
-## End-to-End Models
+## SAT
 
-### TacticZero
+## Ensemble
 
-### HOList
+# Premise Selection
+Contains the Premise Selection model and training code used for Premise Selection experiments.
 
-### Generative Models
+The forward pass takes a goal and premise as input, embeds them, then concatenates their
+embeddings before passing them through a MLP for classification
 
-#### Tactic Models
-##### ReProver
+This model is initialised with embedding architectures for the goal and premise, as well as the architecture for the classifier.
 
-##### Seq2seq
+# HOList
+## Agent
+The code for the live agent used in the HOList Evaluation experiment.
+## Supervised
+This includes the model and training code for the HOList Supervised experiment. 
 
-##### Direct Preference Optimisation (DPO)
+# TacticZero
+Includes the architecture for the Policy Models used by TacticZero, as well as the original seq2seq based autoencoder.
 
-##### Implicit Language Q Learning (ILQL)
+# End-to-End
+Models used for End-to-End experiments are found here. 
 
-#### Search Models
+## Tactic Models
+### ReProver
+
+### Seq2seq
+
+### Direct Preference Optimisation (DPO)
+
+### Implicit Language Q Learning (ILQL)
+
+## Search Models
 

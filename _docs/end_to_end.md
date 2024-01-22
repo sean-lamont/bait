@@ -7,17 +7,44 @@ title: "End-to-End Experiments"
 
 ## HOList Evaluation
 
+## Abstract End-to-End Loop (work in progress)
+The End-to-End experiment aims to implement the AI-ITP loop directly in a general way, 
+where the user only needs to specify the Model, Search and Environment with minimal additional boilerplate.
+
+Based on the 
 
 
-## Abstract End-to-End Loop
+It currently includes the LeanDojo environment with generative models based on ReProver,
+and an updated HOList environment with the associated tactic models used in the paper. 
+
+Tactic Models:
+- LeanDojo
+    - ReProver 
+    - DPO 
+    - ILQL
+- HOList 
+  - HOList Tactic Models, with varying embedding architectures
+
+Search Models:
+- HTPS
+- UpDown
+- Best First Search (BestFS)
+- Breadth First Search (BFS)
+- Fringe 
+
+Environments:
+- LeanDojo
+- HOList
+- HOL4 (in progress)
+
+
+The proof search and logs are tracked in a standard format, and will automatically detect 
+proofs and reconstruct them from the search. Proof search can be visualised, with the chosen tactics,
+model scores and environment response.
+
 
 A central feature of BAIT is the abstraction over core components utilised across many ITP automation methods.
 Implementing this functionality are the following modules as part of the end_to_end experiment:
-
-- `proof_node`
-- `search_models`
-- `search_result`
-- `tac_models`
 
 The `end_to_end_experiment` module links these together. A configuration file specifying the tactic model,
 search model, environment, how to process traces for model training, and what modules to call for training.
@@ -25,14 +52,6 @@ search model, environment, how to process traces for model training, and what mo
 ## proof_node
 
 Implements the Proof Search Tree datastructure.
-
-## search_models
-
-Implements abstract and concrete search models.
-
-## tac_models
-
-Implements abstract and concrete tactic selection models
 
 ## search_result
 

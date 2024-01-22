@@ -10,10 +10,6 @@ The output of experiments are often used in others. For example, the End-to-End 
 might use a model checkpoint from a pre-training experiment, and the data generated from the End-to-End run might be used 
 in a separate finetuning experiment.
 
-
-
-
-
 # Configuration
 
 We use Hydra as our configuration management library. This allows for flexible, minimal changes
@@ -25,7 +21,7 @@ such as `premise_selection`. In the root of the subfolder, you can implement a c
 file as a base for the experiment, with default configurations for the specific experiment.
 For example, `configs/tacticzero/tactic_zero.yaml` defines the specific tactics used
 in TacticZero, as well as default values for the number of steps `max_steps`, number of epochs etc.
-This configuration should inherit some or all of the configurations under `configs/base`, which define how directories,
+This configuration can inherit the configurations in `configs/base`, which define common options such as how directories,
 checkpoints and logging are managed.
 
 Within a config subdirectory, specific datasets and models can be further configured from the base.
