@@ -3,8 +3,7 @@ permalink: /docs/examples/
 title: "Examples"
 ---
 
-## Examples
-### Premise Selection
+# Premise Selection
 To run a premise selection experiment, from the root directory of the project simply run:
 
 `python3 -m experiments.supervised_runner --config-name=premise_selection/{dataset}/{model}`
@@ -12,12 +11,14 @@ To run a premise selection experiment, from the root directory of the project si
 where {dataset} is the desired dataset, and {model} is the desired model.
 To change model hyperparameters, modify the appropriate {dataset}/{model} config file.
 
-### HOList Supervised
-To run a premise selection experiment, from the root directory of the project simply run:
+# HOList
+
+## Supervised
+To run the HOList training experiment, from the root directory of the project simply run:
 
 `python3 -m experiments.supervised_runner --config-name=holist_supervised/{model}`
 
-### HOList Evaluation
+## Evaluation
 To run a HOList evaluation, from the root directory of the project run:
 
 `python3 -m experiments.HOList.holist_eval --config-name=holist_eval/{model}`
@@ -30,15 +31,7 @@ from the specific `holist_eval/{model}` file.
 The first run of the experiment will generate a checkpoint.npy file in the `theorem_embeddings`
 directory specified in the configuration. If the file exists, it will load from the specified directory
 
-### TacticZero
+# TacticZero
 To run a TacticZero experiment, from the root directory of the project simply run:
 
 `python3 -m experiments.TacticZero.tacticzero_experiment --config-name=tacticzero/{model}`
-
-## Resuming Runs
-To resume a run, you should add the following fields to the final configuration file:
-
-- `exp_config.resume: True`
-- `logging_config.id: {wandb_id}` where `wandb_id` is the id associated with the resuming run
-- `exp_config.directory: {base_dir}` where `base_dir` is the root of the directory created from the resuming run.
-  By default, this is in the format:

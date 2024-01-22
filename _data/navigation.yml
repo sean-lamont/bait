@@ -22,11 +22,6 @@ docs:
         url: /docs/holist
       - title: End-to-End
         url: /docs/end-to-end/
-        children:
-          - title: Search
-            url: /docs/search/
-          - title: Tactic Models
-            url: /docs/tac_models/
   - title: Examples
     url: /docs/examples/
   - title: Models
