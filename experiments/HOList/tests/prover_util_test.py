@@ -12,7 +12,7 @@ import logging
 
 from experiments.HOList.prover import proof_search_tree
 from experiments.HOList.prover import prover_util
-from experiments.HOList.agent import action_generator
+from models.HOList.agent import action_generator
 from environments.HOList.proof_assistant import proof_assistant_pb2
 
 PER_TACTIC_TIMEOUT_MS = 5000

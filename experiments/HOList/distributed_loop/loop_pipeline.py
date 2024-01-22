@@ -27,7 +27,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from environments.HOList.proof_assistant import proof_assistant_pb2
 from experiments.HOList import deephol_pb2
 from experiments.HOList.prover import prover_util
-from experiments.HOList.agent import holparam_predictor, embedding_store
+from models.HOList.agent import holparam_predictor, embedding_store
 from experiments.HOList.distributed_loop import options_pb2, prover_runner, loop_pb2, \
     checkpoint_monitor, report
 from experiments.HOList.distributed_loop import loop_meta

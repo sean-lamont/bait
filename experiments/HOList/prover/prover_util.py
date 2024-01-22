@@ -15,7 +15,7 @@ from google.protobuf import text_format
 
 from experiments.HOList import deephol_pb2
 from experiments.HOList.prover import proof_search_tree
-from experiments.HOList.agent import action_generator
+from models.HOList.agent import action_generator
 from data.HOList.utils import theorem_fingerprint, io_util
 from environments.HOList.proof_assistant import proof_assistant_pb2
 

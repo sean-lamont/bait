@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from environments.INT.algos.model.gnns import TransGATEncoder, GraphEncoder, GraphTransformingEncoder, \
+from models.INT.gnns import TransGATEncoder, GraphEncoder, GraphTransformingEncoder, \
     GraphIsomorphismEncoder, \
     FCResBlock, RawGATEncoder
 

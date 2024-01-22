@@ -9,7 +9,7 @@ from absl.testing import parameterized
 import numpy as np
 # import tensorflow as tf
 from experiments.HOList.tests import mock_predictions_lib
-from experiments.HOList.agent import predictions
+from models.HOList.agent import predictions
 
 TEST_ARRAY = np.reshape(np.arange(100), (10, 10)).astype(float)
 MOCK_PREDICTOR = mock_predictions_lib.MockPredictionsLib

@@ -9,15 +9,16 @@ from __future__ import absolute_import
 from __future__ import division
 # Import Type Annotations
 from __future__ import print_function
+
 import os
+from typing import Optional, Text
+
 import numpy as np
-# import tensorflow as tf
-from typing import List, Optional, Text
-from experiments.HOList.agent import predictions
+from loguru import logger
+
 from data.HOList.utils import normalization_lib, io_util
 from environments.HOList.proof_assistant import proof_assistant_pb2
-
-import logging
+from models.end_to_end.tactic_models.holist_model import predictions
 
 
 class TheoremEmbeddingStore(object):
@@ -40,25 +41,13 @@ class TheoremEmbeddingStore(object):
         self.assumptions = []
         self.assumption_embeddings = None
 
-    def compute_assumption_embeddings(self, assumptions: List[Text]) -> None:
-        """DEPRECATED - Compute embeddings for a list of assumptions and store them.
-
-    The assumptions are preprocessed by truncting by the truncation value
-    specified in the constructor.
-
-    Args:
-      assumptions: List of assumptions. Their order will be preserved.
-    """
-        raise NotImplementedError(
-            'Computing embedding of assumptions is not implemented.')
-
     def compute_embeddings_for_thms_from_db(
             self, theorem_database: proof_assistant_pb2.TheoremDatabase) -> None:
         normalized_thms = [
             normalization_lib.normalize(thm).conclusion
             for thm in theorem_database.theorems
         ]
-        logging.info("Computing all theorem embeddings, this might take a while..")
+        logger.info("Computing all theorem embeddings, this might take a while..")
         self.thm_embeddings = self.predictor.batch_thm_embedding(normalized_thms)
 
     def compute_embeddings_for_thms_from_db_file(self, file_path: Text) -> None:
@@ -69,7 +58,7 @@ class TheoremEmbeddingStore(object):
       file_path: Path to the text protobuf file containing the theorem database.
     """
 
-        logging.info('Reading theorems database from "%s"', file_path)
+        logger.info('Reading theorems database from "%s"', file_path)
         theorem_database = io_util.load_theorem_database_from_file(file_path)
         self.compute_embeddings_for_thms_from_db(theorem_database)
 
@@ -81,7 +70,7 @@ class TheoremEmbeddingStore(object):
       file_path: Path to the file in which the embeddings are stored.
     """
 
-        logging.info('Reading embeddings from "%s"', file_path)
+        logger.info(f'Reading embeddings from {file_path}')
         with open(file_path, 'rb') as f:
             self.thm_embeddings = np.load(f)
 
@@ -93,7 +82,7 @@ class TheoremEmbeddingStore(object):
         The directory and all parent directories are created if necessary.
     """
         dir_name = os.path.dirname(file_path)
-        logging.info('Writing embeddings "%s"', file_path)
+        logger.info('Writing embeddings "%s"', file_path)
 
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)

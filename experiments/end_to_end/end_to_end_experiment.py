@@ -30,9 +30,9 @@ from environments.LeanDojo.get_lean_theorems import _get_theorems
 from environments.HOList.holist_env import HOListEnv
 from environments.LeanDojo.leandojo_env import LeanDojoEnv
 from experiments.end_to_end.proof_node import *
-from experiments.end_to_end.search_models import get_search_model
+from models.end_to_end.search_models import get_search_model
 from experiments.end_to_end.search_result import SearchResult
-from experiments.end_to_end.tac_models import get_tac_model
+from models.end_to_end.tac_models import get_tac_model
 from utils.utils import config_to_dict
 
 

@@ -7,7 +7,7 @@ import copy
 import pytorch_lightning as pl
 import ray
 
-from models.end_to_end.goal_model.model import SimpleGoalModel
+from models.end_to_end.search_models.goal_model.model import SimpleGoalModel
 from experiments.end_to_end.proof_node import *
 
 

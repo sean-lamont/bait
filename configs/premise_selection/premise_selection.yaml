@@ -35,8 +35,8 @@ trainer:
       auto_insert_metric_name: true
       filename: "{epoch}-{acc}"
 
-experiment:
-  _target_: experiments.premise_selection.premise_selection.PremiseSelection
+model:
+  _target_: models.premise_selection.premise_selection.PremiseSelection
   classifier:
     _target_: models.embedding_models.gnn.formula_net.formula_net.BinaryClassifier
     # ensure that this matches the embedding dimension of the goal/premise models
@@ -45,8 +45,5 @@ experiment:
   batch_size: 32
 
 data_module:
-  _target_: experiments.premise_selection.datamodule.PremiseDataModule
+  _target_: models.premise_selection.datamodule.PremiseDataModule
   config: ${data_config}
-
-
-

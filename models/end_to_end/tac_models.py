@@ -8,18 +8,16 @@ import ray
 from loguru import logger
 
 from data.HOList.utils import io_util
-from models.end_to_end.dpo.model import RetrievalAugmentedGenerator, DPOTrainModule
-from models.end_to_end.holist_model import embedding_store, action_generator, holparam_predictor
+from models.end_to_end.tactic_models.dpo.model import RetrievalAugmentedGenerator, DPOTrainModule
+from models.end_to_end.tactic_models.holist_model import holparam_predictor
+from models.end_to_end.tactic_models.holist_model import embedding_store
+from models.end_to_end.tactic_models.holist_model import action_generator
 from experiments.end_to_end.proof_node import *
 
 
 class TacModel:
     @abstractmethod
     def get_tactics(self, goals, premises):
-        return
-
-    @abstractmethod
-    def train(self):
         return
 
 

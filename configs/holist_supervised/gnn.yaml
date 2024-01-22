@@ -6,7 +6,7 @@ defaults:
 exp_config:
   name: gnn_small
 
-experiment:
+model:
   goal_embedding_module:
     _target_: models.embedding_models.holist_models.gnn.gnn_encoder.GNNEncoder
     input_shape: ${data_config.vocab_size}

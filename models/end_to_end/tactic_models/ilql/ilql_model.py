@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from loguru import logger
 
 from experiments.end_to_end.common import get_optimizers, load_checkpoint
-from models.end_to_end.dpo.model import GenTacModel
+from models.end_to_end.tactic_models.dpo.model import GenTacModel
 
 select_batch_idxs = lambda x, idxs: torch.gather(x, dim=0, index=idxs.repeat(*x.shape[1:], 1).permute(len(x.shape) - 1,
                                                                                                       *list(range(

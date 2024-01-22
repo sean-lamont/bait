@@ -7,7 +7,7 @@ exp_config:
   name: ensemble
 
 # Ensemble with GNN and Transformer from HOList experiments
-experiment:
+model:
   goal_embedding_module:
     _target_: models.embedding_models.ensemble.ensemble.EnsembleEmbedder
     d_model: 1024 # (128 * 8)

@@ -1,5 +1,4 @@
 """Compute embeddings and predictions from a saved holparam checkpoint."""
-
 from __future__ import absolute_import
 from __future__ import division
 
@@ -7,20 +6,22 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
+import os
 from typing import List
 from typing import Optional
 from typing import Text
 
+import deepspeed
 import numpy as np
 import torch
 from pymongo import MongoClient
 
 from data.utils.graph_data_utils import transform_expr, transform_batch
-from models.end_to_end.holist_model import predictions
+from models.HOList.agent import predictions
 from data.HOList.utils import process_sexp
 from data.HOList.utils.sexpression_to_graph import sexpression_to_graph
 from models.get_model import get_model
-from models.embedding_models.holist_models.tactic_predictor import TacticPrecdictor, CombinerNetwork
+from models.embedding_models.holist_models.tactic_predictor import TacticPredictor, CombinerNetwork
 
 GOAL_EMB_TYPE = predictions.GOAL_EMB_TYPE
 THM_EMB_TYPE = predictions.THM_EMB_TYPE
@@ -67,7 +68,6 @@ Torch Reimplementation of original TF1 HolparamPredictor
 '''
 
 
-# todo lightning training and data modules
 class HolparamPredictor(predictions.Predictions):
     """Compute embeddings and make predictions from a save checkpoint."""
 
@@ -84,7 +84,7 @@ class HolparamPredictor(predictions.Predictions):
         self.embedding_model_goal = get_model(config.model_config).cuda()
         self.embedding_model_premise = get_model(config.model_config).cuda()
 
-        self.tac_model = TacticPrecdictor(
+        self.tac_model = TacticPredictor(
             embedding_dim=1024,
             num_tactics=41).cuda()
 
@@ -93,7 +93,7 @@ class HolparamPredictor(predictions.Predictions):
             num_tactics=41,
             tac_embed_dim=128).cuda()
 
-        # self.load_pretrained_model(ckpt)
+        self.load_pretrained_model(ckpt)
 
         self.embedding_model_goal.eval()
         self.embedding_model_premise.eval()
@@ -109,14 +109,23 @@ class HolparamPredictor(predictions.Predictions):
 
         self.vocab = {k['_id']: k['index'] for k in vocab_col.find()}
 
-    # todo better loading
+        logging.info("Loading expression dictionary..")
+
     def load_pretrained_model(self, ckpt_dir):
+        # if DeepSpeed
         logging.info(f"Loading checkpoint from {ckpt_dir}")
-        ckpt = torch.load(ckpt_dir + '.ckpt', map_location={'cuda:1': 'cuda:0'})['state_dict']
-        self.embedding_model_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
-        self.embedding_model_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
-        self.tac_model.load_state_dict(get_model_dict('tac_model', ckpt))
-        self.combiner_model.load_state_dict(get_model_dict('combiner_model', ckpt))
+        if os.path.isdir(ckpt_dir + '.ckpt'):
+            ckpt = deepspeed.utils.zero_to_fp32.get_fp32_state_dict_from_zero_checkpoint(ckpt_dir + '.ckpt')
+            self.embedding_model_premise.load_state_dict(get_model_dict('_forward_module.embedding_model_premise', ckpt))
+            self.embedding_model_goal.load_state_dict(get_model_dict('_forward_module.embedding_model_goal', ckpt))
+            self.tac_model.load_state_dict(get_model_dict('_forward_module.tac_model', ckpt))
+            self.combiner_model.load_state_dict(get_model_dict('_forward_module.combiner_model', ckpt))
+        else:
+            ckpt = torch.load(ckpt_dir + '.ckpt', map_location={'cuda:1': 'cuda:0'})['state_dict']
+            self.embedding_model_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
+            self.embedding_model_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
+            self.tac_model.load_state_dict(get_model_dict('tac_model', ckpt))
+            self.combiner_model.load_state_dict(get_model_dict('combiner_model', ckpt))
 
     def to_torch(self, data_dict):
         return transform_expr(data_dict,
@@ -154,6 +163,9 @@ class HolparamPredictor(predictions.Predictions):
         # The checkpoint should have exactly one value in this collection.
         with torch.no_grad():
             thms = self._thm_string_for_predictions(thms)
+
+            # thms_data = Batch.from_data_list(
+            #     [self.to_torch(sexpression_to_graph(t, all_data=True)) for t in thms])
 
             thms_data = [self.to_torch(sexpression_to_graph(t, type=self.config.data_config.type)) for t in thms]
 
@@ -278,7 +290,6 @@ class TacDependentPredictor(HolparamPredictor):
 
         # The checkpoint should have only one value in this collection.
         with torch.no_grad():
-            # todo copy np array
             scores = self.combiner_model(torch.Tensor(state_encodings).unsqueeze(0).cuda(),
                                          torch.Tensor(thm_embeddings).unsqueeze(0).cuda(),
                                          torch.LongTensor([tactic_id]).cuda()).squeeze(0).cpu().numpy()

@@ -3,20 +3,15 @@ import os
 import pickle
 import random
 import numpy as np
-from datetime import datetime
-from time import time
 
 import torch
 import torch.optim as optim
 import torch.utils.data as data_handler
 from transformers import get_cosine_schedule_with_warmup
 
-from environments.environments.int_environment.algos.eval import eval_agent
 from environments.INT.algos.lib.obs import nodename2index, thm2index, batch_process
-from environments.INT.data_generation.generate_problems import generate_multiple_problems
 from environments.INT.data_generation.utils import Dataset
-from TransGrapher.models.TransGAT import TransGATThmNet
-from environments.INT.algos.model.thm_model import ThmNet
+from models.INT.model import ThmNet
 
 
 use_gpu = torch.cuda.is_available()

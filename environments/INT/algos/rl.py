@@ -2,7 +2,6 @@ import collections
 import json
 import os
 import os.path as osp
-import pickle
 import random
 import time
 from collections import deque
@@ -17,10 +16,8 @@ from environments.INT.algos.lib.arguments import get_args
 from environments.INT.algos.eval import eval_agent
 from environments.INT.algos.lib.envs import make_thm_vec_envs
 from environments.INT.algos.lib.obs import nodename2index, thm2index
-from legacy.data_generation.random_numerical_specified import load_online_combo_and_length
 from environments.INT.algos.lib.ops import turn_grad_on_off
-from environments.INT.algos.model.thm_model import ThmNet
-from environments.INT.data_generation.utils import Dataset
+from models.INT.model import ThmNet
 
 torch.manual_seed(123)
 

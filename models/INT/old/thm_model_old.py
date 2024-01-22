@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from environments.INT.algos.model.gnns import GraphEncoder, GraphTransformingEncoder, GraphIsomorphismEncoder, FCResBlock
+from models.INT.gnns import GraphEncoder, GraphTransformingEncoder, GraphIsomorphismEncoder, FCResBlock
 from torch_geometric.data import Batch
 from torch.distributions import Categorical, Uniform
 from torch_scatter import scatter_add, scatter_max

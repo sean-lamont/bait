@@ -15,7 +15,7 @@ from transformers import AutoTokenizer
 from experiments.end_to_end.common import (
     Batch,
 )
-from models.end_to_end.goal_model.datamodule import GoalStreamDataset
+from models.end_to_end.search_models.goal_model.datamodule import GoalStreamDataset
 from experiments.end_to_end.process_traces import add_rand_idx
 from experiments.end_to_end.proof_node import ErrorNode, ProofFinishedNode, Status
 from experiments.end_to_end.stream_dataset import worker_init_fn

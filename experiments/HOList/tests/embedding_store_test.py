@@ -10,7 +10,7 @@ from absl import flags
 from absl.testing import parameterized
 import numpy as np
 
-from experiments.HOList.agent import embedding_store
+from models.HOList.agent import embedding_store
 from experiments.HOList.tests import test_util, mock_predictions_lib
 from data.HOList.utils import normalization_lib, io_util
 from environments.HOList.proof_assistant import proof_assistant_pb2

@@ -18,7 +18,7 @@ model_config:
     num_heads: 4
     dim_feedforward: 256
     
-experiment:
+model:
   goal_embedding_module:
     _target_: models.embedding_models.ensemble.ensemble.EnsembleEmbedder
     d_model: 256

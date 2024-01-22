@@ -6,7 +6,7 @@ defaults:
 exp_config:
   name: transformer_encoder
 
-experiment:
+model:
   goal_embedding_module:
     _target_: models.embedding_models.transformer.transformer_encoder_model.TransformerWrapper
     # input_shape passed in from data config

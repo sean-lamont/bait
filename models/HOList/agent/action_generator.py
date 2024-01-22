@@ -16,7 +16,7 @@ from typing import List, Tuple, Optional, Text
 
 from experiments.HOList import deephol_pb2
 from experiments.HOList.prover import proof_search_tree
-from experiments.HOList.agent import predictions, embedding_store
+from models.HOList.agent import predictions, embedding_store
 from data.HOList.utils import normalization_lib, process_sexp, theorem_fingerprint
 from environments.HOList.proof_assistant import proof_assistant_pb2
 

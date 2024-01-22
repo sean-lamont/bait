@@ -5,7 +5,7 @@ from pymongo import MongoClient
 
 from utils.utils import get_batches
 
-
+ # todo move this
 def worker_init_fn(_):
     worker_info = torch.utils.data.get_worker_info()
     dataset = worker_info.dataset

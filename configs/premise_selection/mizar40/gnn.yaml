@@ -6,7 +6,7 @@ defaults:
 exp_config:
     name: gnn
 
-experiment:
+model:
   goal_embedding_module:
     _target_: models.embedding_models.gnn.formula_net.formula_net.FormulaNetEdges
     input_shape: ${data_config.vocab_size}

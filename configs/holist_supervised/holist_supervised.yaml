@@ -50,8 +50,8 @@ trainer:
 #      save_on_train_epoch_end: true
       filename: "{epoch}-{rel_param_acc}-{topk_acc}"
 
-experiment:
-  _target_: experiments.HOList.train_module.HOListTraining_
+model:
+  _target_: models.HOList.supervised.train_module.HOListTraining_
   goal_embedding_module:
     input_shape: ${data_config.vocab_size}
   premise_embedding_module:
@@ -71,5 +71,5 @@ experiment:
   lr: 1e-4
 
 data_module:
-  _target_: experiments.HOList.datamodule.HOListDataModule
+  _target_: models.HOList.supervised.datamodule.HOListDataModule
   config: ${data_config}

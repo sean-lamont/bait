@@ -56,10 +56,6 @@ class HOL4TacticZero(TacticZeroLoop):
 
         self.setup_replays()
 
-    # def save_proof_attempt(self, goal, proof, probs):
-    #     self.proof_logs.append({"goal": goal[0], "proof": proof, 'log_type': 'fringe',
-    #                             "probs": probs})
-
     def setup_replays(self):
         if os.path.exists(self.dir + '/replays.pt'):
             self.replays = torch.load(self.replay_dir)
@@ -109,8 +105,6 @@ class HOL4TacticZero(TacticZeroLoop):
             fringe_score = torch.sum(s)
             fringe_scores.append(fringe_score)
 
-        # print (len(fringe_scores))
-
         fringe_scores = torch.stack(fringe_scores)
         fringe_probs = F.softmax(fringe_scores, dim=0)
         fringe_m = Categorical(fringe_probs)
@@ -125,7 +119,6 @@ class HOL4TacticZero(TacticZeroLoop):
         target_context = contexts_by_fringe[fringe][0]
         target_goal = target_context["polished"]["goal"]
         target_representation = representations[contexts.index(target_context)]
-
 
         return target_representation, target_goal, fringe, fringe_prob
 
@@ -281,10 +274,8 @@ class HOL4TacticZero(TacticZeroLoop):
 
     def forward(self, batch, train_mode=True):
         goal, allowed_fact_batch, allowed_arguments_ids, candidate_args, env = batch
-        # logging.debug(f"Goal: {goal}")
 
         encoded_fact_pool = self.encoder_premise(allowed_fact_batch)
-        # logging.debug(encoded_fact_pool.shape)
 
         reward_pool = []
         goal_pool = []
@@ -326,8 +317,6 @@ class HOL4TacticZero(TacticZeroLoop):
 
             try:
                 reward, done = env.step(action)
-
-                # logging.debug(f"Step taken: {action, reward, done}")
             except Exception:
                 logging.warning(f"Step exception: {action, goal}")
                 return ("Step error", action)
@@ -338,12 +327,6 @@ class HOL4TacticZero(TacticZeroLoop):
                 reward_pool.append(reward)
                 if not train_mode:
                     break
-                #
-                # probs = {'arg': [[a.item() for a in l] for l in arg_pool],
-                #          'goal': [g.item() for g in goal_pool],
-                #          'tac': [t.item() for t in tac_pool]}
-                #
-                # self.save_proof_attempt(goal, env.history, probs)
 
                 self.proven.append([goal, t + 1])
 
@@ -364,19 +347,10 @@ class HOL4TacticZero(TacticZeroLoop):
                 reward = -5
                 reward_pool.append(reward)
 
-                # probs = {'arg': [[a.item() for a in l] for l in arg_pool],
-                #          'goal': [g.item() for g in goal_pool],
-                #          'tac': [t.item() for t in tac_pool]}
-                #
-                # self.save_proof_attempt(goal, env.history, probs)
-
                 if goal in self.replays:
                     return self.run_replay(allowed_arguments_ids, candidate_args, env, encoded_fact_pool, goal)
             else:
                 reward_pool.append(reward)
-
-        # self.replays[goal] = (steps, env.history)
-        # self.save_replays()
 
         return reward_pool, goal_pool, arg_pool, tac_pool, steps, done
 
@@ -459,6 +433,3 @@ class HOL4TacticZero(TacticZeroLoop):
 
     def save_replays(self):
         torch.save(self.replays, self.replay_dir)
-
-        # self.proof_db.insert_many(self.proof_logs)
-        # self.proof_logs = []

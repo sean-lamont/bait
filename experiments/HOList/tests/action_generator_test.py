@@ -12,7 +12,7 @@ from google.protobuf import text_format
 from experiments.HOList import deephol_pb2
 from experiments.HOList.prover import proof_search_tree
 from experiments.HOList.prover import prover_util
-from experiments.HOList.agent import holparam_predictor, action_generator, embedding_store
+from models.HOList.agent import holparam_predictor, action_generator, embedding_store
 from experiments.HOList.tests import test_util
 from data.HOList.utils import theorem_fingerprint
 from environments.HOList.proof_assistant import proof_assistant_pb2

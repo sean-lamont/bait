@@ -6,7 +6,7 @@ defaults:
 exp_config:
   name: ensemble
 
-experiment:
+model:
   goal_embedding_module:
     _target_: models.embedding_models.ensemble.ensemble.EnsembleEmbedder
     d_model: 256

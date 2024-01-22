@@ -1,7 +1,7 @@
 import os
 import sys
 
-from models.embedding_models.int.int_transformer import INTTransformer
+from models.INT.int_transformer import INTTransformer
 
 sys.path.insert(0, os.path.abspath('../../Inequality'))
 
@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from environments.INT.algos.model.gnns import FCResBlock
+from models.INT.gnns import FCResBlock
 
 from environments.INT.algos.lib.ops import one_hot, graph_softmax
 from environments.INT.algos.lib.obs import tile_obs_acs, thm2index, compute_mask, compute_trans_ind, \

@@ -3,14 +3,8 @@ defaults:
   - tactic_zero
   - /data_type/gnn@_here_
 
-#logging_config:
-#  offline: True
-#  id: 068k4az0
-
 exp_config:
   name: tacticzero_gnn
-#  directory: experiments/runs/premise_selection/test_2023_08_19/00_29_46
-#  resume: True
 
 model_config:
   model_type: formula-net-edges
@@ -20,5 +14,5 @@ model_config:
     batch_norm: False
 
 # load pretrained encoder after running on HOL4 premise selection task
-#pretrain: True
-#pretrain_ckpt: ""
+pretrain: false
+pretrain_ckpt: ""

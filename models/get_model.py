@@ -13,7 +13,7 @@ from models.embedding_models.holist_models.gnn.gnn_encoder import GNNEncoder
 from models.embedding_models.holist_models.transformer.transformer_encoder_model import \
     TransformerWrapper as HOListTransformer
 from models.embedding_models.ensemble.ensemble import EnsembleEmbedder
-from models.end_to_end.dpo.model import DPOTrainModule
+from models.end_to_end.tactic_models.dpo import DPOTrainModule
 
 '''
 Utility function to fetch model given a configuration dict

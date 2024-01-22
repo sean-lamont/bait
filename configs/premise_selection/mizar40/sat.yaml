@@ -6,7 +6,7 @@ defaults:
 exp_config:
   name: full_sat
 
-experiment:
+model:
   goal_embedding_module:
     _target_: models.embedding_models.sat.models.GraphTransformer
     input_shape: ${data_config.vocab_size}

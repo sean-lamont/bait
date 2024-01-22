@@ -10,7 +10,7 @@ from __future__ import print_function
 
 import numpy as np
 
-from experiments.HOList.agent import predictions
+from models.HOList.agent import predictions
 
 
 # TODO(smloos): Rename to MockPredictions.

@@ -41,7 +41,7 @@ def get_logger(config):
     return wandb_logger
 
 
-@hydra.main(config_path="../../configs")
+@hydra.main(config_path="../configs")
 def supervised_runner(config):
     torch.set_float32_matmul_precision('medium')
 
@@ -51,7 +51,7 @@ def supervised_runner(config):
 
     config = instantiate(config)
 
-    experiment = config.experiment
+    model = config.model
 
     data_module = config.data_module
 
@@ -62,9 +62,9 @@ def supervised_runner(config):
 
     if config.exp_config.resume:
         ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
-        trainer.fit(model=experiment, datamodule=data_module, ckpt_path=ckpt_dir)
+        trainer.fit(model=model, datamodule=data_module, ckpt_path=ckpt_dir)
     else:
-        trainer.fit(model=experiment, datamodule=data_module)
+        trainer.fit(model=model, datamodule=data_module)
 
     wandb_logger.experiment.finish()
     logger.info(f'Experiment finished')

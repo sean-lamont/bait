@@ -13,8 +13,8 @@ from lightning.pytorch.loggers import WandbLogger
 
 from environments.INT.algos.eval import eval_agent
 from environments.INT.algos.lib.obs import nodename2index, thm2index, batch_process
-from environments.INT.algos.model.thm_model import ThmNet
-from environments.INT.algos.model.thm_model_transformer import ThmNet as TransThmNet
+from models.INT.thm_model import ThmNet
+from models.INT.thm_model_transformer import ThmNet as TransThmNet
 from environments.INT.data_generation.generate_problems import generate_multiple_problems
 from environments.INT.data_generation.utils import Dataset
 from utils.utils import config_to_dict

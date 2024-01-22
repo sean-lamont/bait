@@ -18,7 +18,7 @@ from loguru import logger
 from data.HOList.utils import normalization_lib, process_sexp, theorem_fingerprint
 from environments.HOList.proof_assistant import proof_assistant_pb2
 from experiments.HOList import deephol_pb2
-from models.end_to_end.holist_model import predictions
+from models.end_to_end.tactic_models.holist_model import predictions
 
 EPSILON = 1e-12
 MAX_CLOSEST = 100

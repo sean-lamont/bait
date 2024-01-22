@@ -16,5 +16,5 @@ model_config:
     dim_feedforward: 256
 
 # load pretrained encoder after running on HOL4 premise selection task
-#pretrain: True
-#pretrain_ckpt: ""
+pretrain: false
+pretrain_ckpt: ""

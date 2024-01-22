@@ -37,11 +37,11 @@ dgl = (args.obs_mode == "dgl")
 bow = args.bag_of_words
 print(args.transform_gt)
 if dgl and (not bow):
-    from environments.INT.algos.model.old.thm_model_dgl import ThmNet
+    from models.INT.old.thm_model_dgl import ThmNet
 elif bow and (not dgl):
-    from environments.INT.algos.model.thm_model import ThmNet
+    from models.INT.model import ThmNet
 elif (not bow) and (not dgl):
-    from environments.INT.algos.model.thm_model import ThmNet
+    from models.INT.model import ThmNet
 else:
     raise AssertionError
 

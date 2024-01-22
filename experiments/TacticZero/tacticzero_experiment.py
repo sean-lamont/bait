@@ -29,7 +29,7 @@ def load_pretrained_encoders(self, encoder_premise, encoder_goal):
     encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
 
 
-@hydra.main(config_path="../../configs/experiments", config_name="holist_premise_selection")
+@hydra.main(config_path="../../configs")
 def tactic_zero_experiment(config):
     OmegaConf.resolve(config)
 

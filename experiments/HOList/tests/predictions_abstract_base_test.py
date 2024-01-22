@@ -11,7 +11,7 @@ from absl import flags
 import numpy as np
 import six
 # import tensorflow as tf
-from experiments.HOList.agent import predictions
+from models.HOList.agent import predictions
 
 FLAGS = flags.FLAGS
 NUM_TACTICS = 41
