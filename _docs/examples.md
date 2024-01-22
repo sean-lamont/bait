@@ -35,3 +35,5 @@ directory specified in the configuration. If the file exists, it will load from 
 To run a TacticZero experiment, from the root directory of the project simply run:
 
 `python3 -m experiments.TacticZero.tacticzero_experiment --config-name=tacticzero/{model}`
+
+# End-to-End

@@ -14,6 +14,3 @@ sidebar:
     nav: "docs"
 
 ---
-
-Test Docs
-

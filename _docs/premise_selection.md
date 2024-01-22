@@ -13,11 +13,13 @@ To run a premise selection experiment, from the root directory of the project si
 where `{dataset}` is the desired dataset, and `{model}` is the desired model.
 To change model hyperparameters, modify the appropriate `{dataset}/{model}` config file.
 
+These experiments require the appropriate dataset has been processed as outlined in the setup page.
+
 # Configuration
 
 Configuration files are found in the `configs/premise_selection` directory.
 The base configuration file `configs/premise_selection/premise_selection.yaml` specifies the 
-Premise Selection model and associated DataModule (only one at present). 
+Premise Selection model and associated DataModule implemented in `models.premise_selection`. 
 
 The configuration directory is organised into `{dataset}/{model}`, where each `{dataset}` 
 includes a base file specifying the vocabulary size, project to log to and the MongoDB database to read from.

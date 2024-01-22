@@ -9,10 +9,14 @@ The Model module includes model architectures.
 Contains the Embedding architectures currently used for TacticZero, HOList and Premise Selection experiments.
 
 ## GNN
+Includes the message passing GNN architecture from FormulaNet and HOList, as well as other architectures including
+GCN and DiGAE.
 
 ## Transformer
+Transformer Encoder as described in 
 
 ## SAT
+Structure Aware Transformer (SAT) models
 
 ## Ensemble
 
@@ -27,6 +31,7 @@ This model is initialised with embedding architectures for the goal and premise,
 # HOList
 ## Agent
 The code for the live agent used in the HOList Evaluation experiment.
+
 ## Supervised
 This includes the model and training code for the HOList Supervised experiment. 
 
