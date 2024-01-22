@@ -15,13 +15,13 @@ title: "Setup"
 Install Lean3:
 
 - Globally
-    - wget -q https://raw.githubusercontent.com/leanprover-community/mathlib-tools/master/scripts/install_debian.sh && bash install_debian.sh ; rm -f install_debian.sh && source ~/.profile
+    - `wget -q https://raw.githubusercontent.com/leanprover-community/mathlib-tools/master/scripts/install_debian.sh && bash install_debian.sh ; rm -f install_debian.sh && source ~/.profile`
 - (preferred) Inside venv:
-    - curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
-    - source $HOME/.elan/env to add elan to path, or copy/symlink $HOME/.elan/env to venv bin folder
-    - pip install mathlibtools
+    - `curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh`
+    - `source $HOME/.elan/env` to add elan to path, or copy/symlink `$HOME/.elan/env` to venv bin folder
+    - `pip install mathlibtools`
 
-- Run `bash data/lean/lean-step/setup.sh` from project root (as this is a large dataset, you can
+- Run `bash data/lean/lean-step/setup.sh` from project root (this is a large dataset, you can
   terminate the parallel_data_gen script early and run the final line for a reduced dataset)
 - Run `python -m data.lean.process_leanstep`
 
@@ -40,7 +40,6 @@ Install Lean3:
 ## MIZAR
 - Run `bash data/mizar/get_mizar.sh`
 - Run `python -m data.mizar.process_mizar`
--
 ## HOLStep
 - Run `bash data/holstep/get_holstep.sh`
 - Run `python -m data.holstep.process_holstep`
