@@ -12,14 +12,9 @@ from experiments.TacticZero.tactic_zero_data_module import *
 from models.get_model import get_model
 from models.embedding_models.gnn.formula_net.formula_net import FormulaNetEdges
 from models.tactic_zero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy
+from utils.utils import config_to_dict
 
 warnings.filterwarnings('ignore')
-
-
-def config_to_dict(conf):
-    return OmegaConf.to_container(
-        conf, resolve=True, throw_on_missing=True
-    )
 
 
 def get_model_dict(prefix, state_dict):
@@ -42,7 +37,6 @@ def tactic_zero_experiment(config):
 
     logging.basicConfig(level=logging.DEBUG)
 
-
     torch.set_float32_matmul_precision('high')
 
     resume = config.exp_config.resume
@@ -56,7 +50,8 @@ def tactic_zero_experiment(config):
     arg_net = ArgPolicy(len(config.tactic_config.tactic_pool), config.model_config.model_attributes.embedding_dim)
     term_net = TermPolicy(len(config.tactic_config.tactic_pool), config.model_config.model_attributes.embedding_dim)
 
-    induct_net = FormulaNetEdges(config.model_config.model_attributes.vocab_size, config.model_config.model_attributes.embedding_dim,
+    induct_net = FormulaNetEdges(config.model_config.model_attributes.vocab_size,
+                                 config.model_config.model_attributes.embedding_dim,
                                  num_iterations=3, global_pool=False,
                                  batch_norm=False)
 
@@ -160,4 +155,3 @@ def load_state(state_dict, experiment):
 
 if __name__ == '__main__':
     tactic_zero_experiment()
-    # logging.basicConfig(level=logging.DEBUG)

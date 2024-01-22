@@ -4,13 +4,19 @@ defaults:
   - /data_type/gnn@_here_
 
 exp_config:
-    name: test_gnn
+    name: gnn
 
-model_config:
-  model_type: 'formula-net-edges'
-  model_attributes:
+experiment:
+  goal_embedding_module:
+    _target_: models.embedding_models.gnn.formula_net.formula_net.FormulaNetEdges
+    input_shape: ${data_config.vocab_size}
     embedding_dim: 128
-    gnn_layers: 4
+    num_iterations: 4
+    batch_norm: true
 
-#test_on_finish: True
-#test_checkpoint: True
+  premise_embedding_module:
+    _target_: models.embedding_models.gnn.formula_net.formula_net.FormulaNetEdges
+    input_shape: ${data_config.vocab_size}
+    embedding_dim: 128
+    num_iterations: 4
+    batch_norm: true

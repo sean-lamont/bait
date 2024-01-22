@@ -56,6 +56,17 @@ class GoalProvableDataModule(pl.LightningDataModule):
 
         self.visit_threshold = visit_threshold
 
+        self.current_train_batch_index = 0
+
+    def state_dict(self):
+        self.current_train_batch_index = self.ds_train.start_idx
+        state = {"current_train_batch_index": self.current_train_batch_index}
+        return state
+
+    def load_state_dict(self, state_dict):
+        self.current_train_batch_index = state_dict["current_train_batch_index"]
+        self.setup()
+
     def prepare_data(self):
 
         trace_files = filter_traces(self.trace_files)

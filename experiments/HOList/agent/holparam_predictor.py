@@ -6,10 +6,12 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
+import os
 from typing import List
 from typing import Optional
 from typing import Text
 
+import deepspeed
 import numpy as np
 import torch
 from pymongo import MongoClient
@@ -19,7 +21,7 @@ from experiments.HOList.agent import predictions
 from data.HOList.utils import process_sexp
 from data.HOList.utils.sexpression_to_graph import sexpression_to_graph
 from models.get_model import get_model
-from models.embedding_models.holist_models.tactic_predictor import TacticPrecdictor, CombinerNetwork
+from models.embedding_models.holist_models.tactic_predictor import TacticPredictor, CombinerNetwork
 
 GOAL_EMB_TYPE = predictions.GOAL_EMB_TYPE
 THM_EMB_TYPE = predictions.THM_EMB_TYPE
@@ -82,7 +84,7 @@ class HolparamPredictor(predictions.Predictions):
         self.embedding_model_goal = get_model(config.model_config).cuda()
         self.embedding_model_premise = get_model(config.model_config).cuda()
 
-        self.tac_model = TacticPrecdictor(
+        self.tac_model = TacticPredictor(
             embedding_dim=1024,
             num_tactics=41).cuda()
 
@@ -110,12 +112,20 @@ class HolparamPredictor(predictions.Predictions):
         logging.info("Loading expression dictionary..")
 
     def load_pretrained_model(self, ckpt_dir):
+        # if DeepSpeed
         logging.info(f"Loading checkpoint from {ckpt_dir}")
-        ckpt = torch.load(ckpt_dir + '.ckpt', map_location={'cuda:1': 'cuda:0'})['state_dict']
-        self.embedding_model_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
-        self.embedding_model_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
-        self.tac_model.load_state_dict(get_model_dict('tac_model', ckpt))
-        self.combiner_model.load_state_dict(get_model_dict('combiner_model', ckpt))
+        if os.path.isdir(ckpt_dir + '.ckpt'):
+            ckpt = deepspeed.utils.zero_to_fp32.get_fp32_state_dict_from_zero_checkpoint(ckpt_dir + '.ckpt')
+            self.embedding_model_premise.load_state_dict(get_model_dict('_forward_module.embedding_model_premise', ckpt))
+            self.embedding_model_goal.load_state_dict(get_model_dict('_forward_module.embedding_model_goal', ckpt))
+            self.tac_model.load_state_dict(get_model_dict('_forward_module.tac_model', ckpt))
+            self.combiner_model.load_state_dict(get_model_dict('_forward_module.combiner_model', ckpt))
+        else:
+            ckpt = torch.load(ckpt_dir + '.ckpt', map_location={'cuda:1': 'cuda:0'})['state_dict']
+            self.embedding_model_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
+            self.embedding_model_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
+            self.tac_model.load_state_dict(get_model_dict('tac_model', ckpt))
+            self.combiner_model.load_state_dict(get_model_dict('combiner_model', ckpt))
 
     def to_torch(self, data_dict):
         return transform_expr(data_dict,

@@ -228,8 +228,7 @@ def get_model(model_config):
     elif model_config.model_type == 'holist_sat':
         return HOListSAT(in_size=model_config.model_attributes['vocab_size'],
                          num_class=2,
-                         batch_norm=model_config.model_attributes[
-                             'batch_norm'] if 'batch_norm' in model_config.model_attributes else None,
+                         batch_norm=model_config.model_attributes['batch_norm'] if 'batch_norm' in model_config.model_attributes else None,
                          d_model=model_config.model_attributes['embedding_dim'],
                          dim_feedforward=model_config.model_attributes['dim_feedforward'],
                          num_heads=model_config.model_attributes['num_heads'],
@@ -237,7 +236,7 @@ def get_model(model_config):
                          in_embed=model_config.model_attributes['in_embed'],
                          se=model_config.model_attributes['se'],
                          gnn_type=model_config.model_attributes[
-                             'gnn_type'] if 'gnn_type' in model_config.model_attributes else 'gcn',
+                             'valype'] if 'gnn_type' in model_config.model_attributes else 'gcn',
                          abs_pe=model_config.model_attributes['abs_pe'],
                          abs_pe_dim=model_config.model_attributes['abs_pe_dim'],
                          use_edge_attr=model_config.model_attributes['use_edge_attr'],

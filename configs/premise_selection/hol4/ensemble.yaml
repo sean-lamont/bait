@@ -17,3 +17,53 @@ model_config:
     num_layers: 2
     num_heads: 4
     dim_feedforward: 256
+    
+experiment:
+  goal_embedding_module:
+    _target_: models.embedding_models.ensemble.ensemble.EnsembleEmbedder
+    d_model: 256
+    dropout: 0.
+    gnn_model:
+      _target_: models.embedding_models.gnn.formula_net.formula_net.FormulaNetEdges
+      embedding_dim: 256
+      batch_norm: false
+      num_iterations: 1
+      max_edges: 200
+      # input_shape passed in from experiment config
+      input_shape: ${data_config.vocab_size}
+
+    transformer_model:
+      _target_: models.embedding_models.transformer.transformer_encoder_model.TransformerWrapper
+      ntoken: ${data_config.vocab_size}
+      d_model: 256
+      nhead: 4
+      nlayers: 2
+      dropout: 0.
+      d_hid: 256
+      small_inner: false
+      max_len: ${data_config.attributes.max_len}
+
+
+  premise_embedding_module:
+    _target_: models.embedding_models.ensemble.ensemble.EnsembleEmbedder
+    d_model: 256
+    dropout: 0.
+    gnn_model:
+      _target_: models.embedding_models.gnn.formula_net.formula_net.FormulaNetEdges
+      embedding_dim: 256
+      batch_norm: false
+      num_iterations: 1
+      max_edges: 200
+      # input_shape passed in from experiment config
+      input_shape: ${data_config.vocab_size}
+
+    transformer_model:
+      _target_: models.embedding_models.transformer.transformer_encoder_model.TransformerWrapper
+      ntoken: ${data_config.vocab_size}
+      d_model: 256
+      nhead: 4
+      nlayers: 2
+      dropout: 0.
+      d_hid: 256
+      small_inner: false
+      max_len: ${data_config.attributes.max_len}

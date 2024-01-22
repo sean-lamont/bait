@@ -18,8 +18,8 @@ from experiments.HOList.utils import error
 from experiments.HOList.prover import proof_search_tree
 from experiments.HOList.prover import prune_lib, prover_util
 from experiments.HOList.agent import holparam_predictor, action_generator, predictions, embedding_store
-from environments.HOList import proof_assistant
-from environments.HOList.proof_assistant import proof_assistant_pb2
+from environments.HOList.proof_assistant import proof_assistant
+import environments.HOList.proof_assistant.proof_assistant_pb2 as proof_assistant_pb2
 
 # Max number of tactics to attempt to apply per NoBacktrack proofs.
 NO_BACKTRACK_SEARCH_NODES = 45

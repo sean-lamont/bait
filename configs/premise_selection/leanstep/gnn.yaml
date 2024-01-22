@@ -6,9 +6,17 @@ defaults:
 exp_config:
   name: bag_of_words
 
-model_config:
-  model_type: formula-net-edges
-  model_attributes:
-    embedding_dim: 256
-    gnn_layers: 0
-    batch_norm: True
+experiment:
+  goal_embedding_module:
+    _target_: models.embedding_models.gnn.formula_net.formula_net.FormulaNetEdges
+    input_shape: ${data_config.vocab_size}
+    embedding_dim: 128
+    num_iterations: 0
+    batch_norm: true
+
+  premise_embedding_module:
+    _target_: models.embedding_models.gnn.formula_net.formula_net.FormulaNetEdges
+    input_shape: ${data_config.vocab_size}
+    embedding_dim: 128
+    num_iterations: 0
+    batch_norm: true

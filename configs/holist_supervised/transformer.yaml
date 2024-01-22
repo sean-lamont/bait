@@ -6,11 +6,26 @@ defaults:
 exp_config:
   name: transformer
 
-model_config:
-  model_type: holist_transformer
-  model_attributes:
+experiment:
+  goal_embedding_module:
+    _target_: models.embedding_models.holist_models.transformer.transformer_encoder_model.TransformerWrapper
+    # input_shape passed in from data config
+    input_shape: ${data_config.vocab_size}
+    d_model: 128
+    nhead: 4
+    nlayers: 4
     dropout: 0.2
-    embedding_dim: 128
-    num_layers: 4
-    num_heads: 4
-    dim_feedforward: 256
+    d_hid: 256
+    small_inner: false
+    max_len: ${data_config.attributes.max_len}
+
+  premise_embedding_module:
+    _target_: models.embedding_models.holist_models.transformer.transformer_encoder_model.TransformerWrapper
+    input_shape: ${data_config.vocab_size}
+    d_model: 128
+    nhead: 4
+    nlayers: 4
+    dropout: 0.2
+    d_hid: 256
+    small_inner: false
+    max_len: ${data_config.attributes.max_len}

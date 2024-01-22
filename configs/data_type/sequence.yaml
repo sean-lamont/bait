@@ -4,7 +4,3 @@ data_config:
     filter: ['sequence']
   attributes:
     max_len: 1024
-
-model_config:
-  model_attributes:
-    max_len: 1024

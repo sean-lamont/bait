@@ -33,7 +33,7 @@ from typing import List, Optional, Tuple, Text
 from experiments.HOList import deephol_pb2
 from experiments.HOList.utils import error
 from data.HOList.utils import theorem_fingerprint
-from environments.HOList import proof_assistant
+from environments.HOList.proof_assistant import proof_assistant
 from environments.HOList.proof_assistant import proof_assistant_pb2
 
 

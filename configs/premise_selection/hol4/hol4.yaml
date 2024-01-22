@@ -2,12 +2,9 @@ defaults:
   - /premise_selection/premise_selection@_here_
 
 data_config:
+  vocab_size: 2200
   data_options:
     db: 'hol4'
-
-model_config:
-  model_attributes:
-    vocab_size: 2200
 
 logging_config:
   project: hol4_premise_pretrain

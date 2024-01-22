@@ -2,16 +2,10 @@ defaults:
   - /premise_selection/premise_selection@_here_
 
 data_config:
+  vocab_size: 115500
   data_options:
     dict_in_memory: False
     db: 'holstep'
 
 logging_config:
   project: holstep
-
-model_config:
-  model_attributes:
-    vocab_size: 115500
-
-val_frequency:
-  20000

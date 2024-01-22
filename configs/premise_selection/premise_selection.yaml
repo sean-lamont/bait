@@ -1,25 +1,52 @@
 defaults:
   - /base/data_config@_here_
-  - /base/optimiser_config@_here_
   - /base/logging_config@_here_
   - /base/exp_config@_here_
-
-epochs: 10
 
 exp_config:
   experiment: premise_selection
 
-limit_val_batches: False
+trainer:
+  enable_progress_bar: true
+  log_every_n_steps: 500
+  accelerator: gpu
+  devices: 1
+  precision: bf16-mixed
+  strategy:
+    _target_: lightning.pytorch.strategies.DeepSpeedStrategy
+    stage: 2
+    offload_optimizer: false
+    cpu_checkpointing: false
+    logging_batch_size_per_gpu: 1
+  gradient_clip_val: 1.0
+  max_epochs: 10
+  val_check_interval: 2048
+  #  limit_val_batches: 0.0
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.LearningRateMonitor
+      logging_interval: step
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      verbose: true
+      save_top_k: 3
+      save_last: true
+      monitor: acc
+      mode: max
+      dirpath: ${exp_config.directory}/checkpoints
+      auto_insert_metric_name: true
+      filename: "{epoch}-{acc}"
 
-val_frequency: 2048
+experiment:
+  _target_: experiments.premise_selection.premise_selection.PremiseSelection
+  classifier:
+    _target_: models.embedding_models.gnn.formula_net.formula_net.BinaryClassifier
+    # ensure that this matches the embedding dimension of the goal/premise models
+    input_shape: 128
+  lr: 1e-4
+  batch_size: 32
 
-batch_size: 32
+data_module:
+  _target_: experiments.premise_selection.datamodule.PremiseDataModule
+  config: ${data_config}
 
-model_config:
-  model_type: ???
-  model_attributes: ???
 
-# Whether to run a test following the fit method of the trainer
-test_on_finish: True
-# If loading a checkpoint, whether to train or test
-test_checkpoint: False
+

@@ -22,13 +22,13 @@ logging_config:
   offline: true
 
 # Setting ProverOptions Proto
-path_tactics: 'experiments/configs/holist/hollight_tactics.textpb'
-path_tactics_replace: 'experiments/configs/holist/hollight_tactics_replacements.textpb'
-path_theorem_database: 'data/holist/theorem_database_v1.1.textpb'
+path_tactics: 'experiments/HOList/config/hollight_tactics.textpb'
+path_tactics_replace: 'experiments/HOList/config/hollight_tactics_replacements.textpb'
+path_theorem_database: 'data/HOList/theorem_database_v1.1.textpb'
 
 model_architecture: PARAMETERS_CONDITIONED_ON_TAC
-theorem_embeddings: 'experiments/holist/checkpoints/checkpoint.npy'
-path_model_prefix: 'experiments/holist/checkpoints/checkpoint'
+theorem_embeddings: runs/holist_eval/bow_asm_only_2024_01_22/12_12_46/embeddings/checkpoint.npy # ${exp_config.directory}/embeddings/checkpoint.npy
+path_model_prefix: runs/holist_supervised/gnn_small_2024_01_22/12_00_20/checkpoints/last #${exp_config.directory}/checkpoints/checkpoint
 
 tactic_timeout_ms: 5000
 

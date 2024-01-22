@@ -1,20 +1,11 @@
-import logging
-import os
 import warnings
 
-import hydra
 import wandb
-from lightning.pytorch.callbacks import ModelCheckpoint
 from omegaconf import OmegaConf
-
-from experiments.premise_selection.datamodule import PremiseDataModule
 
 warnings.filterwarnings('ignore')
 import lightning.pytorch as pl
-from lightning.pytorch.loggers import WandbLogger
-from models.get_model import get_model
 
-from models.embedding_models.gnn.formula_net.formula_net import BinaryClassifier
 import torch
 
 
@@ -98,105 +89,3 @@ class PremiseSelection(pl.LightningModule):
             loss.backward()
         except Exception as e:
             print(f"Error in backward: {e}")
-
-
-'''
-
-Premise selection experiment with separate encoders for goal and premise
-
-'''
-
-
-@hydra.main(config_path="../../configs/experiments")
-def premise_selection_experiment(config):
-    torch.set_float32_matmul_precision('medium')
-
-    OmegaConf.resolve(config)
-    os.makedirs(config.exp_config.directory + '/checkpoints', exist_ok=True)
-
-    experiment = PremiseSelection(get_model(config.model_config),
-                                  get_model(config.model_config),
-                                  BinaryClassifier(config.model_config.model_attributes['embedding_dim'] * 2),
-                                  lr=config.optimiser_config.learning_rate,
-                                  batch_size=config.batch_size)
-
-    data_module = PremiseDataModule(config=config.data_config)
-
-    if config.exp_config.resume:
-        logging.info('Resuming run..')
-        logger = WandbLogger(project=config.logging_config.project,
-                             name=config.exp_config.name,
-                             config=config_to_dict(config),
-                             notes=config.logging_config.notes,
-                             offline=config.logging_config.offline,
-                             save_dir=config.exp_config.directory,
-                             id=config.logging_config.id,
-                             resume='must',
-                             )
-
-    else:
-        logger = WandbLogger(project=config.logging_config.project,
-                             name=config.exp_config.name,
-                             config=config_to_dict(config),
-                             notes=config.logging_config.notes,
-                             offline=config.logging_config.offline,
-                             save_dir=config.exp_config.directory,
-                             )
-
-    callbacks = []
-
-    checkpoint_callback = ModelCheckpoint(monitor="acc", mode="max",
-                                          auto_insert_metric_name=True,
-                                          save_top_k=3,
-                                          filename="{epoch}-{acc}",
-                                          save_last=True,
-                                          dirpath=config.exp_config.checkpoint_dir)
-
-    callbacks.append(checkpoint_callback)
-
-    trainer = pl.Trainer(
-        max_epochs=config.epochs,
-        logger=logger,
-        enable_progress_bar=True,
-        log_every_n_steps=500,
-        callbacks=callbacks,
-        accelerator=config.exp_config.accelerator,
-        devices=config.exp_config.device
-    )
-
-    trainer.val_check_interval = config.val_frequency
-
-    if config.limit_val_batches:
-        trainer.limit_val_batches = config.val_size // config.batch_size
-
-    if config.exp_config.resume:
-
-        logging.debug("Resuming experiment from last checkpoint..")
-        ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
-
-        if not os.path.exists(ckpt_dir):
-            raise Exception(f"Missing checkpoint in {ckpt_dir}")
-
-        logging.debug("Resuming experiment from last checkpoint..")
-        ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
-        state_dict = torch.load(ckpt_dir)['state_dict']
-
-        # if hasattr(config, 'test_checkpoint'):
-        if config.test_checkpoint:
-            logging.info("Running checkpoint on test dataset..")
-            trainer.test(model=experiment, datamodule=data_module, ckpt_path=ckpt_dir)
-        else:
-            experiment.load_state_dict(state_dict)
-            trainer.fit(model=experiment, datamodule=data_module, ckpt_path=ckpt_dir)
-    else:
-        trainer.fit(model=experiment, datamodule=data_module)
-        # if hasattr(config, 'test_on_finish'):
-        if config.test_on_finish:
-            logging.info("Testing best model from run..")
-            trainer.test(model=experiment, datamodule=data_module)
-
-    logger.experiment.finish()
-
-
-if __name__ == '__main__':
-    premise_selection_experiment()

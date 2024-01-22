@@ -11,7 +11,7 @@ Wrapper for transformer, with final layer projection following HOList GNN models
 
 
 class TransformerWrapper(nn.Module):
-    def __init__(self, ntoken: int, d_model: int, nhead: int, d_hid: int,
+    def __init__(self, input_shape: int, d_model: int, nhead: int, d_hid: int,
                  nlayers: int, dropout: float = 0.5, enc=True, in_embed=False, global_pool=True, small_inner=False,
                  max_len=512):
 
@@ -30,12 +30,12 @@ class TransformerWrapper(nn.Module):
                                          nn.Linear(d_model * 4, d_model * 8),
                                          nn.ReLU())
 
-        self.transformer_embedding = TransformerEmbedding(ntoken=None, d_model=d_model, nhead=nhead, d_hid=d_hid,
+        self.transformer_embedding = TransformerEmbedding(ntoken=0, d_model=d_model, nhead=nhead, d_hid=d_hid,
                                                           nlayers=nlayers, dropout=dropout, enc=enc,
                                                           global_pool=False, in_embed=in_embed, max_len=max_len
                                                           )
 
-        self.embedding = nn.Sequential(nn.Embedding(ntoken, d_model * 2),
+        self.embedding = nn.Sequential(nn.Embedding(input_shape, d_model * 2),
                                        nn.Dropout(dropout),
                                        nn.Linear(d_model * 2, d_model),
                                        nn.ReLU(),

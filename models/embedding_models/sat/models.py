@@ -30,7 +30,7 @@ class GraphTransformerEncoder(nn.TransformerEncoder):
 
 
 class GraphTransformer(nn.Module):
-    def __init__(self, in_size, num_class, d_model, num_heads=4,
+    def __init__(self, input_shape, num_class, d_model, num_heads=4,
                  dim_feedforward=512, dropout=0.2, num_layers=2,
                  batch_norm=False, abs_pe=False, abs_pe_dim=0, k_hop=2,
                  gnn_type="graph", se="gnn", use_edge_attr=False, num_edge_features=4,
@@ -50,14 +50,14 @@ class GraphTransformer(nn.Module):
             self.embedding_abs_pe = nn.Embedding(abs_pe_dim, d_model)
 
         if in_embed:
-            if isinstance(in_size, int):
-                self.embedding = nn.Embedding(in_size, d_model)
-            elif isinstance(in_size, nn.Module):
-                self.embedding = in_size
+            if isinstance(input_shape, int):
+                self.embedding = nn.Embedding(input_shape, d_model)
+            elif isinstance(input_shape, nn.Module):
+                self.embedding = input_shape
             else:
                 raise ValueError("Not implemented!")
         else:
-            self.embedding = nn.Linear(in_features=in_size,
+            self.embedding = nn.Linear(in_features=input_shape,
                                        out_features=d_model,
                                        bias=False)
 
@@ -135,7 +135,7 @@ class GraphTransformer(nn.Module):
 
         output = self.embedding(x) if node_depth is None else self.embedding(x, node_depth.view(-1, ))
 
-        # # todo integrate PE properly
+        # # todo add magnetic laplacian
         # # eig_vals, eig_vecs = get_magnetic_Laplacian(edge_index, return_eig=True)
         # if hasattr(data, "eig_vals"):
         #     pe = self.pe(data.eig_vals, (data.eig_real, data.eig_imag))

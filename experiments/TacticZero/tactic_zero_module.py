@@ -10,7 +10,7 @@ warnings.filterwarnings('ignore')
 
 """
 
-Generic TacticZero Abstract Class
+Abstract TacticZero Class
  
 """
 

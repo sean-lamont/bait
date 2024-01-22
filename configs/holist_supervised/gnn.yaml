@@ -5,12 +5,20 @@ defaults:
 
 exp_config:
   name: gnn_small
-#  resume: True
-#  directory: 'experiments/runs/holist_pretrain/2023_08_02/gnn_small_17_19_53'
 
-model_config:
-  model_type: holist_gnn
-  model_attributes:
-    gnn_layers: 12
-    dropout: 0.2
+experiment:
+  goal_embedding_module:
+    _target_: models.embedding_models.holist_models.gnn.gnn_encoder.GNNEncoder
+    input_shape: ${data_config.vocab_size}
     embedding_dim: 128
+    num_iterations: 12
+    max_edges: 3
+    dropout: 0.2
+
+  premise_embedding_module:
+    _target_: models.embedding_models.holist_models.gnn.gnn_encoder.GNNEncoder
+    input_shape: ${data_config.vocab_size}
+    embedding_dim: 128
+    num_iterations: 12
+    max_edges: 3
+    dropout: 0.2

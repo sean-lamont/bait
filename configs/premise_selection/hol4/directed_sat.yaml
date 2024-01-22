@@ -6,22 +6,45 @@ defaults:
 exp_config:
   name: sat_full
 
-model_config:
-  model_type: 'sat'
-  model_attributes:
-    vocab_size: 2200
-    embedding_dim: 256
-    batch_norm: False
-    global_pool: 'max'
-    num_edge_features: 200
+experiment:
+  goal_embedding_module:
+    _target_: models.embedding_models.sat.models.GraphTransformer
+    input_shape: ${data_config.vocab_size}
+    num_class: 2
+    batch_norm: false
+    d_model: 256
     dim_feedforward: 256
     num_heads: 4
     num_layers: 2
-    in_embed: True
+    in_embed: true
     se: 'gcn'
-    abs_pe: False
-    use_edge_attr: True
+    gnn_type: gcn
+    abs_pe: false
+    use_edge_attr: true
+    num_edge_features: 200
+    global_pool: 'max'
     dropout: 0.
     gnn_layers: 2
-    small_inner: False
+    small_inner: false
+    abs_pe_dim: 256
+
+  premise_embedding_module:
+    _target_: models.embedding_models.sat.models.GraphTransformer
+    input_shape: ${data_config.vocab_size}
+    num_class: 2
+    batch_norm: false
+    d_model: 256
+    dim_feedforward: 256
+    num_heads: 4
+    num_layers: 2
+    in_embed: true
+    se: 'gcn'
+    gnn_type: gcn
+    abs_pe: false
+    use_edge_attr: true
+    num_edge_features: 200
+    global_pool: 'max'
+    dropout: 0.
+    gnn_layers: 2
+    small_inner: false
     abs_pe_dim: 256

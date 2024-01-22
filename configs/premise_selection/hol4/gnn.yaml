@@ -3,22 +3,20 @@ defaults:
   - hol4
   - /data_type/gnn@_here_
 
-epochs: 1
-
-logging_config:
-  offline: True
-#  id: 068k4az0
-
 exp_config:
-  name: test
-#  directory: experiments/runs/premise_selection/test_2023_08_19/00_29_46
-#  resume: True
+  name: bag_of_words
 
-model_config:
-  model_type: formula-net-edges
-  model_attributes:
+experiment:
+  goal_embedding_module:
+    _target_: models.embedding_models.gnn.formula_net.formula_net.FormulaNetEdges
+    input_shape: ${data_config.vocab_size}
     embedding_dim: 256
-    gnn_layers: 0
-    batch_norm: False
+    num_iterations: 0
+    batch_norm: false
 
-#test_checkpoint: True
+  premise_embedding_module:
+    _target_: models.embedding_models.gnn.formula_net.formula_net.FormulaNetEdges
+    input_shape: ${data_config.vocab_size}
+    embedding_dim: 256
+    num_iterations: 0
+    batch_norm: false

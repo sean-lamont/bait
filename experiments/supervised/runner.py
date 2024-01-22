@@ -16,9 +16,6 @@ from lightning.pytorch.loggers import WandbLogger
 import torch
 
 
-# todo option to suppress output from imports
-
-
 def get_logger(config):
     if config.exp_config.resume:
         logger.info('Resuming run..')
@@ -45,7 +42,7 @@ def get_logger(config):
 
 
 @hydra.main(config_path="../../configs")
-def lightning_experiment(config):
+def supervised_runner(config):
     torch.set_float32_matmul_precision('medium')
 
     OmegaConf.resolve(config)
@@ -72,12 +69,12 @@ def lightning_experiment(config):
     wandb_logger.experiment.finish()
     logger.info(f'Experiment finished')
 
-    # todo convert model to standard checkpoint/save to HF
-
     # logs the saved checkpoint with $ delimiter to allow for a parent process to find it.
     # todo take best validation checkpoint instead
     logger.error(f'checkpoint_dir: {config.exp_config.checkpoint_dir}/last.ckpt' + '$')
 
+    # todo add option for testing/validating the trainer
+
 
 if __name__ == '__main__':
-    lightning_experiment()
+    supervised_runner()

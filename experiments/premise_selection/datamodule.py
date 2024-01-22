@@ -10,6 +10,7 @@ from data.utils.stream_dataset import MongoStreamDataset
 from data.utils.graph_data_utils import transform_expr, transform_batch
 
 
+# todo currently doesn't support distributed training, and resuming mid-epoch. Need to convert to newer StreamDataset
 class PremiseDataModule(LightningDataModule):
     def __init__(self, config):
 

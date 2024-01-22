@@ -6,21 +6,44 @@ defaults:
 exp_config:
   name: sat
 
-model_config:
-  model_type: 'holist_sat'
-  model_attributes:
-    embedding_dim: 128
-    batch_norm: True
-    global_pool: 'mean'
-    num_edge_features: 200
+experiment:
+  goal_embedding_module:
+    _target_: models.embedding_models.holist_models.sat.models.GraphTransformer
+    input_shape: ${data_config.vocab_size}
+    num_class: 2
+    batch_norm: true
+    d_model: 128
     dim_feedforward: 256
     num_heads: 4
     num_layers: 4
     in_embed: True
     se: 'gnn-encoder'
-    abs_pe: False
-    use_edge_attr: True
+    gnn_type: gcn
+    abs_pe: false
+    use_edge_attr: true
+    num_edge_features: 200
+    global_pool: 'mean'
     dropout: 0.2
     gnn_layers: 1
-    small_inner: False
+    small_inner: false
+
+  premise_embedding_module:
+    _target_: models.embedding_models.holist_models.sat.models.GraphTransformer
+    input_shape: ${data_config.vocab_size}
+    num_class: 2
+    batch_norm: true
+    d_model: 128
+    dim_feedforward: 256
+    num_heads: 4
+    num_layers: 4
+    in_embed: True
+    se: 'gnn-encoder'
+    gnn_type: gcn
+    abs_pe: false
+    use_edge_attr: true
+    num_edge_features: 3
+    global_pool: 'mean'
+    dropout: 0.2
+    gnn_layers: 1
+    small_inner: false
     abs_pe_dim: 256

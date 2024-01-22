@@ -6,12 +6,27 @@ defaults:
 exp_config:
     name: transformer
 
-model_config:
-  model_type: transformer
-  model_attributes:
+experiment:
+  goal_embedding_module:
+    _target_: models.embedding_models.transformer.transformer_encoder_model.TransformerWrapper
+    # input_shape passed in from data config
+    ntoken: ${data_config.vocab_size}
+    d_model: 128
+    nhead: 2
+    nlayers: 2
     dropout: 0.
-    embedding_dim: 256
-    num_layers: 2
-    num_heads: 2
-    dim_feedforward: 256
-    max_len: 1024
+    d_hid: 256
+    small_inner: false
+    max_len: ${data_config.attributes.max_len}
+
+  premise_embedding_module:
+    _target_: models.embedding_models.transformer.transformer_encoder_model.TransformerWrapper
+    # input_shape passed in from data config
+    ntoken: ${data_config.vocab_size}
+    d_model: 128
+    nhead: 2
+    nlayers: 2
+    dropout: 0.
+    d_hid: 256
+    small_inner: false
+    max_len: ${data_config.attributes.max_len}

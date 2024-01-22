@@ -1,25 +1,17 @@
 defaults:
   - /base/data_config@_here_
-  - /base/optimiser_config@_here_
   - /base/logging_config@_here_
   - /base/exp_config@_here_
 
-epochs: 20
-
-model_config:
-  model_type: ???
-  model_attributes:
-    vocab_size: 1500
-
 logging_config:
   project: holist_supervised
-
-batch_size: 16
+  offline: true
 
 exp_config:
   experiment: holist_supervised
 
 data_config:
+  vocab_size: 1500
   batch_size: 16
   data_options:
     # Collection for theorems to randomly sample negative premises
@@ -28,12 +20,56 @@ data_config:
     dict_in_memory: False
     db: 'holist'
 
+trainer:
+  enable_progress_bar: true
+  log_every_n_steps: 500
+  accelerator: gpu
+  devices: 1
+  precision: bf16-mixed
+  strategy:
+    _target_: lightning.pytorch.strategies.DeepSpeedStrategy
+    stage: 2
+    offload_optimizer: false
+    cpu_checkpointing: false
+    logging_batch_size_per_gpu: 1
+  gradient_clip_val: 1.0
+  max_epochs: 20
+  val_check_interval: 100 #2048
+  limit_val_batches: 100 #1000
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.LearningRateMonitor
+      logging_interval: step
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      verbose: true
+      save_top_k: 3
+      save_last: true
+      monitor: rel_param_acc
+      mode: max
+      dirpath: ${exp_config.directory}/checkpoints
+      auto_insert_metric_name: true
+#      save_on_train_epoch_end: true
+      filename: "{epoch}-{rel_param_acc}-{topk_acc}"
 
-num_tactics: 41
-tac_embed_dim: 128
-final_embed_dim: 1024
+experiment:
+  _target_: experiments.HOList.train_module.HOListTraining_
+  goal_embedding_module:
+    input_shape: ${data_config.vocab_size}
+  premise_embedding_module:
+    input_shape: ${data_config.vocab_size}
+  tac_model:
+    _target_: models.embedding_models.holist_models.tactic_predictor.TacticPredictor
+    # final embedding dimension, for HOList models is 8 * original embedding dim
+    embedding_dim: 1024
+    num_tactics: 41
+  combiner_model:
+    _target_: models.embedding_models.holist_models.tactic_predictor.CombinerNetwork
+    # final embedding dimension, for HOList models is 8 * original embedding dim
+    embedding_dim: 1024
+    num_tactics: 41
+    tac_embed_dim: 128
+  batch_size: 16
+  lr: 1e-4
 
-limit_val_batches: True
-val_size: 40000
-
-val_frequency: 2048
+data_module:
+  _target_: experiments.HOList.datamodule.HOListDataModule
+  config: ${data_config}
