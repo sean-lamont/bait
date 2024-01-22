@@ -6,5 +6,11 @@ order: 1
 author_profile: true
 ---
 
-Test 2
+BAIT is a platform for accelerating research in the application of AI to Interactive Theorem-Proving. 
+
+There are four main modules: 
+- Data
+- Environments
+- Experiments
+- Models
 

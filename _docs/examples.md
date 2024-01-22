@@ -28,7 +28,7 @@ Combiner Networks from the HOList Supervised task. The checkpoint file is specif
 from the specific `holist_eval/{model}` file.
 
 The first run of the experiment will generate a checkpoint.npy file in the `theorem_embeddings`
-directory specified in the configuration. If the file exists, it will load from the specified directory.
+directory specified in the configuration. If the file exists, it will load from the specified directory
 
 ### TacticZero
 To run a TacticZero experiment, from the root directory of the project simply run:
