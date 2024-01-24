@@ -5,7 +5,7 @@ title: "BAIT: Benchmarking Architectures for Interactive Theorem-Proving"
 order: 1
 
 header:
-  overlay_color: "#5e616c"
+  overlay_color: "#d1d1d1"
   actions:
     - label: "<i class='fas fa-github'></i> GitHub"
       url: "/docs/quick-start-guide/"
