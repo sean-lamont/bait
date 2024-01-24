@@ -12,8 +12,8 @@ include_footer: false
 {: .text-center}
 {: .text-center}
 
-<a href="#" class="btn btn--primary">Code</a> <a href="#" class="btn btn--primary">Paper</a>
-<a href="#" class="btn btn--primary">Poster</a> <a href="/bait/docs/" class="btn btn--primary">Docs</a>
+<a href="https://github.com/sean-lamont/bait" class="btn btn--primary">Code</a> <a href="#" class="btn btn--primary">Paper</a>
+<a href="/bait/assets/img/poster.pdf" class="btn btn--primary">Poster</a> <a href="/bait/docs/" class="btn btn--primary">Docs</a>
 {: .text-center}
 
 BAIT is a platform for accelerating research in the application of AI to Interactive Theorem-Proving (AI-ITP). 
@@ -42,7 +42,12 @@ Current AI-ITP results are spread across several ITP systems and benchmarks, whi
 This is magnified by the variety and complexity of the approaches, which can vary over several axes.
 This includes the search strategy, learning approach (Reinforcement Learning vs Supervised) and the model architecture used.
 
+![image-center](/assets/img/approaches.png){: .align-center}
+
+
 ## System overview
+![image-center](/assets/img/aitp.pdf){: .align-center}
+
 Despite the large variety in approaches, the AI-ITP setup used in most approaches can be decomposed into several key modules. 
 
 This motivates the design of BAIT, which aims to decouple the Data, Environment and Model.
