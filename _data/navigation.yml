@@ -1,8 +1,8 @@
-main:
-  - title: "About"
-    url: /about/
-  - title: "Docs"
-    url: /docs/
+#main:
+#  - title: "About"
+#    url: /about/
+#  - title: "Docs"
+#    url: /docs/
 
 docs:
   - title: Get Started
