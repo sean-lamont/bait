@@ -28,7 +28,7 @@ else:
 tactic_pool = thms_tactic + thm_tactic + term_tactic + no_arg_tactic
 
 UNEXPECTED_REWARD = -10
-HOLPATH = "environments/hol4/HOL/bin/hol --maxheap=256"
+HOLPATH = "environments/HOL4/HOL/bin/hol --maxheap=256"
 EXCLUDED_THEORIES = ["min"]
 
 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
@@ -93,7 +93,7 @@ def get_process(pstring):
 
 class HolEnv:
     def __init__(self, goal):
-        with open("data/hol4/data/adjusted_db.json") as f:
+        with open("data/HOL4/data/adjusted_db.json") as f:
             self.database = json.load(f)
 
         self.reverse_database = {(value[0], value[1]): key for key, value in self.database.items()}

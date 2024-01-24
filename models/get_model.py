@@ -7,13 +7,13 @@ from models.embedding_models.relation_transformer.relation_transformer_new impor
 from models.embedding_models.relation_transformer.relation_transformer_small import AttentionRelationSmall
 from models.embedding_models.sat.models import GraphTransformer
 from models.embedding_models.holist_models.sat.models import GraphTransformer as HOListSAT
-from models.tactic_zero.autoencoder.tacticzero_autoencoder import TacticZeroAutoEncoder
+from models.TacticZero.autoencoder.tacticzero_autoencoder import TacticZeroAutoEncoder
 from models.embedding_models.transformer.transformer_encoder_model import TransformerWrapper
 from models.embedding_models.holist_models.gnn.gnn_encoder import GNNEncoder
 from models.embedding_models.holist_models.transformer.transformer_encoder_model import \
     TransformerWrapper as HOListTransformer
 from models.embedding_models.ensemble.ensemble import EnsembleEmbedder
-from models.end_to_end.tactic_models.dpo import DPOTrainModule
+# from models.end_to_end.tactic_models.dpo import DPOTrainModule
 
 '''
 Utility function to fetch model given a configuration dict
@@ -22,8 +22,6 @@ Utility function to fetch model given a configuration dict
 
 # todo replace with hydra config instantiation as in end_to_end experiments
 def get_model(model_config):
-    if model_config.model_type == 'tac_gen':
-        return DPOTrainModule
     if model_config.model_type == 'sat':
         return GraphTransformer(in_size=model_config.model_attributes['vocab_size'],
                                 num_class=2,

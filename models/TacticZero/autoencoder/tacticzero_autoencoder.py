@@ -3,9 +3,9 @@ import sys
 import einops
 from torch import nn
 
-from models.tactic_zero import seq2seq
-from models.tactic_zero.batch_predictor import BatchPredictor
-from models.tactic_zero.checkpoint import Checkpoint
+from models.TacticZero import seq2seq
+from models.TacticZero.batch_predictor import BatchPredictor
+from models.TacticZero.checkpoint import Checkpoint
 
 sys.modules['seq2seq'] = seq2seq
 

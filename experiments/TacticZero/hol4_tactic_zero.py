@@ -27,7 +27,6 @@ class HOL4TacticZero(TacticZeroLoop):
                  encoder_goal,
                  tactics,
                  converter,
-                 proof_db
                  ):
 
         super().__init__(config)
@@ -46,7 +45,6 @@ class HOL4TacticZero(TacticZeroLoop):
         self.no_arg_tactic = list(tactics.no_arg_tactic)
         self.tactic_pool = list(tactics.tactic_pool)
         self.converter = converter
-        self.proof_db = proof_db
         self.proof_logs = []
 
         self.config = config

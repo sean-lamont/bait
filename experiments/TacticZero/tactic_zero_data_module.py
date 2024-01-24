@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 from data.HOL4.utils import ast_def
 from data.utils.graph_data_utils import transform_expr, transform_batch
+from environments.HOL4.tacticzero_old.env_wrapper import HolEnv
 from environments.HOL4.tacticzero_old.get_env import get_env
 
 
@@ -18,7 +19,7 @@ class RLData(pl.LightningDataModule):
         super().__init__()
         self.config = config
         self.data_type = self.config.type
-        self.env = get_env(self.config.data_options['environment'])
+        self.env = HolEnv("T")
 
     def setup(self, stage: str) -> None:
         source = self.config.source
@@ -98,7 +99,7 @@ class RLData(pl.LightningDataModule):
             self.env.reset(goal[1])
         except:
             os.system(command=f'pkill -TERM -P {self.env.process.pid}')
-            self.env = get_env(self.config.data_options['environment'])
+            self.env = HolEnv("T")
             return None
 
         allowed_fact_batch, allowed_arguments_ids, candidate_args = self.gen_fact_pool(goal)

@@ -5,7 +5,7 @@ from environments.HOL4.tacticzero_old.updown_env import HolEnv as HOL4UpDown
 
 def get_env(config):
     if config == 'HOL4':
-        return HolEnv("T")
+        return
     elif config == 'HOL4GraphFringe':
         return HOL4GraphFringe("T")
     elif config == 'HOL4UpDown':

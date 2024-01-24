@@ -3,26 +3,22 @@ defaults:
   - tactic_zero
 
 logging_config:
-  offline: False
-#  id: 2ndj5nh7
+  offline: true
 
 max_steps: 50
 data_config:
   type: 'fixed'
   data_options:
     filter: []
-#    environment: 'HOL4'
-#    environment: 'HOL4UpDown'
     environment: 'HOL4GraphFringe'
 
 exp_config:
   name: full_fringe_50_step
-#  directory: experiments/runs/tactic_zero/original_5_step_2023_09_18/17_02_44
-#  resume: True
-#  directory: experiments/runs/tactic_zero/vanilla_full_fringe_50_2023_09_13/14_54_33
 
 model_config:
+  # original autoencoder used in TacticZero
   model_type: 'fixed_autoencoder'
   model_attributes:
-    checkpoint_path: 'experiments/tacticzero/model_checkpoints/tacticzero_autoencoder'
+    # default path for the original encoder
+    checkpoint_path: 'models/TacticZero/pretrained_autoencoder'
     embedding_dim: 256

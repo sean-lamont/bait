@@ -11,7 +11,7 @@ from experiments.TacticZero.hol4_tactic_zero import HOL4TacticZero
 from experiments.TacticZero.tactic_zero_data_module import *
 from models.get_model import get_model
 from models.embedding_models.gnn.formula_net.formula_net import FormulaNetEdges
-from models.tactic_zero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy
+from models.TacticZero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy
 from utils.utils import config_to_dict
 
 warnings.filterwarnings('ignore')
@@ -87,10 +87,6 @@ def tactic_zero_experiment(config):
     module.prepare_data()
     module.setup(stage="fit")
 
-    proof_db = MongoClient()
-    proof_db = proof_db[config.proof_db[0]]
-    proof_db = proof_db[config.proof_db[1]]
-
     experiment = HOL4TacticZero(goal_net=context_net,
                                 tac_net=tac_net,
                                 arg_net=arg_net,
@@ -100,7 +96,7 @@ def tactic_zero_experiment(config):
                                 encoder_goal=encoder_goal,
                                 config=config,
                                 tactics=tactics,
-                                converter=module.list_to_data, proof_db=proof_db)
+                                converter=module.list_to_data)
 
     callbacks = []
 

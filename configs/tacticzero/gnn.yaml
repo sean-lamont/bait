@@ -6,6 +6,9 @@ defaults:
 exp_config:
   name: tacticzero_gnn
 
+logging_config:
+  offline: true
+
 model_config:
   model_type: formula-net-edges
   model_attributes:
