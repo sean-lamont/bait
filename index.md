@@ -3,7 +3,7 @@ layout: splash
 permalink: /
 title: ""
 order: 1
-
+masthead: false
 ---
 <p></p>
 
