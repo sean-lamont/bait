@@ -6,15 +6,18 @@ order: 1
 
 header:
   overlay_color: "#d1d1d1"
+  text_colout: black
   actions:
-    - label: "<i class='fas fa-github'></i> GitHub"
+    - label: "Code"
       url: "/docs/quick-start-guide/"
-    - label: "<i class='fas fa-github'></i> GitHub2"
+    - label: "Paper"
       url: "/docs/quick-start-guide/"
-    - label: "<i class='fas fa-github'></i> GitHub"
+    - label: "Poster"
+      url: "/docs/quick-start-guide/"
+    - label: "Docs"
       url: "/docs/quick-start-guide/"
 excerpt: >
-  BAIT is a platform for accelerating research in the application of AI to Interactive Theorem-Proving (AI-ITP).
+  A platform for accelerating research in the application of AI to Interactive Theorem-Proving (AI-ITP).
 #  <small><a href="https://github.com/mmistakes/minimal-mistakes/releases/tag/4.24.0">Latest release v4.24.0</a></small>
 feature_row:
   - #image_path: /assets/images/mm-customizable-feature.png
