@@ -16,6 +16,9 @@ include_footer: false
 <a href="/bait/assets/images/poster.pdf" class="btn btn--primary">Poster</a> <a href="/bait/docs/" class="btn btn--primary">Docs</a>
 {: .text-center}
 
+<p></p>
+
+## Overview
 BAIT is a platform for accelerating research in the application of AI to Interactive Theorem-Proving (AI-ITP). 
 
 BAIT was accepted as a AAAI24 Main Track paper, where it was used to study Embedding Architectures in AI-ITP.
