@@ -42,11 +42,11 @@ Current AI-ITP results are spread across several ITP systems and benchmarks, whi
 This is magnified by the variety and complexity of the approaches, which can vary over several axes.
 This includes the search strategy, learning approach (Reinforcement Learning vs Supervised) and the model architecture used.
 
-![image-center](/assets/img/approaches.png){: .align-center}
+{% raw %}![alt]({{ site.url }}{{ site.baseurl }}/assets/img/approaches.png){: .align-center}{% endraw %}
 
 
 ## System overview
-![image-center](/assets/img/aitp.pdf){: .align-center}
+{% raw %}![alt]({{ site.url }}{{ site.baseurl }}/assets/img/aitp.pdf){: .align-center}{% endraw %}
 
 Despite the large variety in approaches, the AI-ITP setup used in most approaches can be decomposed into several key modules. 
 
