@@ -9,7 +9,7 @@ classes: wide
 
 BAIT is a platform for accelerating research in the application of AI to Interactive Theorem-Proving (AI-ITP).
 
-$x + y$
+$$x + y$$
 
 To summarise, BAIT
 
