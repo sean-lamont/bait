@@ -5,6 +5,9 @@ title: ""
 order: 1
 ---
 
+\
+\
+
 # BAIT: Benchmarking Architectures for Interactive Theorem-Proving
 
 A platform for accelerating research in the application of AI to Interactive Theorem-Proving (AI-ITP).
