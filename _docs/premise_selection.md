@@ -36,7 +36,7 @@ Each `{model}` config file contains details of the embedding architecture to use
 This experiment assumes data has been processed into a MongoDB database, with the following yaml keys:
 
 ```yaml
-# MongoDB database (defaults are 'hol4', 'mizar', 'leanstep', 'holstep')
+# MongoDB database (defaults are 'hol4', 'mizar40', 'leanstep', 'holstep')
 data_config.data_options.db
 # Processed Data for each expression/formula. Default is 'expression_graphs'
 data_config.data_options.expression_col 

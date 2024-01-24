@@ -28,6 +28,8 @@ docs:
     url: /docs/models
   - title: Environments
     url: /docs/environments
+  - title: Data
+    url: /docs/data/
 
 #main:
 #  - title: "About"
