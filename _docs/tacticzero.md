@@ -24,6 +24,19 @@ to the path of the pretrained checkpoint.
 # Data 
 - HOL4 Data
 
+This experiment assumes data has been processed into a MongoDB database, with the following yaml keys:
+
+```yaml
+# MongoDB database (default is 'hol4')
+data_config.data_options.db
+# Processed Data for each expression/formula. Default is 'expression_graphs'
+data_config.data_options.expression_col 
+# Collection mapping each token to an index. Default is 'vocab_col'
+data_config.data_options.vocab_col 
+# Collection containing the train/val/test split of the goals to prove
+data_config.data_options.paper_goals
+```
+
 # Environments
 - HOL4 TacticZero
  

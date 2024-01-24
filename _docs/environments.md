@@ -21,10 +21,4 @@ Unlike ReProver, this separates subgoals which has several advantages...
 
 ## End-to-End (todo)
 
-# Environments
-- HOList (original)
-- Updated HOList (Work in progress)
-- LeanDojo (original)
-- TacticZero HOL4 Environment (original)
-- Updated HOL4 (todo)
-- INT
+# INT

@@ -26,5 +26,22 @@ Each `{model}` config file contains details of the embedding architecture to use
 # Data
 - HOList 
 
+## Processing
+This experiment assumes data has been processed into a MongoDB database, with the following yaml keys:
+
+```yaml
+# MongoDB database (default is 'holist')
+data_config.data_options.db
+# Processed Data for each expression/formula. Default is 'expression_graphs'
+data_config.data_options.expression_col 
+# Collection mapping each token to an index. Default is 'vocab_col'
+data_config.data_options.vocab_col 
+# Collection containing the train/val/test split of the data. Default is 'split_data'
+data_config.data_options.split_col
+# Collection containing the list of theorems, used to randomly sample negative premises
+data_config.data_options.thms_col 
+```
+
+
 # Models
 - Embedding Models 

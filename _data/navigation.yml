@@ -1,9 +1,3 @@
-#main:
-#  - title: "About"
-#    url: /about/
-#  - title: "Docs"
-#    url: /docs/
-
 docs:
   - title: Get Started
     url: /docs/
@@ -12,15 +6,14 @@ docs:
         url: /docs/install/
       - title: Setup
         url: /docs/setup/
-  - title: Supervised Experiments
+  - title: Experiments
     url: /docs/experiments/
+  - title: Supervised Experiments
     children:
       - title: Premise Selection
         url: /docs/premise_selection/
       - title: HOList
-        url: /docs/holist
-      - title: End-to-End
-        url: /docs/end-to-end/
+        url: /docs/holist_training
   - title: Interactive Experiments
     children:
      - title: TacticZero
@@ -28,11 +21,17 @@ docs:
      - title: HOList
        url: /docs/holist/
      - title: End-to-End
-       url: /docs/holist/
-
+       url: /docs/end-to-end/
   - title: Examples
     url: /docs/examples/
   - title: Models
     url: /docs/models
   - title: Environments
     url: /docs/environments
+
+#main:
+#  - title: "About"
+#    url: /about/
+#  - title: "Docs"
+#    url: /docs/
+
