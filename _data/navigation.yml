@@ -6,6 +6,7 @@ main:
 
 docs:
   - title: Get Started
+    url: /docs/
     children:
       - title: Installation
         url: /docs/install/
