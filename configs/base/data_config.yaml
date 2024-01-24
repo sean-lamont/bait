@@ -1,4 +1,3 @@
-# todo move this to e.g. embedding config
 data_config:
   type: ???
   source: mongodb

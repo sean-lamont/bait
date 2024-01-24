@@ -4,10 +4,7 @@ import pickle
 from data.HOL4.utils import generate_gnn_data
 import os
 
-def gen_pretraining_data():
-
-    data_dir = "data/hol4/data/"
-    # data_dir = os.path.join(os.getcwd(),data_dir)
+def gen_pretraining_data(data_dir):
     paper_dir = os.path.join(data_dir, "paper_goals.pk")
 
     if os.path.exists(paper_dir):

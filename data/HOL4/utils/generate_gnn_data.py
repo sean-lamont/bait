@@ -40,8 +40,9 @@ def gen_train_test_data(data, train_ratio=0.9, val_ratio=0.05, rand=True, deps=N
 
     # generate negative samples
 
-    # this procedure is far from ideal - negative samples may indeed be useful for proving the paired theorem but simply not
+    # This procedure is far from ideal - negative samples may indeed be useful for proving the paired theorem but simply not
     # used in the recorded dependencies. On average, most theorems should not be useful however (remains to be seen experimentally)
+    # Similar approach used in e.g. HOList though
 
     # valid keys are only expressions from training set again, since training procedure hides nodes from val/test set
 
@@ -75,7 +76,6 @@ def gen_train_test_data(data, train_ratio=0.9, val_ratio=0.05, rand=True, deps=N
             allowed_theories.remove("min")
 
         # generate valid keys to sample from
-
         valid_keys = []
 
         np.random.shuffle(candidate_deps)
@@ -217,7 +217,7 @@ def gen_train_test_data(data, train_ratio=0.9, val_ratio=0.05, rand=True, deps=N
 
     return train_data, val_data, test_data, enc_nodes
 
-def generate_gnn_data(data, train_ratio, val_ratio, rand, data_dir,deps,full_db):
+def generate_gnn_data(data, train_ratio, val_ratio, rand, data_dir, deps, full_db):
     print ("Generating train, val, test (goal, premise, label) pairs...")
     whole_data = gen_train_test_data(data, train_ratio, val_ratio, rand, deps, full_db)
     with open(data_dir+"train_test_data.pk", 'wb') as f:
@@ -233,7 +233,6 @@ def generate_gnn_data(data, train_ratio, val_ratio, rand, data_dir,deps,full_db)
     tokens.append("VARFUNC")
     tokens.append("UNK")
 
-    #todo map unknown to "UNKNOWN" token
     enc = OneHotEncoder(handle_unknown='ignore')
 
     enc.fit(np.array(tokens).reshape(-1, 1))
