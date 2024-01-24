@@ -3,9 +3,9 @@
 search: false
 ---
 
+$max-width:10%;
+
 @charset "utf-8";
 
 @import "minimal-mistakes/skins/{{ site.minimal_mistakes_skin | default: 'default' }}"; // skin
 @import "minimal-mistakes"; // main partials
-
-$max-width:10%;
