@@ -41,7 +41,7 @@ Install Lean3:
 - (Obtained from https://github.com/brain-research/hol-light.git, with licence in directory)
 
 ## Data
-- obtain data from https://storage.googleapis.com/deepmath/deephol.zip and place it in a `raw_data` directory in `data/holist`
+- Obtain data from https://storage.googleapis.com/deepmath/deephol.zip and place it in the `raw_data` directory in `data/holist`
 - Run `python -m data.holist.process_holist`
 
 # LeanDojo

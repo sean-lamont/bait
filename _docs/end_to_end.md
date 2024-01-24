@@ -1,6 +1,6 @@
 ---
 permalink: /docs/end-to-end/
-title: "End-to-End Experiments"
+title: "End-to-End Proving"
 ---
 
 ## Abstract End-to-End Loop (work in progress)
@@ -72,3 +72,21 @@ Aside from this, the models have no restrictions.
 Current models include HOList Tactic Generator, generative models with Seq2Seq training, DPO and ILQL training,
 Goal models with varying objectives etc. Once these are implemented, they can be added to tac_models or search_models
 respectively.
+
+# Data
+- LeanDojo
+- HOList 
+
+# Models
+- Generative
+  - ReProver
+  - DPO
+  - ILQL
+- Search
+  - BestFS
+  - BFS 
+  - HTPS
+
+# Environments
+- LeanDojo
+- HOList 

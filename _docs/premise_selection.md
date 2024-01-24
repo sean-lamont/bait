@@ -25,3 +25,13 @@ The configuration directory is organised into `{dataset}/{model}`, where each `{
 includes a base file specifying the vocabulary size, project to log to and the MongoDB database to read from.
 
 Each `{model}` config file contains details of the embedding architecture to use, and the associated `data_type` to inherit from.
+
+
+# Data
+- HOLStep
+- LeanStep
+- MIZAR40
+- HOL4 Premise Dataset
+
+# Models
+- Embedding Models 

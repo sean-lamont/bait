@@ -12,17 +12,24 @@ docs:
         url: /docs/install/
       - title: Setup
         url: /docs/setup/
-  - title: Experiments
+  - title: Supervised Experiments
     url: /docs/experiments/
     children:
       - title: Premise Selection
         url: /docs/premise_selection/
-      - title: TacticZero
-        url: /docs/tacticzero/
-      - title: HOList Eval
+      - title: HOList
         url: /docs/holist
       - title: End-to-End
         url: /docs/end-to-end/
+  - title: Interactive Experiments
+    children:
+     - title: TacticZero
+       url: /docs/tacticzero/
+     - title: HOList
+       url: /docs/holist/
+     - title: End-to-End
+       url: /docs/holist/
+
   - title: Examples
     url: /docs/examples/
   - title: Models

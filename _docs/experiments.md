@@ -21,15 +21,15 @@ such as `premise_selection`. In the root of the subfolder, you can implement a c
 file as a base for the experiment, with default configurations for the specific experiment.
 For example, `configs/tacticzero/tactic_zero.yaml` defines the specific tactics used
 in TacticZero, as well as default values for the number of steps `max_steps`, number of epochs etc.
-This configuration can inherit the configurations in `configs/base`, which define common options such as how directories,
+This configuration can inherit configurations from `configs/base`, which define common options such as how directories,
 checkpoints and logging are managed.
 
 Within a config subdirectory, specific datasets and models can be further configured from the base.
-For premise selection, we organise this into {dataset}/{model}, whereas other experiments such as TacticZero and HOList
-are currently only using one benchmark/dataset, so they are organised based only on {model}. These configurations
-inherit from the base experiment, as well as the default model/data configuration in `config/data_type`.
+For premise selection, we organise this into `{dataset}/{model}`, whereas other experiments such as TacticZero and HOList
+which use one benchmark/dataset are organised based only on `{model}`. 
+These configurations inherit from the base experiment, as well as the default model/data configuration in `config/data_type`.
 They are the final configuration in the composition order, and are what should be specified when running an experiment.
-At a minimum, they should specify the experiment name and model to be run.
+At a minimum, they should specify `experiment`, `name` and the model to be run.
 
 # Running
 
@@ -46,8 +46,6 @@ logging_config.id: {wandb_id} #where `wandb_id` is the id associated with the re
 exp_config.directory: {base_dir} #where `base_dir` is the root of the directory created from the resuming run.
 ```
 
-By default, this is in the format:
-
 # Logging
 Weights and Biases is the default logging platform used in BAIT, and is automatically integrated into all current experiments.
 This can be changed if desired, by modifying the logging source defined in the relevant experiment module.
@@ -59,8 +57,7 @@ for the trainer in the corresponding `yaml` file.
 # Supervised 
 
 Many experiments naturally conform to what we call a 'Supervised' pattern. In these cases,
-the experiment must be fully captured in a LightningModule and a LightningDataModule
-without the need for custom checkpointing or logging behaviour.
+the experiment (including logging and checkpoint behaviour) must be able to be fully contained in a LightningModule and a LightningDataModule.
 
 The class `experiments.supervised_runner` provides a generic interface for running these experiments.
 

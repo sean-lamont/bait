@@ -21,3 +21,11 @@ are used to define model details for the GNN, Transformer and original Autoencod
 Pretrained embedding models from Premise Selection experiments can be included by setting `pretrain: true` and `pretrain_ckpt`
 to the path of the pretrained checkpoint.
 
+# Data 
+- HOL4 Data
+
+# Environments
+- HOL4 TacticZero
+ 
+# Models
+- Embedding Models
