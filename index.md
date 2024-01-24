@@ -8,7 +8,9 @@ order: 1
 <p></p>
 
 # BAIT: Benchmarking Architectures for Interactive Theorem-Proving
+{: .text-center}
 **A platform for accelerating research in the application of AI to Interactive Theorem-Proving (AI-ITP)**
+{: .text-center}
 
 <a href="#" class="btn btn--primary">Code</a> <a href="#" class="btn btn--primary">Paper</a>
 <a href="#" class="btn btn--primary">Poster</a>
