@@ -17,6 +17,7 @@ header:
     - label: "Docs"
       url: "/docs/quick-start-guide/"
 excerpt: >
+  <span style="color:blue">some *blue* text</span>
   A platform for accelerating research in the application of AI to Interactive Theorem-Proving (AI-ITP).
 #  <small><a href="https://github.com/mmistakes/minimal-mistakes/releases/tag/4.24.0">Latest release v4.24.0</a></small>
 feature_row:
