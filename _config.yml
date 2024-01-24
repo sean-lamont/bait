@@ -25,6 +25,7 @@ search: false
 
 head_scripts:
   - https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML
+  - /assets/head/custom.html
 
 # Build settings
 markdown: kramdown
@@ -49,18 +50,6 @@ collections:
 include:
   - _pages
 
-# Exclude from processing.
-# The following items will not be processed, by default. Create a custom list
-# to override the default setting.
-# exclude:
-#   - Gemfile
-#   - Gemfile.lock
-#   - node_modules
-#   - vendor/bundle/
-#   - vendor/cache/
-#   - vendor/gems/
-#   - vendor/ruby/
-
 # Plugins (previously gems:)
 plugins:
   - jekyll-paginate
@@ -71,13 +60,7 @@ plugins:
   - jekyll-include-cache
 
 author:
-  # name   : "First Lastname"
-  # avatar : "/assets/images/bio-photo.jpg"
-  # bio    : "My awesome biography constrained to a sentence or two goes here."
   links:
-    # - label: "Website"
-    #   icon: "fas fa-fw fa-link"
-    #   url: "https://"
     - label: "GitHub"
       icon: "fab fa-fw fa-github"
       url: "https://github.com/sean-lamont/bait"
