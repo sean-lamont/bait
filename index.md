@@ -12,13 +12,7 @@ order: 1
 
 A platform for accelerating research in the application of AI to Interactive Theorem-Proving (AI-ITP).
 
-<a href="#" class="btn btn--primary">Link Text</a>
-
-<a href="#" class="btn btn--primary">Link Text</a>
-
-<a href="#" class="btn btn--primary">Link Text</a>
-
-<a href="#" class="btn btn--primary">Link Text</a>
+<a href="#" class="btn btn--primary">Link Text</a> <a href="#" class="btn btn--primary">Link Text</a> <a href="#" class="btn btn--primary">Link Text</a> <a href="#" class="btn btn--primary">Link Text</a>
 
 
 
