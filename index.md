@@ -9,12 +9,13 @@ order: 1
 
 # BAIT: Benchmarking Architectures for Interactive Theorem-Proving
 {: .text-center}
-**A platform for accelerating research in the application of AI to Interactive Theorem-Proving (AI-ITP)**
 {: .text-center}
 
 <a href="#" class="btn btn--primary">Code</a> <a href="#" class="btn btn--primary">Paper</a>
 <a href="#" class="btn btn--primary">Poster</a>
 {: .text-center}
+
+BAIT is a platform for accelerating research in the application of AI to Interactive Theorem-Proving (AI-ITP). 
 
 BAIT was accepted as a AAAI24 Main Track paper, where it was used to study Embedding Architectures in AI-ITP.
 
