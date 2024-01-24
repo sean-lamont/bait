@@ -25,7 +25,6 @@ search: false
 
 head_scripts:
   - https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML
-  - /assets/head/custom.html
 
 # Build settings
 markdown: kramdown
