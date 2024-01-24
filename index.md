@@ -6,7 +6,7 @@ order: 1
 
 header:
   overlay_color: "#d1d1d1"
-  text_colout: black
+  text_colour: black
   actions:
     - label: "Code"
       url: "/docs/quick-start-guide/"
