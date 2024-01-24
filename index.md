@@ -4,6 +4,7 @@ permalink: /
 title: ""
 order: 1
 masthead: false
+include_footer: false
 ---
 <p></p>
 
