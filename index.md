@@ -12,8 +12,9 @@ order: 1
 
 <a href="#" class="btn btn--primary">Code</a> <a href="#" class="btn btn--primary">Paper</a>
 <a href="#" class="btn btn--primary">Poster</a>
+{: .text-center}
 
-BAIT was introduced as a AAAI24 Main Track paper, where it was used to study Embedding Architectures in AI-ITP.
+BAIT was accepted as a AAAI24 Main Track paper, where it was used to study Embedding Architectures in AI-ITP.
 
 To summarise, BAIT
 - Integrates a (growing) collection of current AI-ITP approaches and benchmarks into a unified platform
