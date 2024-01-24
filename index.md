@@ -45,7 +45,7 @@ This includes the search strategy, learning approach (Reinforcement Learning vs 
 ![alt]({{ site.url }}{{ site.baseurl }}/assets/images/approaches.png){: .align-center} 
 
 ## System overview
-![alt]({{ site.url }}{{ site.baseurl }}/assets/images/aitp.pdf){: .align-center} 
+![alt]({{ site.url }}{{ site.baseurl }}/assets/images/aitp.png){: .align-center} 
 
 Despite the large variety in approaches, the AI-ITP setup used in most approaches can be decomposed into several key modules. 
 
