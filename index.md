@@ -13,7 +13,7 @@ include_footer: false
 {: .text-center}
 
 <a href="#" class="btn btn--primary">Code</a> <a href="#" class="btn btn--primary">Paper</a>
-<a href="#" class="btn btn--primary">Poster</a>
+<a href="#" class="btn btn--primary">Poster</a> <a href="/docs/" class="btn btn--primary">Docs</a>
 {: .text-center}
 
 BAIT is a platform for accelerating research in the application of AI to Interactive Theorem-Proving (AI-ITP). 

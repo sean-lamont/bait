@@ -10,6 +10,9 @@ read_time: false
 author_profile: false
 share: false
 comments: false
+
+classes: wide
+
 sidebar:
     nav: "docs"
 
