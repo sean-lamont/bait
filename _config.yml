@@ -15,7 +15,7 @@
 # in the templates via {{ site.myvariable }}.
 
 title: "BAIT"
-subtitle: Benchmarking Architectures for Interactive Theorem-Proving
+subtitle: # Benchmarking Architectures for Interactive Theorem-Proving
 email: 
 description: >- # this means to ignore newlines until "baseurl:"
 twitter_username: username
