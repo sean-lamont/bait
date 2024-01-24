@@ -48,7 +48,7 @@ feature_row:
 ---
 
 To summarise, BAIT
-
+$$x = y$$
 - Integrates a (growing) collection of current AI-ITP approaches and benchmarks into a unified platform
 - Streamlines developing and experimenting with the different components of AI-ITP architecture
 - Facilitates reproducible and transparent results
