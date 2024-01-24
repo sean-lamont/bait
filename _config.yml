@@ -23,6 +23,9 @@ github_username: username
 minimal_mistakes_skin: air #default
 search: false
 
+head_scripts:
+  - https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML
+
 # Build settings
 markdown: kramdown
 remote_theme: mmistakes/minimal-mistakes
