@@ -40,10 +40,13 @@ Parameters can be overloaded, added or removed using the Hydra override grammar.
 # Resuming Runs
 To resume a run, you should add the following fields to the final configuration file:
 
-- `exp_config.resume: true`
-- `logging_config.id: {wandb_id}` where `wandb_id` is the id associated with the resuming run
-- `exp_config.directory: {base_dir}` where `base_dir` is the root of the directory created from the resuming run.
-  By default, this is in the format:
+```yaml
+exp_config.resume: true 
+logging_config.id: {wandb_id} #where `wandb_id` is the id associated with the resuming run
+exp_config.directory: {base_dir} #where `base_dir` is the root of the directory created from the resuming run.
+```
+
+By default, this is in the format:
 
 # Logging
 Weights and Biases is the default logging platform used in BAIT, and is automatically integrated into all current experiments.
