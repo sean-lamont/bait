@@ -1,4 +1,0 @@
----
-permalink: /results/
-title: "Results"
----

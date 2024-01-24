@@ -1,6 +1,6 @@
 main:
-  - title: "Results"
-    url: /results/
+  - title: "About"
+    url: /about/
   - title: "Docs"
     url: /docs/
 
