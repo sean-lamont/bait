@@ -1,0 +1,31 @@
+\begin{thebibliography}{1}
+
+\bibitem{wu_tacticzero_2021}
+Minchao Wu, Michael Norrish, Christian Walder, and Amir Dezfouli.
+\newblock {TacticZero}: {Learning} to {Prove} {Theorems} from {Scratch} with
+  {Deep} {Reinforcement} {Learning}.
+\newblock In {\em NeurIPS}, 2021.
+
+\bibitem{chen_structure-aware_2022}
+Dexiong Chen, Leslie O’Bray, and Karsten~M. Borgwardt.
+\newblock Structure-aware transformer for graph representation learning.
+\newblock In {\em ICLR}, 2022.
+
+\bibitem{luo_transformers_2023}
+Yuankai Luo, Veronika Thost, and Lei Shi.
+\newblock Transformers over directed acyclic graphs.
+\newblock In {\em NeurIPS}, 2023.
+
+\bibitem{wang_premise_2017}
+Mingzhe Wang, Yihe Tang, Jian Wang, and Jia Deng.
+\newblock Premise {Selection} for {Theorem} {Proving} by {Deep} {Graph}
+  {Embedding}.
+\newblock In {\em NeurIPS}, 2017.
+
+\bibitem{vaswani_attention_2017}
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones,
+  Aidan~N Gomez, \L~ukasz Kaiser, and Illia Polosukhin.
+\newblock Attention is all you need.
+\newblock In {\em NeurIPS}, 2017.
+
+\end{thebibliography}
