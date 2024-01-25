@@ -22,6 +22,8 @@ docs:
        url: /docs/holist/
      - title: End-to-End
        url: /docs/end-to-end/
+     - title: INT
+       url: /docs/int/
   - title: Examples
     url: /docs/examples/
   - title: Models
