@@ -9,15 +9,12 @@ batch_size: 32
 
 logging_config:
   project: INT
-  offline: False
-#  offline: False
-#  id: 'bcqz72ui'
-
+  offline: true
 
 exp_config:
   name: gnn_k3_l5
-  resume: False
   experiment: int_experiment
+#  resume: False
 
 
 use_gpu: True
@@ -26,15 +23,17 @@ path_to_data: ""
 train_sets: ["k=3_l=5"]
 test_sets: ["k=3_l=5"]
 # whether to test graph or transformer encoder
-obs_mode: "geometric"
-#obs_mode: "seq"
+#obs_mode: "geometric"
+obs_mode: "seq"
 num_probs: 1000
 evaluation_size: 256
+
 num_val_probs: 100
 num_test_probs: 100
 transform_gt: True
+
 online: True
-combo_path: data/int/data/benchmark/field
+combo_path: data/INT/data/benchmark/field
 online_order_generation: False
 num_order_or_combo: -1
 cuda: True
@@ -92,7 +91,7 @@ entropy-coef: 0.01
 value-loss-coef: 0.5
 max-grad-norm: 0.5
 cuda-deterministic: False
-num_processes: ???
+num_processes: 4 #???
 num_steps: 4
 ppo-epoch: 4
 num-mini-batch: 32

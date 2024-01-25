@@ -321,7 +321,7 @@ class INTLoop(pl.LightningModule):
             print(f"Error in backward: {e}")
 
 
-@hydra.main(config_path="../configs/experiments")
+@hydra.main(config_path="../../configs")
 def int_experiment(config):
     os.makedirs(config.exp_config.checkpoint_dir, exist_ok=True)
     config.dump = os.path.join(config.exp_config.directory, config.dump)
@@ -361,7 +361,7 @@ def int_experiment(config):
                              config=config)
 
     if config.exp_config.resume:
-        print('resuming')
+        print('Resuming')
         logger = WandbLogger(project=config.logging_config.project,
                              name=config.exp_config.name,
                              config=config_to_dict(config),
