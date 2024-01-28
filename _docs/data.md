@@ -22,7 +22,7 @@ respective dataset directory, and then process them into the format needed for e
 
 # HOL4
 
-Processed for premise selection and for TacticZero experiments.
+Processed for premise selection and for [TacticZero](/bait/docs/experiments/#tacticzero) experiments.
 
 By default, creates a `hol4` MongoDB database, with the following collections used by the experiments:
 - `split_data`
@@ -37,8 +37,8 @@ Also includes the following collections with additional data on the HOL4 express
 # HOList
 
 Contains data based on HOL-Light proofs found in the [HOList](https://arxiv.org/pdf/1904.03241v3.pdf) 
-benchmark. Used for both the HOList Supervised training experiment,
-and for evaluation with the HOList Eval experiment.
+benchmark. Used for both the [HOList Supervised](/bait/docs/holist_training) training experiment,
+and for evaluation with the [HOList Eval](/bait/docs/holist) experiment.
 
 By default, creates a `holist` MongoDB database, with the following collections used for the HOList experiments:
 - `split_data`

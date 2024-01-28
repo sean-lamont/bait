@@ -11,7 +11,9 @@ agent interaction loop being defined in `experiments.TacticZero`.
 # Running
 To run a TacticZero experiment, from the root directory of the project simply run:
 
-`python3 -m experiments.TacticZero.tacticzero_experiment --config-name=tacticzero/{model}`
+```terminal
+python3 -m experiments.TacticZero.tacticzero_experiment --config-name=tacticzero/{model}
+```
 
 # Configuration
 

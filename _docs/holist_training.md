@@ -9,7 +9,9 @@ with varying architectures.
 # Running
 From the root directory of the project simply run:
 
-`python3 -m experiments.lightning_runner --config-name=holist_supervised/{model}`
+```terminal
+python3 -m experiments.lightning_runner --config-name=holist_supervised/{model}
+```
 
 # Configuration
 

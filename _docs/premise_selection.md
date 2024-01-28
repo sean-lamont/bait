@@ -8,7 +8,9 @@ Premise Selection is a common benchmark for approaches in AI-ITP.
 # Running 
 To run a premise selection experiment, from the root directory of the project simply run:
 
-`python3 -m experiments.lightning_runner --config-name=premise_selection/{dataset}/{model}`
+```terminal
+python3 -m experiments.lightning_runner --config-name=premise_selection/{dataset}/{model}
+```
 
 where `{dataset}` is the desired dataset, and `{model}` is the desired model.
 To change model hyperparameters, modify the appropriate `{dataset}/{model}` config file.
@@ -27,10 +29,10 @@ includes a base file specifying the vocabulary size, project to log to and the M
 Each `{model}` config file contains details of the embedding architecture to use, and the associated `data_type` to inherit from.
 
 # Data
-- HOLStep
-- LeanStep
-- MIZAR40
-- HOL4 Premise Dataset
+- [HOLStep](/bait/docs/data/#holstep)
+- [LeanStep](/bait/docs/data/#leanstep)
+- [MIZAR40](/bait/docs/data/#mizar40)
+- [HOL4 Dataset](/bait/docs/data/#hol4)
 
 ## Processing
 This experiment assumes data has been processed into a MongoDB database, with the following yaml keys:
@@ -47,4 +49,5 @@ data_config.data_options.split_col
 ```
 
 # Models
-- Embedding Models 
+- [Embedding Architectures](/bait/docs/models/#embedding-models)
+- [Premise Selection](/bait/docs/models/#premise-selection)

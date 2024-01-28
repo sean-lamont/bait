@@ -22,22 +22,23 @@ PyTorch Lightning. The directory structure is listed below.
 Contains the Embedding architectures currently used for TacticZero, HOList and Premise Selection experiments.
 
 ## GNN
-Includes the message passing GNN architecture from FormulaNet and HOList, as well as other architectures including GCNs.
+Includes the message passing GNN architecture from [FormulaNet](https://arxiv.org/abs/1709.09994) and
+[HOList](/bait/docs/), as well as other architectures including GCNs.
 
 ## Transformer
-Standard implementation of the Transformer Encoder.
+Standard implementation of the [Transformer Encoder](https://arxiv.org/abs/1706.03762).
 
 ## SAT
-Structure Aware Transformer (SAT) models.
+[Structure Aware Transformer](https://arxiv.org/abs/2202.03036)(SAT), including the [Directed](https://arxiv.org/abs/2210.13148) variant.
 
 ## Ensemble
 Ensemble models, which feed the embeddings from a GNN and Transformer model through a final MLP to obtain an aggregated 
 final embedding.
 
 # End-to-End
-Models used for ~End-to-End experiments are found here. 
+Models used for [End-to-End experiments](/bait/docs/end-to-end) are found here. 
 
-## Tactic Models
+## Tactic Models (todo)
 Models for tactic prediction, map a goal to a set of tactics to run in the environment.
 
 ### ReProver 
@@ -50,7 +51,7 @@ Models for tactic prediction, map a goal to a set of tactics to run in the envir
 
 ### HOList Model
 
-## Search Models
+## Search Models (todo)
 Search approaches, selecting one or more goals to work on given a proof state.
 
 ### BestFS
@@ -66,6 +67,9 @@ The code for the live agent used in the [HOList Evaluation](/bait/docs/holist) e
 This includes the model and training code for the HOList Supervised experiment, with the GNN architecture used in
 [this paper](https://arxiv.org/pdf/1905.10006.pdf).
 
+# INT
+The models used for the [INT experiments](/bait/docs/int). Includes GNN and Transformer Encoders, as defined in `models.INT`.
+
 # Premise Selection
 Contains the [Premise Selection](/bait/docs/premise_selection/) model and training code used for Premise Selection experiments.
 
@@ -75,4 +79,4 @@ embeddings before passing them through a MLP for classification
 This model is initialised with embedding architectures for the goal and premise, as well as the architecture for the classifier.
 
 # TacticZero
-Includes the architecture for the Policy Models used in TacticZero experiments, as well as the original seq2seq based autoencoder.
+Includes the architecture for the Policy Models used in [TacticZero experiments](/bait/docs/tacticzero), as well as the original seq2seq based autoencoder.

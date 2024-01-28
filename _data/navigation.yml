@@ -9,12 +9,14 @@ docs:
   - title: Experiments
     url: /docs/experiments/
   - title: Supervised Experiments
+    url: /docs/supervised/
     children:
       - title: Premise Selection
         url: /docs/premise_selection/
       - title: HOList Training
         url: /docs/holist_training
   - title: Interactive Experiments
+    url: /docs/interactive/
     children:
      - title: TacticZero
        url: /docs/tacticzero/

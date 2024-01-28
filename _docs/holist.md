@@ -11,7 +11,9 @@ The docker container for the HOList environment must be running as outlined in t
 ## Running
 To run a HOList evaluation, from the root directory of the project run:
 
-`python3 -m experiments.HOList.holist_eval --config-name=holist_eval/{model}`
+```terminal
+python3 -m experiments.HOList.holist_eval --config-name=holist_eval/{model}
+```
 
 There must be a checkpoint file configured which includes the Encoders, Tactic Selection and
 Combiner Networks from the HOList Supervised task. The checkpoint file is specified by the

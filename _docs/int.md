@@ -17,7 +17,9 @@ The architectures are defined in `models.INT`.
 # Running
 To run an INT experiment, from the root directory of the project run:
 
-`python3 -m experiments.INT.int_experiment --config-name=int/int_base`
+```terminal
+python3 -m experiments.INT.int_experiment --config-name=int/int_base
+```
 
 # Configuration
 
@@ -30,13 +32,13 @@ It can be either `geometric` for GNN models, or `seq` to use a Transformer Encod
 
 
 # Data
-- INT Data 
+- [INT Data](/bait/docs/data/#int)
 
 This experiment assumes data has been processed following the instructions from the original repo,
 using the code in `environments.INT`
 
 # Environments
-- INT
+- [INT](/bait/docs/environments/#int)
 
 # Models
-- INT models with GNN and Transformer Encoders, as defined in `models.INT`.
+- [INT models](/bait/docs/models/#int) 
