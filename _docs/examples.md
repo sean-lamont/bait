@@ -3,20 +3,18 @@ permalink: /docs/examples/
 title: "Examples"
 ---
 
-[//]: # (add more detail, e.g. TacticZero with GNN, End-to-End with different search etc.)
-
 # Premise Selection
-To run a premise selection experiment, from the root directory of the project simply run:
+To run a premise selection experiment, from the root directory of the project run:
 
 `python3 -m experiments.supervised_runner --config-name=premise_selection/{dataset}/{model}`
 
-where {dataset} is the desired dataset, and {model} is the desired model.
-To change model hyperparameters, modify the appropriate {dataset}/{model} config file.
+where `{dataset}` is the desired dataset, and `{model}` is the desired model.
+To change model hyperparameters, modify the appropriate `{dataset}/{model}` config file.
 
 # HOList
 
 ## Supervised
-To run the HOList training experiment, from the root directory of the project simply run:
+To run the HOList training experiment, from the root directory of the project run:
 
 `python3 -m experiments.supervised_runner --config-name=holist_supervised/{model}`
 
@@ -34,8 +32,11 @@ The first run of the experiment will generate a checkpoint.npy file in the `theo
 directory specified in the configuration. If the file exists, it will load from the specified directory
 
 # TacticZero
-To run a TacticZero experiment, from the root directory of the project simply run:
+To run a TacticZero experiment, from the root directory of the project run:
 
 `python3 -m experiments.TacticZero.tacticzero_experiment --config-name=tacticzero/{model}`
 
 # End-to-End
+To run an End-to-End experiment, from the root directory of the project run:
+
+`python3 -m experiments.end_to_end.end_to_end_experiment --config-name=`

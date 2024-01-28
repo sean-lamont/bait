@@ -74,3 +74,7 @@ the parameters listed below this. Similarly for the DataModule, with the `data_m
 
 More complicated experiments require a custom experiment module, and users can refer to the documentation on our
 TacticZero or End-to-End experiments to see some examples.  
+
+# Sweeps 
+Sweeps can be run using the Hydra [multi-run](https://hydra.cc/docs/tutorials/basic/running_your_app/multi-run/) functionality.
+This allows multiple runs to be set up which vary several configuration keys, and is useful for e.g. hyperparameter sweeping.

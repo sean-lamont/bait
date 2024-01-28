@@ -20,10 +20,10 @@ docs:
        url: /docs/tacticzero/
      - title: HOList
        url: /docs/holist/
-     - title: End-to-End
-       url: /docs/end-to-end/
      - title: INT
        url: /docs/int/
+     - title: End-to-End
+       url: /docs/end-to-end/
   - title: Examples
     url: /docs/examples/
   - title: Models
