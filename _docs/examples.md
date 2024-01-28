@@ -3,6 +3,8 @@ permalink: /docs/examples/
 title: "Examples"
 ---
 
+[//]: # (add more detail, e.g. TacticZero with GNN, End-to-End with different search etc.)
+
 # Premise Selection
 To run a premise selection experiment, from the root directory of the project simply run:
 

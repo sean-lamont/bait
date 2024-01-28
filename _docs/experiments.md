@@ -54,19 +54,18 @@ This can be changed if desired, by modifying the logging source defined in the r
 Checkpointing for all experiments which use a LightningModule is easily configured through the associated callbacks 
 for the trainer in the corresponding `yaml` file. 
 
-# Supervised 
+# Lightning Experiments 
 
-Many experiments naturally conform to what we call a 'Supervised' pattern. In these cases,
-the experiment (including logging and checkpoint behaviour) must be able to be fully contained in a LightningModule and a LightningDataModule.
+Many experiments can be fully contained with Pytorch Lightning Modules. In these cases,
+the experiment (including logging and checkpoint behaviour) must be specified in the associated LightningModule and LightningDataModule.
 
-The class `experiments.supervised_runner` provides a generic interface for running these experiments.
+The class `experiments.lightning_runner` provides a generic interface for running these experiments.
+This class is analogous to the PyTorch Lightning CLI, taking in a DataModule and a LightningModule,
+with some additional functionality and flexibility through using Hydra configurations.
 
 Such experiments currently include Premise Selection, the HOList training approach,
 and training/fine-tuning generative models (based on ReProver).
 We also include some currently experimental approaches such as Direct Preference Optimisation and Implicit Language Q-Learning.
-
-This class is analogous to the PyTorch Lightning CLI, taking in a DataModule and a LightningModule,
-with some additional functionality and flexibility through using Hydra configurations.
 
 To use this class, you need to make a corresponding LightningModule and DataModule,
 and specify their configuration parameters in an associated Hydra configuration file. The Hydra file

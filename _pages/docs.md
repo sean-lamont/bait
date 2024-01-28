@@ -18,33 +18,47 @@ sidebar:
 
 ---
 
-The design of BAIT is centered around the idea of an 'experiment', which defines a task in ITP (such as premise
-selection or
-proving with an environment).
+The design of BAIT is centered around the idea of an *experiment*, which defines a task in ITP such as premise
+selection or proving with an environment.
 
-BAIT is split into the following directories to reflect this:
 
-### environments
+BAIT is split into the following directories to reflect this, which we expand on below:
 
-Contains the ITP environments, and code to facilitate the interaction with them.
+```terminal
+├── bait
+    ├── configs
+    ├── data
+    ├── environments
+    ├── experiments
+    ├── models
+    ├── runs
+```
 
-### models
+
+## environments
+
+Contains the ITP environments, and code to facilitate interfacing with them.
+
+## models
 
 Contains model architectures, training code and data modules for training.
+Models are written in PyTorch, with training and data loading/processing using 
+PyTorch Lightning.
 
-### experiments
+## experiments
 
-Code for running experiments, which takes a configuration specifying details of the data source, model and possibly
-environment.
+Code for running experiments.
+Experiments take a Hydra configuration,
+generally specifying details of the relevant data source, model and possibly environment.
 
-### configs
+## configs
 
 Configuration files for running experiments, in Hydra format.
 
-### data
+## data
 
 Includes scripts to download and process raw data from various ITP datasets and benchmarks.
 
-### runs
+## runs
 
 Contains the output of experiment runs, including log files, proof traces and checkpoints.
