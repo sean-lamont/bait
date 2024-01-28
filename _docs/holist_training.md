@@ -21,8 +21,8 @@ Each `{model}` config file contains details of the embedding architecture to use
 
 
 # Data
-- HOList 
-
+- [HOList](/bait/docs/data/#holist)
+ 
 ## Processing
 This experiment assumes data has been processed into a MongoDB database, with the following yaml keys:
 
@@ -39,6 +39,6 @@ data_config.data_options.split_col
 data_config.data_options.thms_col 
 ```
 
-
 # Models
-- Embedding Models 
+- [Embedding Architectures](/bait/docs/models/#embedding-models)
+- [HOList Supervised Model](/bait/docs/models/#supervised)

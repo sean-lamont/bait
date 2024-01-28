@@ -37,24 +37,7 @@ Experiments are run from the root directory,
 with the path to the associated configuration file passed in as the `config-name` parameter.
 Parameters can be overloaded, added or removed using the Hydra override grammar.
 
-# Resuming Runs
-To resume a run, you should add the following fields to the final configuration file:
-
-```yaml
-exp_config.resume: true 
-logging_config.id: {wandb_id} #where `wandb_id` is the id associated with the resuming run
-exp_config.directory: {base_dir} #where `base_dir` is the root of the directory created from the resuming run.
-```
-
-# Logging
-Weights and Biases is the default logging platform used in BAIT, and is automatically integrated into all current experiments.
-This can be changed if desired, by modifying the logging source defined in the relevant experiment module.
-
-# Checkpointing
-Checkpointing for all experiments which use a LightningModule is easily configured through the associated callbacks 
-for the trainer in the corresponding `yaml` file. 
-
-# Lightning Experiments 
+# Lightning Experiments
 
 Many experiments can be fully contained with [PyTorch Lightning](https://lightning.ai/) Modules. In these cases,
 the experiment (including logging and checkpoint behaviour) must be specified in the associated LightningModule and LightningDataModule.
@@ -73,7 +56,25 @@ should specify the LightningModule using the `model` key, with the path to the m
 the parameters listed below this. Similarly for the DataModule, with the `data_module` key.
 
 More complicated experiments require a custom experiment module, and users can refer to the documentation on our
-[TacticZero](/bait/docs/tacticzero/) or [End-to-End](/bait/docs/end-to/end) experiments to see some examples.  
+[TacticZero](/bait/docs/tacticzero/) or [End-to-End](/bait/docs/end-to-end) experiments to see some examples.
+
+# Logging
+[Weights and Biases](https://wandb.ai/) is the default logging platform used in BAIT, and is automatically integrated into all current experiments.
+This can be changed if desired, by modifying the logging source defined in the relevant experiment module.
+
+# Checkpointing
+Checkpointing for all experiments which use a LightningModule is easily configured through the associated callbacks
+for the trainer in the corresponding `yaml` file.
+
+# Resuming Runs
+To resume a run, you should add the following fields to the final configuration file:
+
+```yaml
+exp_config.resume: true 
+logging_config.id: {wandb_id} #where `wandb_id` is the id associated with the resuming run
+exp_config.directory: {base_dir} #where `base_dir` is the root of the directory created from the resuming run.
+```
+
 
 # Sweeps 
 Sweeps can be run using the Hydra [multi-run](https://hydra.cc/docs/tutorials/basic/running_your_app/multi-run/) functionality.

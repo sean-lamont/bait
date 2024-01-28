@@ -3,7 +3,7 @@ permalink: /docs/tacticzero/
 title: "TacticZero Experiments"
 ---
 
-TacticZero experiments use the HOL4 environment and dataset as outlined in the original paper (link to paper). 
+TacticZero experiments use the HOL4 environment and dataset as outlined in the original [paper](https://arxiv.org/abs/2102.09756). 
 It is an online policy gradient based algorithm. The architectures are defined in `models.TacticZero`, with the
 agent interaction loop being defined in `experiments.TacticZero`.
 
@@ -22,7 +22,7 @@ Pretrained embedding models from Premise Selection experiments can be included b
 to the path of the pretrained checkpoint.
 
 # Data 
-- HOL4 Data
+- [HOL4 Data](/bait/docs/data/#hol4)
 
 This experiment assumes data has been processed into a MongoDB database, with the following yaml keys:
 
@@ -38,7 +38,8 @@ data_config.data_options.paper_goals
 ```
 
 # Environments
-- HOL4 TacticZero
+- [HOL4](/bait/docs/environments/#hol4)
  
 # Models
-- Embedding Models
+- [Embedding Architectures](/bait/docs/models/#embedding-models)
+- [TacticZero Model](/bait/docs/models/#tacticzero)

@@ -7,22 +7,22 @@ title: "Setup"
 
 ## Premise Selection
 
-### HOL4
+### [HOL4](/bait/docs/data/#hol4)
 
 - Raw data included in repository
 - Run `python -m data.hol4.process_hol4` from the root project directory
 
-### MIZAR
-
+### [MIZAR40](/bait/docs/data/#mizar40)
 - Run `bash data/mizar/get_mizar.sh`
 - Run `python -m data.mizar.process_mizar`
 
-### HOLStep
+### [HOLStep](/bait/docs/data/#holstep)
+- Run `bash data/mizar/get_mizar.sh`
 
 - Run `bash data/holstep/get_holstep.sh`
 - Run `python -m data.holstep.process_holstep`
 
-### LeanStep
+### [LeanStep](/bait/docs/data/#leanstep)
 
 Install Lean3:
 
@@ -37,28 +37,28 @@ Install Lean3:
   terminate the parallel_data_gen script early for a reduced dataset)
 - Run `python -m data.lean.process_leanstep`
 
-## HOList
+### [HOList](/bait/docs/data/#holist)
 
 - Obtain data from https://storage.googleapis.com/deepmath/deephol.zip and place it in the `raw_data` directory
   in `data/holist`
 - Run `python -m data.holist.process_holist`
 
-## LeanDojo
+### [LeanDojo](/bait/docs/data/)
 
-## INT
+### [INT](/bait/docs/data/)
 
 # Environments
 
-## HOL4
+### [HOL4](/bait/docs/enviornments/#hol4)
 
 - Download and install polyml: https://polyml.org/download.html
 - Run the HOL4 build script `bash environments/hol4/build_hol.sh`
 
-## HOList
+### [HOList](/bait/docs/enviornments/#holist)
 - Setup the Docker container which provides an API to a custom HOL-Light [environment](https://github.com/brain-research/hol-light.git) setup by Google for AITP .
 - Run `bash environments/holist/setup_hollight.sh`
 
-## INT
+### [INT](/bait/docs/enviornments/#int)
 
 ```terminal
 sudo apt-get install libopenmpi-dev

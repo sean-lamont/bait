@@ -6,7 +6,7 @@ title: "HOList Evaluation"
 This experiment is used to evaluate a HOList model in the corresponding live proving environment.
 The code is based on the original DeepMath prover, and is found in `experiments.HOList`
 
-The docker container for the HOList environment must be running as outlined in the Setup documentation.
+The docker container for the HOList environment must be running as outlined in the relevant [documentation](/bait/docs/setup/#holist).
 
 ## Running
 To run a HOList evaluation, from the root directory of the project run:
@@ -22,11 +22,11 @@ The first run of the experiment will generate a checkpoint.npy file in the `theo
 directory specified in the configuration. If the file exists, it will load from the specified directory
 
 # Data
-- HOList 
+- [HOList](/bait/docs/data/#holist)
 
 # Models
-- Embedding Architectures
-- HOList Agent 
+- [Embedding Architectures](/bait/docs/models/#embedding-models)
+- [HOList Agent](https://sean-lamont.github.io/bait/docs/models/#agent)
 
 # Environments 
-- HOList 
+- [HOList](/bait/docs/environments/#holist)

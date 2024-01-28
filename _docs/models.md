@@ -60,13 +60,14 @@ Search approaches, selecting one or more goals to work on given a proof state.
 
 # HOList
 ## Agent
-The code for the live agent used in the ~HOList Evaluation experiment.
+The code for the live agent used in the [HOList Evaluation](/bait/docs/holist) experiment.
 
 ## Supervised
-This includes the model and training code for the ~HOList Supervised experiment. 
+This includes the model and training code for the HOList Supervised experiment, with the GNN architecture used in
+[this paper](https://arxiv.org/pdf/1905.10006.pdf).
 
 # Premise Selection
-Contains the ~Premise Selection model and training code used for Premise Selection experiments.
+Contains the [Premise Selection](/bait/docs/premise_selection/) model and training code used for Premise Selection experiments.
 
 The forward pass takes a goal and premise as input, embeds them, then concatenates their
 embeddings before passing them through a MLP for classification
@@ -74,4 +75,4 @@ embeddings before passing them through a MLP for classification
 This model is initialised with embedding architectures for the goal and premise, as well as the architecture for the classifier.
 
 # TacticZero
-Includes the architecture for the Policy Models used by TacticZero, as well as the original seq2seq based autoencoder.
+Includes the architecture for the Policy Models used in TacticZero experiments, as well as the original seq2seq based autoencoder.
