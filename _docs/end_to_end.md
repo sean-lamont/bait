@@ -3,9 +3,7 @@ permalink: /docs/end-to-end/
 title: "End-to-End Proving Loop"
 ---
 
-Currently a work in progress, the End-to-End experiment aims to provide an implementation of the abstract AI-ITP setup
-outlined in
-Figure 1 of our paper ~BAIT.
+Currently a work in progress, the End-to-End experiment aims to provide an implementation of the abstract [AI-ITP setup.](https://sean-lamont.github.io/bait/#system-overview)
 
 The experiment takes as input the Tactic Model, Search Model and Environment.
 It runs the specified model on proofs in the environment, collecting the proof logs.
@@ -13,7 +11,7 @@ Following this, it can take other user specified experiments to run
 with the newly generated data, which are expected to train the Tactic and Search models.
 The newly trained models are then loaded and the process is repeated.
 
-Originally based on ~ReProver, this experiment allows for synthetic data to be incorporated into training agents.
+Originally based on [ReProver](https://github.com/lean-dojo/ReProver), this experiment allows for synthetic data to be incorporated into training agents.
 
 It provides the following features:
 

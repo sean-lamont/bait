@@ -8,7 +8,7 @@ Premise Selection is a common benchmark for approaches in AI-ITP.
 # Running 
 To run a premise selection experiment, from the root directory of the project simply run:
 
-`python3 -m experiments.supervised_runner --config-name=premise_selection/{dataset}/{model}`
+`python3 -m experiments.lightning_runner --config-name=premise_selection/{dataset}/{model}`
 
 where `{dataset}` is the desired dataset, and `{model}` is the desired model.
 To change model hyperparameters, modify the appropriate `{dataset}/{model}` config file.

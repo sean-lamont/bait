@@ -12,13 +12,13 @@ docs:
     children:
       - title: Premise Selection
         url: /docs/premise_selection/
-      - title: HOList
+      - title: HOList Training
         url: /docs/holist_training
   - title: Interactive Experiments
     children:
      - title: TacticZero
        url: /docs/tacticzero/
-     - title: HOList
+     - title: HOList Evaluation
        url: /docs/holist/
      - title: INT
        url: /docs/int/

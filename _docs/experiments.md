@@ -56,7 +56,7 @@ for the trainer in the corresponding `yaml` file.
 
 # Lightning Experiments 
 
-Many experiments can be fully contained with Pytorch Lightning Modules. In these cases,
+Many experiments can be fully contained with [PyTorch Lightning](https://lightning.ai/) Modules. In these cases,
 the experiment (including logging and checkpoint behaviour) must be specified in the associated LightningModule and LightningDataModule.
 
 The class `experiments.lightning_runner` provides a generic interface for running these experiments.
@@ -64,7 +64,7 @@ This class is analogous to the PyTorch Lightning CLI, taking in a DataModule and
 with some additional functionality and flexibility through using Hydra configurations.
 
 Such experiments currently include Premise Selection, the HOList training approach,
-and training/fine-tuning generative models (based on ReProver).
+and training/fine-tuning generative models.
 We also include some currently experimental approaches such as Direct Preference Optimisation and Implicit Language Q-Learning.
 
 To use this class, you need to make a corresponding LightningModule and DataModule,
@@ -73,7 +73,7 @@ should specify the LightningModule using the `model` key, with the path to the m
 the parameters listed below this. Similarly for the DataModule, with the `data_module` key.
 
 More complicated experiments require a custom experiment module, and users can refer to the documentation on our
-TacticZero or End-to-End experiments to see some examples.  
+[TacticZero](/bait/docs/tacticzero/) or [End-to-End](/bait/docs/end-to/end) experiments to see some examples.  
 
 # Sweeps 
 Sweeps can be run using the Hydra [multi-run](https://hydra.cc/docs/tutorials/basic/running_your_app/multi-run/) functionality.

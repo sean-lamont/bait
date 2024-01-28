@@ -9,16 +9,13 @@ with varying architectures.
 # Running
 From the root directory of the project simply run:
 
-`python3 -m experiments.supervised_runner --config-name=holist_supervised/{model}`
+`python3 -m experiments.lightning_runner --config-name=holist_supervised/{model}`
 
 # Configuration
 
-Configuration files are found in the `configs/premise_selection` directory.
-The base configuration file `configs/premise_selection/premise_selection.yaml` specifies the
-Premise Selection model and associated DataModule implemented in `models.premise_selection`.
-
-The configuration directory is organised into `{dataset}/{model}`, where each `{dataset}`
-includes a base file specifying the vocabulary size, project to log to and the MongoDB database to read from.
+Configuration files are found in the `configs/holist_supervised` directory.
+The base configuration file in `configs/premise_selection/holist_supervised.yaml` specifies the
+training model and associated DataModule implemented in `models.HOList.supervised`.
 
 Each `{model}` config file contains details of the embedding architecture to use, and the associated `data_type` to inherit from.
 

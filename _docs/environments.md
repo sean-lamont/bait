@@ -16,7 +16,7 @@ interaction with them. The directory is structured into the separate environment
 
 # HOList
 
-The HOList environment from ~paper. Provides an interactive interface to HOL-Light.
+The [HOList environment](https://arxiv.org/pdf/1904.03241v3.pdf). Provides an interactive interface to HOL-Light.
 `environments.HOList.holist_env` provides a wrapper which enables compatibility with the abstract ~End-to-End
 experiment.
 
@@ -39,7 +39,7 @@ experiment.
 
 # LeanDojo
 
-Wrapper over the standard ~LeadDojo environment, implemented in `environments.LeanDojo.leandojo_env`.
+Wrapper over the standard [LeanDojo](https://github.com/lean-dojo/LeanDojo) environment, implemented in `environments.LeanDojo.leandojo_env`.
 
 LeanDojo is the most complete environment feature wise:
 
@@ -54,7 +54,7 @@ LeanDojo is the most complete environment feature wise:
 
 # HOL4
 
-The HOL4 environment used in ~TacticZero.
+The HOL4 environment used in [TacticZero](https://arxiv.org/abs/2102.09756).
 
 ## Future additions
 

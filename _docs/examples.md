@@ -6,7 +6,7 @@ title: "Examples"
 # Premise Selection
 To run a premise selection experiment, from the root directory of the project run:
 
-`python3 -m experiments.supervised_runner --config-name=premise_selection/{dataset}/{model}`
+`python3 -m experiments.lightning_runner --config-name=premise_selection/{dataset}/{model}`
 
 where `{dataset}` is the desired dataset, and `{model}` is the desired model.
 To change model hyperparameters, modify the appropriate `{dataset}/{model}` config file.
@@ -16,7 +16,7 @@ To change model hyperparameters, modify the appropriate `{dataset}/{model}` conf
 ## Supervised
 To run the HOList training experiment, from the root directory of the project run:
 
-`python3 -m experiments.supervised_runner --config-name=holist_supervised/{model}`
+`python3 -m experiments.lightning_runner --config-name=holist_supervised/{model}`
 
 ## Evaluation
 To run a HOList evaluation, from the root directory of the project run:

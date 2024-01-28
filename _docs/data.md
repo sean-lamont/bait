@@ -36,7 +36,8 @@ Also includes the following collections with additional data on the HOL4 express
 
 # HOList
 
-Contains data based on HOL-Light proofs. Used for both the HOList Supervised training experiment,
+Contains data based on HOL-Light proofs found in the [HOList](https://arxiv.org/pdf/1904.03241v3.pdf) 
+benchmark. Used for both the HOList Supervised training experiment,
 and for evaluation with the HOList Eval experiment.
 
 By default, creates a `holist` MongoDB database, with the following collections used for the HOList experiments:
@@ -46,12 +47,13 @@ By default, creates a `holist` MongoDB database, with the following collections 
 - `expression_graphs`
 
 # INT 
-Data processed for the ~INT environment and experiments.
+Data processed for the [INT](https://github.com/albertqjiang/INT) environment and experiments.
 Uses the INT environment to generate user configured synthetic proving problems, which are saved in this directory.
 The processing code for this is taken from the original paper, and unchanged.
 
 # Premise Selection 
 ## HOLStep
+The [HOLStep](https://arxiv.org/abs/1703.00426) premise selection dataset.
 
 Processed for Premise Selection experiments.
 Note that full graph processing takes a very long time, with over 1M expressions.
@@ -63,7 +65,8 @@ By default, creates a `holstep` MongoDB database, with the following collections
  
 ## LeanStep
 
-Processed for Premise Selection experiments. Modified to include s-expression output to enable graph parsing.
+Data from the [LeanStep](https://github.com/jesse-michael-han/lean-step-public) benchmark,
+processed for Premise Selection experiments. Modified to include s-expression output to enable graph parsing.
 
 By default, creates a `leanstep` MongoDB database, with the following collections for premise selection:
 - `split_data`
@@ -83,7 +86,7 @@ with the following collections:
  
 ## MIZAR40
 
-Processed for Premise Selection experiments.
+The [MIZAR40](https://github.com/JUrban/deepmath) premise selection dataset. Processed for the format in Premise Selection experiments.
 
 By default, creates a `mizar40` MongoDB database, with the following collections used for Premise Selection:
 - `split_data`
@@ -92,5 +95,6 @@ By default, creates a `mizar40` MongoDB database, with the following collections
 
 ## LeanDojo
 
-Data generated from the LeanDojo benchmark, used for End-to-End experiments and for training ReProver based models.
+Data generated from the [LeanDojo](https://github.com/lean-dojo/LeanDojo) benchmark, 
+used for End-to-End experiments and for training ReProver based models.
 Processed into a format which enables training generative models.
