@@ -3,6 +3,9 @@ permalink: /docs/environments/
 title: "Environments"
 ---
 
+The environments module includes different ITP environments and supporting code to facilitate 
+interaction with them. The directory is structured into the separate environments, as listed below.
+
 ```terminal
 ├── environments
     ├── HOL4
