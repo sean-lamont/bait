@@ -1,6 +1,6 @@
 exp_config:
   name: ???
-  directory: runs/${.experiment}/${.name}_${now:%Y_%m_%d}/${now:%H_%M_%S}
+  directory: runs/${.experiment}/${.name}/${now:%Y_%m_%d}/${now:%H_%M_%S}
   checkpoint_dir: ${.directory}/checkpoints
   accelerator: gpu
   device: [0]
