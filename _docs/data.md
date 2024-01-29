@@ -94,7 +94,9 @@ By default, creates a `mizar40` MongoDB database, with the following collections
 - `expression_graphs`
 
 ## LeanDojo
-
 Data generated from the [LeanDojo](https://github.com/lean-dojo/LeanDojo) benchmark, 
 used for End-to-End experiments and for training ReProver based models.
 Processed into a format which enables training generative models.
+
+Will be updated in a future release.
+

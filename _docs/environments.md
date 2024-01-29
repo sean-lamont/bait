@@ -3,7 +3,7 @@ permalink: /docs/environments/
 title: "Environments"
 ---
 
-The environments module includes different ITP environments and supporting code to facilitate 
+The environments module includes different ITP environments and supporting code to facilitate
 interaction with them. The directory is structured into the separate environments, as listed below.
 
 ```terminal
@@ -39,13 +39,16 @@ experiment.
 
 # LeanDojo
 
-Wrapper over the standard [LeanDojo](https://github.com/lean-dojo/LeanDojo) environment, implemented in `environments.LeanDojo.leandojo_env`.
+Wrapper over the standard [LeanDojo](https://github.com/lean-dojo/LeanDojo) environment, implemented
+in `environments.LeanDojo.leandojo_env`.
 
 LeanDojo is the most complete environment feature wise:
 
 - It allows for proofs over arbitrary new GitHub repos
 - No restrictions on the tactic input, allowing general expressions to be used
 - Automatically manages Docker configurations internally
+
+Currently under development, will be updated in a future release.
 
 ## Additions/Modifications
 

@@ -1,117 +1,191 @@
 ---
 permalink: /docs/end-to-end/
-title: "End-to-End Proving Loop"
+title: "End-to-End Proving (Under Development)"
 ---
 
-Currently a work in progress, the End-to-End experiment aims to provide an implementation of the abstract [AI-ITP setup.](https://sean-lamont.github.io/bait/#system-overview)
+The End-to-End experiment aims to provide an implementation of the abstract [AI-ITP setup.](https://sean-lamont.github.io/bait/#system-overview)
 
-The experiment takes as input the Tactic Model, Search Model and Environment.
-It runs the specified model on proofs in the environment, collecting the proof logs.
-Following this, it can take other user specified experiments to run
-with the newly generated data, which are expected to train the Tactic and Search models.
-The newly trained models are then loaded and the process is repeated.
+Currently under development, the documentation will be updated in a future release.
 
-Originally based on [ReProver](https://github.com/lean-dojo/ReProver), this experiment allows for synthetic data to be incorporated into training agents.
+[//]: # (The experiment takes as input the Tactic Model, Search Model and Environment.)
 
-It provides the following features:
+[//]: # (It runs the specified model on proofs in the environment, collecting the proof logs.)
 
-- Abstract interface, allows for different Environments, Tactic and Search models to be combined with minimal effort
-- Distributed evaluation, which is adaptable to the resources available (specified in the configuration file)
-- Automated logging with WandB
-- Automatically generates proof traces in a standardised format
-- Proof attempts can be visualised with `visualise_trace.py`
+[//]: # (Following this, it can take other user specified experiments to run)
 
-The current set of combinations of Models and Environments which can be run are summarised below.
+[//]: # (with the newly generated data, which are expected to train the Tactic and Search models.)
 
-It currently includes the LeanDojo environment with generative models based on ReProver,
-and an updated HOList environment with the associated tactic models used in the paper.
+[//]: # (The newly trained models are then loaded and the process is repeated.)
 
-# Working
+[//]: # ()
+[//]: # (Originally based on [ReProver]&#40;https://github.com/lean-dojo/ReProver&#41;, this experiment allows for synthetic data to be incorporated into training agents.)
 
-## Search Models
-- Best First Search (BestFS)
+[//]: # ()
+[//]: # (It provides the following features:)
 
-## LeanDojo Environment
+[//]: # ()
+[//]: # (- Abstract interface, allows for different Environments, Tactic and Search models to be combined with minimal effort)
 
-## Tactic Models
-- Generative models based on ReProver (currently only trained/tested with LeanDojo Environment)
-- Trained with the following approaches:
-    - seq2seq
-    - DPO
-    - ILQL
+[//]: # (- Distributed evaluation, which is adaptable to the resources available &#40;specified in the configuration file&#41;)
 
-- HOList Tactic Models, with varying embedding architectures
-  - Will only work with HOList environment, as they are tailored for this
+[//]: # (- Automated logging with WandB)
 
-## HOList Environment
+[//]: # (- Automatically generates proof traces in a standardised format)
 
-# Work in progress
+[//]: # (- Proof attempts can be visualised with `visualise_trace.py`)
 
-## Search Models
-- HTPS
-- UpDown
-- Breadth First Search (BFS)
-- Fringe
+[//]: # ()
+[//]: # (The current set of combinations of Models and Environments which can be run are summarised below.)
 
-# Possible future additions
+[//]: # ()
+[//]: # (It currently includes the LeanDojo environment with generative models based on ReProver,)
 
-### LeanDojo
+[//]: # (and an updated HOList environment with the associated tactic models used in the paper.)
 
-- Add tactic models which are restricted to a small subset as done in HOList or HOL4
+[//]: # ()
+[//]: # (# Working)
 
-### HOList
+[//]: # ()
+[//]: # (## Search Models)
 
-- Generative model (currently would be restricted by the enviroment, as outlined in the ~HOList docs)
+[//]: # (- Best First Search &#40;BestFS&#41;)
 
+[//]: # ()
+[//]: # (## LeanDojo Environment)
 
-# Modules
-## end_to_end_experiment
-The module for running the experiment. Takes a configuration file specifying the tactic model,
-search model, environment, how to process traces for model training, and what modules to call for training.
+[//]: # ()
+[//]: # (## Tactic Models)
 
-## proof_node
+[//]: # (- Generative models based on ReProver &#40;currently only trained/tested with LeanDojo Environment&#41;)
 
-Implements the Proof Search Tree datastructure.
+[//]: # (- Trained with the following approaches:)
 
-## search_result
+[//]: # (    - seq2seq)
 
-Class which contains a SearchResult object, which includes all relevant information from a proof search
+[//]: # (    - DPO)
 
-## visualise_trace
+[//]: # (    - ILQL)
 
-Allows for an interactive visualisation of the proof search.
-Requires separate implementations for each new search
+[//]: # ()
+[//]: # (- HOList Tactic Models, with varying embedding architectures)
 
-## Tactic/Search models with Lightning
+[//]: # (  - Will only work with HOList environment, as they are tailored for this)
 
-Both tactic and search models are assumed to be Lightning Modules.
+[//]: # ()
+[//]: # (## HOList Environment)
 
-For training, they should each have an associated DataModule.
-This should define how to process proof traces before training. For example, `models.end_to_end.search_models.goal_model` 
-labels all proven nodes as 1, and all unproven goals over a visit count threshold as 0 (used in HTPS).
-`models.end_to_end.tactic_models.dpo` implements Direct Preference Optimisation, ranking edges based on errors and proofs.
+[//]: # ()
+[//]: # (# Work in progress)
 
-Tactic models need to implement a get_tactic method which maps a string to a tactic.
-Aside from this, the models have no restrictions.
-Current models include HOList Tactic Generator, generative models with Seq2Seq training, DPO and ILQL training. 
-Once these are implemented, they can be added to tac_models or search_models
-respectively.
+[//]: # ()
+[//]: # (## Search Models)
 
-# Running (todo)
+[//]: # (- HTPS)
 
-# Configuration (todo)
+[//]: # (- UpDown)
 
-# Examples (todo)
+[//]: # (- Breadth First Search &#40;BFS&#41;)
 
-The below configurations are some examples of End-to-End experiments:
+[//]: # (- Fringe)
 
-## ReProver
+[//]: # ()
+[//]: # (# Possible future additions)
 
-- Run original model trained on the LeanDojo benchmark with BestFS
-- BestFS, updating tactic with synthetic data using seq2seq training
-- BestFS, updating tactic with synthetic data using DPO training
-- BestFS, updating tactics with synthetic data using ILQL training
-- HTPS, updating tactics with synthetic data using seq2seq training, and updating HTPS goal model  
+[//]: # ()
+[//]: # (### LeanDojo)
 
-## HOList
-- Run original HOList model, using the new abstract and shared components
+[//]: # ()
+[//]: # (- Add tactic models which are restricted to a small subset as done in HOList or HOL4)
+
+[//]: # ()
+[//]: # (### HOList)
+
+[//]: # ()
+[//]: # (- Generative model &#40;currently would be restricted by the enviroment, as outlined in the ~HOList docs&#41;)
+
+[//]: # ()
+[//]: # ()
+[//]: # (# Modules)
+
+[//]: # (## end_to_end_experiment)
+
+[//]: # (The module for running the experiment. Takes a configuration file specifying the tactic model,)
+
+[//]: # (search model, environment, how to process traces for model training, and what modules to call for training.)
+
+[//]: # ()
+[//]: # (## proof_node)
+
+[//]: # ()
+[//]: # (Implements the Proof Search Tree datastructure.)
+
+[//]: # ()
+[//]: # (## search_result)
+
+[//]: # ()
+[//]: # (Class which contains a SearchResult object, which includes all relevant information from a proof search)
+
+[//]: # ()
+[//]: # (## visualise_trace)
+
+[//]: # ()
+[//]: # (Allows for an interactive visualisation of the proof search.)
+
+[//]: # (Requires separate implementations for each new search)
+
+[//]: # ()
+[//]: # (## Tactic/Search models with Lightning)
+
+[//]: # ()
+[//]: # (Both tactic and search models are assumed to be Lightning Modules.)
+
+[//]: # ()
+[//]: # (For training, they should each have an associated DataModule.)
+
+[//]: # (This should define how to process proof traces before training. For example, `models.end_to_end.search_models.goal_model` )
+
+[//]: # (labels all proven nodes as 1, and all unproven goals over a visit count threshold as 0 &#40;used in HTPS&#41;.)
+
+[//]: # (`models.end_to_end.tactic_models.dpo` implements Direct Preference Optimisation, ranking edges based on errors and proofs.)
+
+[//]: # ()
+[//]: # (Tactic models need to implement a get_tactic method which maps a string to a tactic.)
+
+[//]: # (Aside from this, the models have no restrictions.)
+
+[//]: # (Current models include HOList Tactic Generator, generative models with Seq2Seq training, DPO and ILQL training. )
+
+[//]: # (Once these are implemented, they can be added to tac_models or search_models)
+
+[//]: # (respectively.)
+
+[//]: # ()
+[//]: # (# Running) 
+
+[//]: # ()
+[//]: # (# Configuration )
+
+[//]: # ()
+[//]: # (# Examples )
+
+[//]: # ()
+[//]: # (The below configurations are some examples of End-to-End experiments:)
+
+[//]: # ()
+[//]: # (## ReProver)
+
+[//]: # ()
+[//]: # (- Run original model trained on the LeanDojo benchmark with BestFS)
+
+[//]: # (- BestFS, updating tactic with synthetic data using seq2seq training)
+
+[//]: # (- BestFS, updating tactic with synthetic data using DPO training)
+
+[//]: # (- BestFS, updating tactics with synthetic data using ILQL training)
+
+[//]: # (- HTPS, updating tactics with synthetic data using seq2seq training, and updating HTPS goal model  )
+
+[//]: # ()
+[//]: # (## HOList)
+
+[//]: # (- Run original HOList model, using the new abstract and shared components)

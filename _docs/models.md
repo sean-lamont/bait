@@ -38,26 +38,40 @@ final embedding.
 # End-to-End
 Models used for [End-to-End experiments](/bait/docs/end-to-end) are found here. 
 
-## Tactic Models (todo)
-Models for tactic prediction, map a goal to a set of tactics to run in the environment.
+Currently under development.
 
-### ReProver 
+[//]: # (## Tactic Models)
 
-### Seq2seq
+[//]: # (Models for tactic prediction, map a goal to a set of tactics to run in the environment.)
 
-### Direct Preference Optimisation (DPO)
+[//]: # ()
+[//]: # (### ReProver )
 
-### Implicit Language Q Learning (ILQL)
+[//]: # ()
+[//]: # (### Seq2seq)
 
-### HOList Model
+[//]: # ()
+[//]: # (### Direct Preference Optimisation &#40;DPO&#41;)
 
-## Search Models (todo)
-Search approaches, selecting one or more goals to work on given a proof state.
+[//]: # ()
+[//]: # (### Implicit Language Q Learning &#40;ILQL&#41;)
 
-### BestFS
-### Fringe
-### Breadth First Search (BFS)
-### HyperTree Proof Search (HTPS)
+[//]: # ()
+[//]: # (### HOList Model)
+
+[//]: # ()
+[//]: # (## Search Models)
+
+[//]: # (Search approaches, selecting one or more goals to work on given a proof state.)
+
+[//]: # ()
+[//]: # (### BestFS)
+
+[//]: # (### Fringe)
+
+[//]: # (### Breadth First Search &#40;BFS&#41;)
+
+[//]: # (### HyperTree Proof Search &#40;HTPS&#41;)
 
 # HOList
 ## Agent

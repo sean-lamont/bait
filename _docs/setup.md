@@ -52,7 +52,7 @@ Install Lean3:
 python -m data.holist.process_holist
 ```
 
-### [LeanDojo](/bait/docs/data/)
+[//]: # (Leandojo)
 
 ### [INT](/bait/docs/data/)
 

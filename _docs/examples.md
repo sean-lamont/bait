@@ -6,7 +6,9 @@ title: "Examples"
 # Premise Selection
 To run a premise selection experiment, from the root directory of the project run:
 
-`python3 -m experiments.lightning_runner --config-name=premise_selection/{dataset}/{model}`
+```terminal
+python3 -m experiments.lightning_runner --config-name=premise_selection/{dataset}/{model}
+```
 
 where `{dataset}` is the desired dataset, and `{model}` is the desired model.
 To change model hyperparameters, modify the appropriate `{dataset}/{model}` config file.
@@ -16,12 +18,16 @@ To change model hyperparameters, modify the appropriate `{dataset}/{model}` conf
 ## Supervised
 To run the HOList training experiment, from the root directory of the project run:
 
-`python3 -m experiments.lightning_runner --config-name=holist_supervised/{model}`
+```terminal
+python3 -m experiments.lightning_runner --config-name=holist_supervised/{model}
+```
 
 ## Evaluation
 To run a HOList evaluation, from the root directory of the project run:
 
-`python3 -m experiments.HOList.holist_eval --config-name=holist_eval/{model}`
+```terminal
+python3 -m experiments.HOList.holist_eval --config-name=holist_eval/{model}
+```
 
 There must be a checkpoint file configured which includes the Encoders, Tactic Selection and
 Combiner Networks from the HOList Supervised task. The checkpoint file is specified by the
@@ -34,9 +40,14 @@ directory specified in the configuration. If the file exists, it will load from 
 # TacticZero
 To run a TacticZero experiment, from the root directory of the project run:
 
-`python3 -m experiments.TacticZero.tacticzero_experiment --config-name=tacticzero/{model}`
+```terminal
+python3 -m experiments.TacticZero.tacticzero_experiment --config-name=tacticzero/{model}
+```
 
-# End-to-End
-To run an End-to-End experiment, from the root directory of the project run:
+# Running
+To run an INT experiment, from the root directory of the project run:
 
-`python3 -m experiments.end_to_end.end_to_end_experiment --config-name=`
+```terminal
+python3 -m experiments.INT.int_experiment --config-name=int/int_base
+```
+
