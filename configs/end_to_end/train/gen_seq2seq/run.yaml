@@ -15,7 +15,9 @@ model:
   _target_: models.end_to_end.tactic_models.generator.model.RetrievalAugmentedGenerator
   config:
     model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
-    lr: 1e-6
+#    lr: 1e-6
+    # learning rate used in HTPS
+    lr: 3e-5
     warmup_steps: 150
     beta: 0.99
     max_seq_len: 2300

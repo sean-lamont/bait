@@ -135,7 +135,4 @@ class RetrievalAugmentedGenerator(GenTacModel):
         for k in range(1, self.num_beams + 1):
             topk_acc = self.topk_accuracies[k]
             topk_acc(tactics_pred, batch["tactic"])
-            if k == 16:
-                self.log(f"top{k}_acc_val", topk_acc, on_step=False, on_epoch=True, prog_bar=True)
-            else:
-                self.log(f"top{k}_acc_val", topk_acc, on_step=False, on_epoch=True, prog_bar=True)
+            self.log(f"top{k}_acc_val", topk_acc, on_step=False, on_epoch=True, prog_bar=False)
