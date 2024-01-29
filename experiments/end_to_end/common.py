@@ -1,5 +1,6 @@
 import json
 import os
+from abc import ABC, abstractmethod
 import random
 import re
 import sys
@@ -56,8 +57,14 @@ class Context:
         return self.state
 
 
+class Premise(ABC):
+    @abstractmethod
+    def serialize(self) -> str:
+        raise NotImplementedError
+
+
 @dataclass(unsafe_hash=True)
-class Premise:
+class LeanPremise(Premise):
     """Premises are "documents" in our retrieval setup."""
 
     path: str
@@ -109,27 +116,27 @@ class Premise:
 class PremiseSet:
     """A set of premises indexed by their paths and full names."""
 
-    path2premises: Dict[str, Dict[str, Premise]]
+    path2premises: Dict[str, Dict[str, LeanPremise]]
 
     def __init__(self) -> None:
         self.path2premises = {}
 
-    def __iter__(self) -> Generator[Premise, None, None]:
+    def __iter__(self) -> Generator[LeanPremise, None, None]:
         for _, premises in self.path2premises.items():
             for p in premises.values():
                 yield p
 
-    def add(self, p: Premise) -> None:
+    def add(self, p: LeanPremise) -> None:
         if p.path in self.path2premises:
             self.path2premises[p.path][p.full_name] = p
         else:
             self.path2premises[p.path] = {p.full_name: p}
 
-    def update(self, premises: List[Premise]) -> None:
+    def update(self, premises: List[LeanPremise]) -> None:
         for p in premises:
             self.add(p)
 
-    def __contains__(self, p: Premise) -> bool:
+    def __contains__(self, p: LeanPremise) -> bool:
         return (
                 p.path in self.path2premises and p.full_name in self.path2premises[p.path]
         )
@@ -146,7 +153,7 @@ class File:
     """Path of the ``*.lean`` file.
     """
 
-    premises: List[Premise]
+    premises: List[LeanPremise]
     """A list of premises defined in this file.
     """
 
@@ -164,7 +171,7 @@ class File:
                 # Ignore mutual definitions.
                 continue
             premises.append(
-                Premise(
+                LeanPremise(
                     path, p["full_name"], Pos(*p["start"]), Pos(*p["end"]), p["code"]
                 )
             )
@@ -176,7 +183,13 @@ class File:
         return self.premises == []
 
 
-class Corpus:
+class Corpus(ABC):
+    @abstractmethod
+    def get_nearest_premises(self, **kwargs) -> str:
+        raise NotImplementedError
+
+
+class LeanDojoCorpus(Corpus):
     """Our retrieval corpus is a DAG of files. Each file consists of
     premises (theorems, definitions, etc.) that can be retrieved.
     """
@@ -186,7 +199,7 @@ class Corpus:
     There is an edge from file X to Y iff X import Y (directly or indirectly).
     """
 
-    all_premises: List[Premise]
+    all_premises: List[LeanPremise]
     """All premises in the entire corpus.
     """
 
@@ -225,7 +238,7 @@ class Corpus:
     def __contains__(self, path: str) -> bool:
         return path in self.transitive_dep_graph
 
-    def __getitem__(self, idx: int) -> Premise:
+    def __getitem__(self, idx: int) -> LeanPremise:
         return self.all_premises[idx]
 
     @property
@@ -240,7 +253,7 @@ class Corpus:
         """Return a list of (direct and indirect) dependencies of the file ``path``."""
         return list(self.transitive_dep_graph.successors(path))
 
-    def get_premises(self, path: str) -> List[Premise]:
+    def get_premises(self, path: str) -> List[LeanPremise]:
         """Return a list of premises defined in the file ``path``."""
         return self._get_file(path).premises
 
@@ -248,7 +261,7 @@ class Corpus:
         """Return the number of premises defined in the file ``path``."""
         return len(self.get_premises(path))
 
-    def locate_premise(self, path: str, pos: Pos) -> Optional[Premise]:
+    def locate_premise(self, path: str, pos: Pos) -> Optional[LeanPremise]:
         """Return a premise at position ``pos`` in file ``path``.
 
         Return None if no such premise can be found.
@@ -263,7 +276,7 @@ class Corpus:
         for path in self.transitive_dep_graph.nodes:
             self._get_imported_premises(path)
 
-    def _get_imported_premises(self, path: str) -> List[Premise]:
+    def _get_imported_premises(self, path: str) -> List[LeanPremise]:
         """Return a list of premises imported in file ``path``. The result is cached."""
         premises = self.imported_premises_cache.get(path, None)
         if premises is not None:
@@ -300,7 +313,7 @@ class Corpus:
             batch_context: List[Context],
             batch_context_emb: torch.Tensor,
             k: int,
-    ) -> Tuple[List[List[Premise]], List[List[float]]]:
+    ) -> Tuple[List[List[LeanPremise]], List[List[float]]]:
         """Perform a batch of nearest neighbour search."""
         similarities = batch_context_emb @ premise_embeddings.t()
         idxs_batch = similarities.argsort(dim=1, descending=True).tolist()
@@ -329,7 +342,7 @@ class Corpus:
 class IndexedCorpus:
     """A corpus with premise embeddings."""
 
-    corpus: Corpus
+    corpus: LeanDojoCorpus
     embeddings: torch.FloatTensor
 
     def __post_init__(self):
@@ -337,7 +350,7 @@ class IndexedCorpus:
         assert len(self.embeddings) == len(self.corpus)
 
 
-def get_all_pos_premises(annot_tac, corpus: Corpus) -> List[Premise]:
+def get_all_pos_premises(annot_tac, corpus: LeanDojoCorpus) -> List[LeanPremise]:
     """Return a list of all premises that are used in the tactic ``annot_tac``."""
     _, provenances = annot_tac
     all_pos_premises = set()
@@ -386,7 +399,7 @@ def format_state(s: str) -> str:
 
 
 def format_augmented_state(
-        s: str, premises: List[Premise], max_len: int, p_drop: float
+        s: str, premises: List[LeanPremise], max_len: int, p_drop: float
 ) -> str:
     """Format a state with retrieved premises and drop some of them with probability ``p_drop``."""
     s = format_state(s)
@@ -453,12 +466,12 @@ def get_optimizers(
 
 def _is_deepspeed_checkpoint(path: str):
     if not os.path.exists(path):
-        print (os.stat(path))
+        print(os.stat(path))
         raise FileExistsError(f"Checkpoint {path} does not exist.")
     return os.path.isdir(path) and os.path.exists(os.path.join(path, "zero_to_fp32.py"))
 
 
-# todo load from huggingface?
+# todo load from huggingface, with LoRA etc.?
 def load_checkpoint(model_cls, ckpt_path: str, device, freeze: bool):
     """Handle DeepSpeed checkpoints in model loading."""
     if not _is_deepspeed_checkpoint(ckpt_path):

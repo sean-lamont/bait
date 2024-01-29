@@ -12,10 +12,10 @@ import torch.nn.functional as F
 from typing import List, Dict, Any, Tuple, Union
 from transformers import T5EncoderModel, AutoTokenizer
 
-from experiments.reprover.common import (
-    Premise,
+from experiments.end_to_end.common import (
+    LeanPremise,
     Context,
-    Corpus,
+    LeanDojoCorpus,
     get_optimizers,
     load_checkpoint,
     zip_strict,
@@ -49,9 +49,9 @@ class PremiseRetriever(pl.LightningModule):
     def load(cls, ckpt_path: str, device, freeze: bool) -> "PremiseRetriever":
         return load_checkpoint(cls, ckpt_path, device, freeze)
 
-    def load_corpus(self, path_or_corpus: Union[str, Corpus]) -> None:
+    def load_corpus(self, path_or_corpus: Union[str, LeanDojoCorpus]) -> None:
         """Associate the retriever with a corpus."""
-        if isinstance(path_or_corpus, Corpus):
+        if isinstance(path_or_corpus, LeanDojoCorpus):
             self.corpus = path_or_corpus
             self.corpus_embeddings = None
             self.embeddings_staled = True
@@ -59,7 +59,7 @@ class PremiseRetriever(pl.LightningModule):
 
         path = path_or_corpus
         if path.endswith(".jsonl"):  # A raw corpus without embeddings.
-            self.corpus = Corpus(path)
+            self.corpus = LeanDojoCorpus(path)
             self.corpus_embeddings = None
             self.embeddings_staled = True
         else:  # A corpus with pre-computed embeddings.
@@ -342,7 +342,7 @@ class PremiseRetriever(pl.LightningModule):
         theorem_full_name: List[str],
         theorem_pos: List[Pos],
         k: int,
-    ) -> Tuple[List[Premise], List[float]]:
+    ) -> Tuple[List[LeanPremise], List[float]]:
         """Retrieve ``k`` premises from ``corpus`` using ``state`` and ``tactic_prefix`` as context."""
         self.reindex_corpus(batch_size=32)
 
@@ -350,6 +350,7 @@ class PremiseRetriever(pl.LightningModule):
             Context(*_)
             for _ in zip_strict(file_name, theorem_full_name, theorem_pos, state)
         ]
+
         ctx_tokens = self.tokenizer(
             [_.serialize() for _ in ctx],
             padding="longest",

@@ -3,11 +3,10 @@
 from typing import Dict, Any, Optional, List
 
 import torch
-from loguru import logger
 from torchmetrics import Metric
 
 from experiments.end_to_end.common import remove_marks
-from models.end_to_end.tactic_models.dpo.model import GenTacModel
+from models.end_to_end.tactic_models.gen_tac_model import GenTacModel
 
 torch.set_float32_matmul_precision("medium")
 
@@ -41,23 +40,13 @@ class RetrievalAugmentedGenerator(GenTacModel):
     def __init__(self, config) -> None:
         super().__init__(config)
 
-        # self.save_hyperparameters()
+        # number of candidate tactics generated per goal
+        self.num_val_samples = config.num_val_samples
 
-        self.num_beams = config.num_beams
-
-        ret_ckpt_path = config.ret_ckpt_path
-
-        if ret_ckpt_path is None:
-            logger.info("Without retrieval")
-            self.retriever = None
-        else:
-            logger.info(f"Loading the retriever from {ret_ckpt_path}")
-            # self.retriever = PremiseRetriever.load(
-            #     ret_ckpt_path, self.device, freeze=True
-            # )
+        self.save_hyperparameters()
 
         self.topk_accuracies = dict()
-        for k in range(1, self.num_beams + 1):
+        for k in range(1, self.num_val_samples + 1):
             acc = TopkAccuracy(k)
             self.topk_accuracies[k] = acc
             self.add_module(f"top{k}_acc_val", acc)
@@ -76,7 +65,7 @@ class RetrievalAugmentedGenerator(GenTacModel):
 
     ############
     # Training
-#
+    #
     ############
 
     def training_step(self, batch, batch_idx: int):
@@ -106,33 +95,35 @@ class RetrievalAugmentedGenerator(GenTacModel):
         state_mask = batch["state_mask"]
         tactic_ids = batch["tactic_ids"]
 
+        retriever_args = batch["retriever_args"] if "retriever_args" in batch else None
+
         loss = self(state_ids, state_mask, tactic_ids)
         self.log(f"loss_val", loss, on_step=False, on_epoch=True, sync_dist=True)
 
         output_text = []
         for s in state:
             # Generate topk tactic candidates
-            output = self.generate(s, retriever_args=None, num_samples=self.num_beams)
+            output = self.generate(s, retriever_args=retriever_args, num_samples=self.num_val_samples)
 
             output = [o[0] for o in output]
 
             # fill in with blanks if full beams are not generated
-            for _ in range(len(output), self.num_beams):
+            for _ in range(len(output), self.num_val_samples):
                 output.append('')
 
             output_text.extend(output)
 
         batch_size = state_ids.size(0)
 
-        assert len(output_text) == batch_size * self.num_beams, (len(output_text), batch_size, self.num_beams)
+        assert len(output_text) == batch_size * self.num_val_samples, (len(output_text), batch_size, self.num_val_samples)
 
         tactics_pred = [
-            output_text[i * self.num_beams: (i + 1) * self.num_beams]
+            output_text[i * self.num_val_samples: (i + 1) * self.num_val_samples]
             for i in range(batch_size)
         ]
 
         # Log the topk accuracies.
-        for k in range(1, self.num_beams + 1):
+        for k in range(1, self.num_val_samples + 1):
             topk_acc = self.topk_accuracies[k]
             topk_acc(tactics_pred, batch["tactic"])
             self.log(f"top{k}_acc_val", topk_acc, on_step=False, on_epoch=True, prog_bar=False)

@@ -23,7 +23,7 @@ model:
     max_seq_len: 2300
 
 
-    num_beams: 64
+    num_val_samples: 64
 
     # retriever path
     ret_ckpt_path: null

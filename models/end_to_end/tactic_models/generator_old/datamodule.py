@@ -82,6 +82,7 @@ class GeneratorDataset(Dataset):
                 file_path = os.path.join(LEAN3_DEPS_DIR, repo_name, ex["file_path"])
 
             pred = self.preds[(file_path, ex["full_name"], ex["state"])]
+
             ex["state"] = format_augmented_state(
                 ex["state"],
                 pred["retrieved_premises"],
