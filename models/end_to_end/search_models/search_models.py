@@ -4,7 +4,6 @@ from __future__ import print_function
 
 import copy
 
-import pytorch_lightning as pl
 import ray
 
 from models.end_to_end.search_models.goal_model.model import SimpleGoalModel
@@ -18,16 +17,6 @@ class GoalModel:
     def run(self, goals):
         scores = self.model.batch_generate(goals)
         return scores
-
-
-# Trains goal model based on binary proven/unproven loss
-class BinaryGoalModel(pl.LightningModule):
-    pass
-
-
-# Trains goal model based on proof length objective based on Polu et al.
-class ProofLengthGoalModel(pl.LightningModule):
-    pass
 
 
 class Search:

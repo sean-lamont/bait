@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-from environments.HOList.proof_assistant import proof_assistant_pb2 as environments_dot_holist_dot_proof__assistant__pb2
+from environments.HOList.proof_assistant import proof_assistant_pb2 as environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2
 
 
 class ProofAssistantServiceStub(object):
@@ -16,23 +16,18 @@ class ProofAssistantServiceStub(object):
         """
         self.ApplyTactic = channel.unary_unary(
                 '/deepmath.ProofAssistantService/ApplyTactic',
-                request_serializer=environments_dot_holist_dot_proof__assistant__pb2.ApplyTacticRequest.SerializeToString,
-                response_deserializer=environments_dot_holist_dot_proof__assistant__pb2.ApplyTacticResponse.FromString,
+                request_serializer=environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.ApplyTacticRequest.SerializeToString,
+                response_deserializer=environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.ApplyTacticResponse.FromString,
                 )
         self.VerifyProof = channel.unary_unary(
                 '/deepmath.ProofAssistantService/VerifyProof',
-                request_serializer=environments_dot_holist_dot_proof__assistant__pb2.VerifyProofRequest.SerializeToString,
-                response_deserializer=environments_dot_holist_dot_proof__assistant__pb2.VerifyProofResponse.FromString,
+                request_serializer=environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.VerifyProofRequest.SerializeToString,
+                response_deserializer=environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.VerifyProofResponse.FromString,
                 )
         self.RegisterTheorem = channel.unary_unary(
                 '/deepmath.ProofAssistantService/RegisterTheorem',
-                request_serializer=environments_dot_holist_dot_proof__assistant__pb2.RegisterTheoremRequest.SerializeToString,
-                response_deserializer=environments_dot_holist_dot_proof__assistant__pb2.RegisterTheoremResponse.FromString,
-                )
-        self.SetEncoding = channel.unary_unary(
-                '/deepmath.ProofAssistantService/SetEncoding',
-                request_serializer=environments_dot_holist_dot_proof__assistant__pb2.Encoding.SerializeToString,
-                response_deserializer=environments_dot_holist_dot_proof__assistant__pb2.ApplyTacticResponse.FromString,
+                request_serializer=environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.RegisterTheoremRequest.SerializeToString,
+                response_deserializer=environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.RegisterTheoremResponse.FromString,
                 )
 
 
@@ -62,35 +57,23 @@ class ProofAssistantServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def SetEncoding(self, request, context):
-        """Add set encoding?
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
 
 def add_ProofAssistantServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'ApplyTactic': grpc.unary_unary_rpc_method_handler(
                     servicer.ApplyTactic,
-                    request_deserializer=environments_dot_holist_dot_proof__assistant__pb2.ApplyTacticRequest.FromString,
-                    response_serializer=environments_dot_holist_dot_proof__assistant__pb2.ApplyTacticResponse.SerializeToString,
+                    request_deserializer=environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.ApplyTacticRequest.FromString,
+                    response_serializer=environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.ApplyTacticResponse.SerializeToString,
             ),
             'VerifyProof': grpc.unary_unary_rpc_method_handler(
                     servicer.VerifyProof,
-                    request_deserializer=environments_dot_holist_dot_proof__assistant__pb2.VerifyProofRequest.FromString,
-                    response_serializer=environments_dot_holist_dot_proof__assistant__pb2.VerifyProofResponse.SerializeToString,
+                    request_deserializer=environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.VerifyProofRequest.FromString,
+                    response_serializer=environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.VerifyProofResponse.SerializeToString,
             ),
             'RegisterTheorem': grpc.unary_unary_rpc_method_handler(
                     servicer.RegisterTheorem,
-                    request_deserializer=environments_dot_holist_dot_proof__assistant__pb2.RegisterTheoremRequest.FromString,
-                    response_serializer=environments_dot_holist_dot_proof__assistant__pb2.RegisterTheoremResponse.SerializeToString,
-            ),
-            'SetEncoding': grpc.unary_unary_rpc_method_handler(
-                    servicer.SetEncoding,
-                    request_deserializer=environments_dot_holist_dot_proof__assistant__pb2.Encoding.FromString,
-                    response_serializer=environments_dot_holist_dot_proof__assistant__pb2.ApplyTacticResponse.SerializeToString,
+                    request_deserializer=environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.RegisterTheoremRequest.FromString,
+                    response_serializer=environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.RegisterTheoremResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -114,8 +97,8 @@ class ProofAssistantService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/deepmath.ProofAssistantService/ApplyTactic',
-            environments_dot_holist_dot_proof__assistant__pb2.ApplyTacticRequest.SerializeToString,
-            environments_dot_holist_dot_proof__assistant__pb2.ApplyTacticResponse.FromString,
+            environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.ApplyTacticRequest.SerializeToString,
+            environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.ApplyTacticResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -131,8 +114,8 @@ class ProofAssistantService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/deepmath.ProofAssistantService/VerifyProof',
-            environments_dot_holist_dot_proof__assistant__pb2.VerifyProofRequest.SerializeToString,
-            environments_dot_holist_dot_proof__assistant__pb2.VerifyProofResponse.FromString,
+            environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.VerifyProofRequest.SerializeToString,
+            environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.VerifyProofResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -148,24 +131,7 @@ class ProofAssistantService(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/deepmath.ProofAssistantService/RegisterTheorem',
-            environments_dot_holist_dot_proof__assistant__pb2.RegisterTheoremRequest.SerializeToString,
-            environments_dot_holist_dot_proof__assistant__pb2.RegisterTheoremResponse.FromString,
-            options, channel_credentials,
-            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
-
-    @staticmethod
-    def SetEncoding(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/deepmath.ProofAssistantService/SetEncoding',
-            environments_dot_holist_dot_proof__assistant__pb2.Encoding.SerializeToString,
-            environments_dot_holist_dot_proof__assistant__pb2.ApplyTacticResponse.FromString,
+            environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.RegisterTheoremRequest.SerializeToString,
+            environments_dot_HOList_dot_proof__assistant_dot_proof__assistant__pb2.RegisterTheoremResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

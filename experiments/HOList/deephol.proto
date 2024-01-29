@@ -2,7 +2,7 @@ syntax = "proto2";
 
 package deepmath_deephol;
 
-import "environments/holist/proof_assistant.proto";
+import "environments/HOList/proof_assistant/proof_assistant.proto";
 
 message IntegerInterval {
   // A closed interval of integer values for random sampling.

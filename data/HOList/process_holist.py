@@ -169,23 +169,23 @@ def prepare_data(config):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    human_train_logs = 'data/holist/raw_data/hollightdata/final/proofs/human/train/prooflogs*'
-    human_val_logs = 'data/holist/raw_data/hollightdata/final/proofs/human/valid/prooflogs*'
+    human_train_logs = 'data/HOList/raw_data/hollightdata/final/proofs/human/train/prooflogs*'
+    human_val_logs = 'data/HOList/raw_data/hollightdata/final/proofs/human/valid/prooflogs*'
 
-    synthetic_train_logs = 'data/holist/raw_data/hollightdata/final/proofs/synthetic/train/prooflogs*'
+    synthetic_train_logs = 'data/HOList/raw_data/hollightdata/final/proofs/synthetic/train/prooflogs*'
 
     all_train_logs = synthetic_train_logs + ',' + human_train_logs
     all_val_logs = human_val_logs
 
     config = {
-        'tac_dir': 'experiments/configs/holist/hollight_tactics.textpb',
-        'theorem_dir': 'data/holist/theorem_database_v1.1.textpb',
+        'tac_dir': 'experiments/HOList/config/holist/hollight_tactics.textpb',
+        'theorem_dir': 'data/HOList/theorem_database_v1.1.textpb',
         'human_train_logs': human_train_logs,
         'val_logs': human_val_logs,
         'synthetic_train_logs': synthetic_train_logs,
         'vocab_file': None,
         'source': 'mongodb',
-        'data_options': {'db': 'holist_'},
+        'data_options': {'db': 'holist'},
     }
 
     prepare_data(config)

@@ -20,7 +20,7 @@ from models.end_to_end.tactic_models.holist_model import predictions
 from data.HOList.utils import process_sexp
 from data.HOList.utils.sexpression_to_graph import sexpression_to_graph
 from models.get_model import get_model
-from models.embedding_models.holist_models.tactic_predictor import TacticPrecdictor, CombinerNetwork
+from models.embedding_models.holist_models.tactic_predictor import TacticPredictor, CombinerNetwork
 
 GOAL_EMB_TYPE = predictions.GOAL_EMB_TYPE
 THM_EMB_TYPE = predictions.THM_EMB_TYPE

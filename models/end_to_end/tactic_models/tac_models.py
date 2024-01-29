@@ -8,7 +8,8 @@ import ray
 from loguru import logger
 
 from data.HOList.utils import io_util
-from models.end_to_end.tactic_models.dpo.model import RetrievalAugmentedGenerator, DPOTrainModule
+from models.end_to_end.tactic_models.dpo.model import  DPOTrainModule
+from models.end_to_end.tactic_models.generator.model import RetrievalAugmentedGenerator
 from models.end_to_end.tactic_models.holist_model import holparam_predictor
 from models.end_to_end.tactic_models.holist_model import embedding_store
 from models.end_to_end.tactic_models.holist_model import action_generator
@@ -41,7 +42,6 @@ class ReProverTacGen(TacModel):
         return tactics
 
 
-# todo make tac_gen and retriever more system agnostic
 class HOListTacGen(TacModel):
     def __init__(self, tac_model):
         super().__init__()
@@ -52,15 +52,20 @@ class HOListTacGen(TacModel):
         return tactics
 
 
-# todo better loading for LoRA
+# todo better/more efficient loading for LoRA models.
 
 def get_tac_model(config, device):
     if config.model == 'reprover':
+
+        if hasattr(config, 'ckpt_path'):
+            tac_gen = RetrievalAugmentedGenerator.load(
+                config.ckpt_path, device=device, freeze=True
+            )
+
+        else:
+            tac_gen = RetrievalAugmentedGenerator(config.config).to(device)
+
         # todo retriever
-        # tac_gen = RetrievalAugmentedGenerator.load(
-        #     config.ckpt_path, device=device, freeze=True
-        # )
-        tac_gen = RetrievalAugmentedGenerator(config.config).to(device)
         if tac_gen.retriever is not None:
             assert config.indexed_corpus_path is not None
             tac_gen.retriever.load_corpus(config.indexed_corpus_path)

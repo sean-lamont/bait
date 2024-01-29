@@ -35,6 +35,8 @@ class GenTacModel(pl.LightningModule):
         # todo
         self.retriever = None
 
+        self.live_eval = config.live_eval if hasattr(config, 'live_eval') else False
+
         if hasattr(config, 'lora_config') and config.lora_config:
             config = LoraConfig(
                 target_modules=list(config.lora_config.target_modules),
@@ -69,7 +71,7 @@ class GenTacModel(pl.LightningModule):
     ###############################
 
     def on_validation_epoch_end(self) -> None:
-        if self.global_step > 1:
+        if self.global_step > 1 and self.live_eval:
             torch.cuda.empty_cache()
             self.run_eval()
 
@@ -357,126 +359,3 @@ class DPOTrainModule(GenTacModel):
             batch_size=winner_pi_probs.shape[0],
             prog_bar=True
         )
-
-
-class TopkAccuracy(Metric):
-    is_differentiable: Optional[bool] = False
-    higher_is_better: Optional[bool] = True
-    full_state_update: bool = True
-
-    def __init__(self, k: int) -> None:
-        super().__init__()
-        self.k = k
-        self.add_state("correct", default=torch.tensor(0), dist_reduce_fx="sum")
-        self.add_state("total", default=torch.tensor(0), dist_reduce_fx="sum")
-
-    def update(self, batch_preds: List[List[str]], batch_gt: List[str]):
-        assert len(batch_preds) == len(batch_gt)
-        for preds, gt in zip(batch_preds, batch_gt):
-            # This still doesn't account for short names vs. full names.
-            gt = remove_marks(gt)
-            preds = [remove_marks(p) for p in preds]
-            self.correct += gt in preds[: self.k]
-        self.total += len(batch_gt)
-
-    def compute(self) -> float:
-        return self.correct.float() / self.total
-
-
-# todo retriever
-class RetrievalAugmentedGenerator(GenTacModel):
-    def __init__(self, config) -> None:
-        super().__init__(config)
-
-        # self.save_hyperparameters()
-
-        self.num_beams = config.num_beams
-        self.length_penalty = config.length_penalty
-        ret_ckpt_path = config.ret_ckpt_path
-
-        if ret_ckpt_path is None:
-            logger.info("Without retrieval")
-            self.retriever = None
-        else:
-            logger.info(f"Loading the retriever from {ret_ckpt_path}")
-            # self.retriever = PremiseRetriever.load(
-            #     ret_ckpt_path, self.device, freeze=True
-            # )
-
-        self.topk_accuracies = dict()
-        for k in range(1, self.num_beams + 1):
-            acc = TopkAccuracy(k)
-            self.topk_accuracies[k] = acc
-            self.add_module(f"top{k}_acc_val", acc)
-
-    def forward(
-            self,
-            state_ids: torch.Tensor,
-            state_mask: torch.Tensor,
-            tactic_ids: torch.Tensor,
-    ) -> torch.Tensor:
-        return self.generator(
-            input_ids=state_ids,
-            attention_mask=state_mask,
-            labels=tactic_ids,
-        ).loss
-
-    ############
-    # Training #
-    ############
-
-    def training_step(self, batch, batch_idx: int):
-        loss = self(
-            batch["state_ids"],
-            batch["state_mask"],
-            batch["tactic_ids"],
-        )
-        self.log(
-            "loss_train",
-            loss,
-            on_step=True,
-            on_epoch=True,
-            sync_dist=True,
-            batch_size=len(batch),
-        )
-
-        return loss
-
-    ##############
-    # Validation #
-    ##############
-
-    def validation_step(self, batch: Dict[str, Any], _) -> None:
-        state_ids = batch["state_ids"]
-        state_mask = batch["state_mask"]
-        tactic_ids = batch["tactic_ids"]
-
-        loss = self(state_ids, state_mask, tactic_ids)
-        self.log(f"loss_val", loss, on_step=False, on_epoch=True, sync_dist=True)
-
-        # Generate topk tactic candidates via Beam Search.
-        output = self.generator.generate(
-            input_ids=state_ids,
-            attention_mask=state_mask,
-            max_length=self.max_seq_len,
-            num_beams=self.num_beams,
-            do_sample=False,
-            num_return_sequences=self.num_beams,
-            early_stopping=False,
-        )
-
-        output_text = self.tokenizer.batch_decode(output, skip_special_tokens=True)
-        batch_size = state_ids.size(0)
-
-        assert len(output_text) == batch_size * self.num_beams
-
-        tactics_pred = [
-            output_text[i * self.num_beams: (i + 1) * self.num_beams]
-            for i in range(batch_size)
-        ]
-
-        # Log the topk accuracies.
-        for k in range(1, self.num_beams + 1):
-            topk_acc = self.topk_accuracies[k]
-            topk_acc(tactics_pred, batch["tactic"])
-            self.log(f"top{k}_acc_val", topk_acc, on_step=False, on_epoch=True)

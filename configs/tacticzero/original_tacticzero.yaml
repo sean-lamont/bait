@@ -10,7 +10,6 @@ data_config:
   type: 'fixed'
   data_options:
     filter: []
-    environment: 'HOL4GraphFringe'
 
 exp_config:
   name: full_fringe_50_step

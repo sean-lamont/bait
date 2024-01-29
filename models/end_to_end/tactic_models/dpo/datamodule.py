@@ -15,7 +15,7 @@ from transformers import AutoTokenizer
 from experiments.end_to_end.common import (
     Batch,
 )
-from experiments.end_to_end.process_traces import add_rand_idx
+from experiments.end_to_end.process_traces import add_rand_idx, filter_traces
 from experiments.end_to_end.proof_node import ErrorNode
 from experiments.end_to_end.stream_dataset import GoalStreamDataset, worker_init_fn
 
@@ -184,8 +184,10 @@ class DPODataModule(pl.LightningDataModule):
         self.setup()
 
     def prepare_data(self):
+        trace_files = filter_traces(self.trace_files)
         traces = []
-        for file in self.trace_files:
+
+        for file in trace_files:
             with open(file, 'rb') as f:
                 traces.append(pickle.load(f))
 

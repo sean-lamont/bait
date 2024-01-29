@@ -30,28 +30,10 @@ from environments.LeanDojo.get_lean_theorems import _get_theorems
 from environments.HOList.holist_env import HOListEnv
 from environments.LeanDojo.leandojo_env import LeanDojoEnv
 from experiments.end_to_end.proof_node import *
-from models.end_to_end.search_models import get_search_model
+from models.end_to_end.search_models.search_models import get_search_model
 from experiments.end_to_end.search_result import SearchResult
-from models.end_to_end.tac_models import get_tac_model
+from models.end_to_end.tactic_models.tac_models import get_tac_model
 from utils.utils import config_to_dict
-
-
-def get_thm_name(env, thm):
-    if env == 'holist':
-        return thm.fingerprint
-    elif env == 'leandojo':
-        return thm.full_name
-    else:
-        raise NotImplementedError
-
-
-def get_env(cfg):
-    if cfg == 'leandojo':
-        return LeanDojoEnv
-    elif cfg == 'holist':
-        return HOListEnv
-    else:
-        raise NotImplementedError
 
 
 class EndToEndProver:
@@ -258,7 +240,7 @@ class DistributedProver:
             prover_pool.extend(
                 [ray.remote(num_gpus=config.gpu_per_prover, num_cpus=config.cpu_per_prover)(EndToEndProver).remote(
                     tac_model=tac_model, search_model=search_model, timeout=config.env_timeout,
-                    directory=config.exp_config.directory, env_name=config.env, iteration=iteration
+                    directory=config.exp_config.directory, env_name=config.env_config.env, iteration=iteration
                 ) for _ in range(config.provers_per_gpu)])
 
         self.prover_pool = ActorPool(prover_pool)
@@ -285,6 +267,24 @@ class DistributedProver:
         except ray.exceptions.RayActorError as ex:
             logger.error(ex)
             sys.exit(1)
+
+
+def get_thm_name(env, thm):
+    if env == 'holist':
+        return thm.fingerprint
+    elif env == 'leandojo':
+        return thm.full_name
+    else:
+        raise NotImplementedError
+
+
+def get_env(cfg):
+    if cfg == 'leandojo':
+        return LeanDojoEnv
+    elif cfg == 'holist':
+        return HOListEnv
+    else:
+        raise NotImplementedError
 
 
 def get_holist_theorems(thm_db, prev_theorems):
@@ -335,10 +335,10 @@ def get_theorems(cfg, prev_theorems):
     if cfg.env == 'leandojo':
         return get_lean_thms(cfg, prev_theorems)
     elif cfg.env == 'holist':
-        return get_holist_theorems(cfg.env_config.path_theorem_database, prev_theorems)
+        return get_holist_theorems(cfg.path_theorem_database, prev_theorems)
 
 
-@hydra.main(config_path="../../configs/experiments")
+@hydra.main(config_path="../../configs")
 def main(config) -> None:
     OmegaConf.resolve(config)
 
@@ -369,7 +369,7 @@ def main(config) -> None:
                 trace = pickle.load(f)
             if trace.proof:
                 prev_proven += 1
-            prev_theorems.append(get_thm_name(config.env, trace.theorem))
+            prev_theorems.append(get_thm_name(config.env_config.env, trace.theorem))
 
         logger.info(f'Resuming from {prev_proven} proofs over {len(prev_theorems)} attempts..')
     else:
@@ -380,7 +380,7 @@ def main(config) -> None:
                    mode='offline' if config.logging_config.offline else 'online'
                    )
 
-    theorems = get_theorems(config, prev_theorems)
+    theorems = get_theorems(config.env_config, prev_theorems)
 
     set_logger(config.log_level)
 
@@ -400,7 +400,7 @@ def main(config) -> None:
         logger.info(f'Attempting {len(theorems)} proofs..')
 
         num_proven = prover.search_unordered(theorems, resume_step=len(prev_theorems),
-                                             resume_proven=prev_proven, env=config.env)
+                                             resume_proven=prev_proven, env=config.env_config.env)
 
         # log as error for now, to minimise output for parent processes
         logger.error(f"Pass@1: {num_proven / config.num_theorems}")

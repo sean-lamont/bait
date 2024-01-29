@@ -11,7 +11,11 @@ logging_config:
   project: end_to_end_holist
   offline: true
 
-env: holist
+env_config:
+  env: holist
+  path_theorem_database: 'data/holist/theorem_database_v1.1.textpb'
+
+
 data_path: data/leandojo/data/leandojo_benchmark/random/
 split: test
 file_path: null
@@ -33,8 +37,6 @@ gpu_per_prover: 0.01
 cpu_per_prover: 1
 provers_per_gpu: 4
 
-env_config:
-  path_theorem_database: 'data/holist/theorem_database_v1.1.textpb'
 
 tac_model:
   model: holist

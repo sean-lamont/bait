@@ -42,7 +42,7 @@ def get_logger(config):
 
 
 @hydra.main(config_path="../configs")
-def supervised_runner(config):
+def lightning_runner(config):
     torch.set_float32_matmul_precision('medium')
 
     OmegaConf.resolve(config)
@@ -70,11 +70,11 @@ def supervised_runner(config):
     logger.info(f'Experiment finished')
 
     # logs the saved checkpoint with $ delimiter to allow for a parent process to find it.
-    # todo take best validation checkpoint instead
     logger.error(f'checkpoint_dir: {config.exp_config.checkpoint_dir}/last.ckpt' + '$')
+    # todo take best validation checkpoint instead
 
-    # todo add option for testing/validating the trainer
+    # todo add option for testing/validating
 
 
 if __name__ == '__main__':
-    supervised_runner()
+    lightning_runner()
