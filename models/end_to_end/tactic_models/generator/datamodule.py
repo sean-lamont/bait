@@ -74,13 +74,9 @@ class GeneratorDataModule(pl.LightningDataModule):
         if not traces:
             return
 
-        logger.info('Processing traces for seq2seq model...')
-
         collection = MongoClient()[self.database][self.collection]
 
-        for trace in tqdm(traces):
-            if isinstance(trace.tree, ErrorNode):
-                continue
+        def add_trace(trace, split):
 
             nodes = trace.nodes
             nodes[trace.tree.goal] = trace.tree
@@ -93,19 +89,29 @@ class GeneratorDataModule(pl.LightningDataModule):
                     if distance < math.inf:
                         # take first element to break ties
                         edge = [e for e in node.out_edges if e.distance_to_proof() == distance][0]
-                        collection.insert_one({'goal': node.goal, 'tactic': edge.tactic})
+                        collection.insert_one({'goal': node.goal, 'tactic': edge.tactic, 'split': split})
+
+        logger.info('Processing traces for training seq2seq model...')
+        for trace in tqdm(traces[:0.9 * len(traces)]):
+            if isinstance(trace.tree, ErrorNode):
+                continue
+
+            add_trace(trace, 'train')
+
+        logger.info('Processing traces for validating seq2seq model...')
+        for trace in tqdm(traces[0.9 * len(traces):]):
+            if isinstance(trace.tree, ErrorNode):
+                continue
+
+            add_trace(trace, 'val')
 
         add_rand_idx(collection)
 
     def setup(self, stage: Optional[str] = None) -> None:
-        # 90/10 train/val ratio
-        train_range = (0., 0.9)
-        val_range = (0.9, 1.)
-
-        train_filter = [{'$match': {'rand_idx': {'$gt': train_range[0], '$lt': train_range[1]}}},
+        train_filter = [{'$match': {'split': 'train'}},
                         {'$sort': {'rand_idx': 1}}]
 
-        val_filter = [{'$match': {'rand_idx': {'$gt': val_range[0], '$lt': val_range[1]}}},
+        val_filter = [{'$match': {'split': 'val'}},
                       {'$sort': {'rand_idx': 1}}]
 
         if stage in (None, "fit"):
