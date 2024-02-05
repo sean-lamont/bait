@@ -4,14 +4,14 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: test
-  experiment: test
+  name: retriever
+  experiment: end_to_end
 
 logging_config:
   project: end_to_end
-  offline: true
+  offline: false
 
-num_theorems: 10 #94000
+num_theorems: 2000 #94000
 
 # environment to use (leandojo, holist)
 env_config:
@@ -31,14 +31,14 @@ env_config:
 shuffle: false
 
 # Number of End-to-End Eval -> Train -> Eval loops
-num_iterations: 2
+num_iterations: 1 #2
 resume_iteration: 0
 
 # Total time allowed for a single proof attempt
 total_timeout: 6000
 
 # Maximum time allowed in environment before timing out
-env_timeout: 10
+env_timeout: 600
 
 with_gpus: true
 log_level: 'INFO'
@@ -55,39 +55,49 @@ gpu_per_prover: 0.01
 # CPU resources to allocate per prover.
 cpu_per_prover: 1
 # How many provers to assign per logical GPU. Each of these provers will share one tactic/search process.
-provers_per_gpu: 1
+provers_per_gpu: 4
 
 num_sampled_tactics: 64
 
 tac_model:
   model: reprover
-  #  ckpt_path: runs/gen.ckpt
+  ckpt_path: null #runs/end_to_end/generator_seq2seq/2024_01_31/18_48_45/checkpoints/epoch=57-step=204160-Pass@1_val=0.51.ckpt
+
   distributed: true
   gpu_per_process: 0.45
   cpu_per_process: 1
   config:
     model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
+
+
+##   retriever args
+#    ret_ckpt_path: runs/retrieval/retriever_test/2024_02_02/17_56_51/checkpoints/initial.ckpt
+#    indexed_corpus_path: runs/retrieval/retriever_test/2024_02_02/17_56_51/indexed_corpus.pk
+#    eval_num_retrieved: 100
+
+    ret_ckpt_path: null
+
+
     lr: 5e-6
     warmup_steps: 200
     length_penalty: 0.0
     num_beams: 64
-    ret_ckpt_path: null
     max_seq_len: 2300
     gen_config:
       strategy: beam
       length_penalty: 0.0
     # configuration for the eval loop in training (terminates based on live proving performance)
-    eval_config: null
-    #      eval_num_theorems: 200
-    #      shuffle: false
-    #      timeout: 600
+    eval_config:
+      eval_num_theorems: 200
+      shuffle: false
+      timeout: 600
     # configuration for LoRA models
-    #lora_config:
-    #  target_modules: ['q', 'k', 'v', 'o', 'wo', 'lm_head']
-    #  task_type: "SEQ_2_SEQ_LM"
-    #  r: 16
-    #  lora_alpha: 16
-    #  lora_dropout: 0.01
+    lora_config:
+      target_modules: ['q', 'k', 'v', 'o', 'wo', 'lm_head']
+      task_type: "SEQ_2_SEQ_LM"
+      r: 16
+      lora_alpha: 16
+      lora_dropout: 0.01
 
 search_model:
   search: bestfs

@@ -14,8 +14,115 @@ styles = {
     }
 }
 
-# todo
-# def render_bestfs():
+
+def render_bestfs(trace, node_map, rev_map, step):
+    cur_step = 1
+    prev_goal = trace.trace[0].src
+
+    for i, edge in enumerate(trace.trace[1:]):
+        if edge.src != prev_goal:
+            cur_step += 1
+            prev_goal = edge.src
+
+        # break condition
+        if cur_step > step:
+            break
+
+    responses = trace.trace[:min(len(trace.trace), (i+1))]
+
+    siblings = []
+
+    for edge in responses:
+        siblings_ = []
+        for d in edge.dst:
+            if hasattr(edge.src, 'goal') and hasattr(d, 'goal'):
+                siblings_.append((node_map[edge.src.goal], node_map[d.goal]))
+            elif isinstance(d, ProofFinishedNode):
+                siblings_.append((node_map[edge.src.goal], -1))
+
+        if siblings_:
+            siblings.append((siblings_, edge))
+
+    processed_nodes = set()
+
+    cluster_nodes = []
+    child_nodes = []
+    edges = []
+
+    cluster_nodes.append({'data': {'id': 'root', 'label': ''}})
+
+    child_nodes.append(
+        {'data': {'id': str(node_map[trace.tree.goal]), 'goal': trace.tree.goal, 'parent': 'root',
+                  'label': node_map[trace.tree.goal], 'score': 0.0}})
+
+    for i, (sib, edge) in enumerate(siblings):
+        tactic = edge.tactic
+        src = [s[0] for s in sib][0]
+        dst = [s[1] for s in sib]
+
+        new_nodes = [s for s in dst if s not in processed_nodes]
+
+        score = edge.goal_logprob + edge.tac_logprob
+
+        if len(dst) == 1 and dst[0] == -1:
+            cluster_nodes.append({'data': {'id': str(tactic) + str(src), 'label': '', 'tactic': tactic}})
+            child_nodes.append(
+                {'data': {'id': 'QED' + str(tactic) + str(src), 'goal': 'QED',
+                          'label': 'QED', 'parent': str(tactic) + str(src)}})
+
+            edges.append({'data': {'source': str(src), 'target': str(tactic) + str(src), 'tactic': tactic},
+                          'classes': 'clusters proven'})
+            edges.append({'data': {'source': str(src), 'target': 'QED' + str(tactic) + str(src), 'tactic': tactic},
+                          'classes': 'hidden'})
+
+        elif new_nodes:
+            cluster_nodes.append({'data': {'id': str(src) + str(i) + tactic, 'label': '', 'tactic': tactic}})
+            for s in dst:
+                if s not in processed_nodes:
+                    goal = trace.nodes[rev_map[s]].goal
+                    data = {'id': str(s), 'goal': goal,
+                            'parent': str(src) + str(i) + tactic,
+                            'label': str(s),
+                            'score': str(score)
+                            }
+
+                    child_nodes.append({'data': data})
+
+                    processed_nodes = processed_nodes | {s}
+                    edges.append({'data': {'source': str(src), 'target': s, 'tactic': tactic}, 'classes': 'hidden'})
+                else:
+                    # If newly seen set of subgoals, with one goal already seen, just connect to source for now
+                    edges.append(
+                        {'data': {'target': str(s), 'source': str(src) + str(i) + tactic, 'tactic': tactic},
+                         'classes': 'nodes'})
+
+            if edge.distance_to_proof() < math.inf:
+                edges.append({'data': {'source': str(src), 'target': str(src) + str(i) + tactic, 'tactic': tactic},
+                              'classes': 'clusters proven'})
+            else:
+                edges.append({'data': {'source': str(src), 'target': str(src) + str(i) + tactic, 'tactic': tactic},
+                              'classes': 'clusters'})
+
+        # else:
+        # for s in dst:
+        #     edges.append({'data': {'source': str(src), 'target': str(s), 'tactic': tactic},
+        #                   'classes': 'nodes'})
+
+    for node in child_nodes:
+        classes = ""
+        goal = node['data']['goal']
+        if goal != 'QED':
+            # if goal in fringe_goals:
+            #     classes += " leaves"
+            if trace.nodes[goal].visit_count == 64:
+                classes += " expanded"
+        else:
+            classes += " proven"
+        node['classes'] = classes
+
+    elements = cluster_nodes + child_nodes + edges
+    return elements
+
 
 def render_updown(trace, node_map, rev_map, search_trace):
     siblings = []
@@ -261,11 +368,15 @@ if __name__ == '__main__':
     # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/set.definable.compl")
 
     # holist test:
-    traces = get_traces('../experiments/runs/end_to_end_holist/test_2024_01_08/15_46_13/traces/*')
+    # traces = get_traces('../runs/end_to_end_holist/test_2024_01_08/15_46_13/traces/*')
+    
+    
+    # bestfs test: 
+    traces = get_traces('../../runs/seq2seq_eval/eval_88000/2024_02_05/08_08_35/traces/0/*')
 
     cyto.load_extra_layouts()
 
-    trace = traces[0]
+    trace = traces[1]
 
     node_map = {}
     i = 0
@@ -364,7 +475,7 @@ if __name__ == '__main__':
             options=[
                 {'label': str(index), 'value': index}
                 # for index in range(len(trace.data['search_trace']))
-                for index in range(len(trace.trace))
+                for index in range(len(set([edge.src for edge in trace.trace])))
             ]
         ),
     ])
@@ -384,7 +495,6 @@ if __name__ == '__main__':
         #                      trace=trace)
 
         return render_bestfs(node_map=node_map,
-                             # search_trace=search_trace[value],
                              rev_map=rev_map,
                              trace=trace,
                              step=value)
@@ -400,6 +510,9 @@ if __name__ == '__main__':
                 ret += f'Initial score:  {data["initial_score"]} \n' \
                        + f"Updated score: {data['updated_score']}\n" \
                        + f"Final score: {data['final_score']}\n"
+
+            if 'score' in data:
+                ret += f'Score (Cumulative Log-Prob): {data["score"]}'
 
             return 'Goal:\n' + ret
         elif data and 'tactic' in data:

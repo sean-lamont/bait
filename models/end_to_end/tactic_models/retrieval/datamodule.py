@@ -8,7 +8,7 @@ from tqdm import tqdm
 from loguru import logger
 from copy import deepcopy
 from lean_dojo import Pos
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from lean_dojo import LeanGitRepo
 from typing import Optional, List
 from transformers import AutoTokenizer

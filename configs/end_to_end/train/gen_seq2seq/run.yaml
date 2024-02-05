@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: generator_seq2seq
+  name: seq2seq_full_eval
   experiment: end_to_end
 
 logging_config:
@@ -15,7 +15,7 @@ model:
   _target_: models.end_to_end.tactic_models.generator.model.RetrievalAugmentedGenerator
   config:
     model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
-#    lr: 1e-6
+    #    lr: 1e-6
     # learning rate used in HTPS
     lr: 3e-5
     warmup_steps: 150
@@ -35,11 +35,13 @@ model:
 
 
     # config for live evaluation
-    live_eval: false
-    eval_config: null
-    #    eval_num_theorems: 200
-    #    shuffle: false
-    #    timeout: 600
+    live_eval: true
+    eval_config:
+      eval_num_theorems: 300
+      shuffle: false
+      timeout: 600
+      # frequency of live evaluation in epochs
+      frequency: 3
 
     lora_config:
       target_modules: [ 'q', 'k', 'v', 'o', 'wo', 'lm_head' ]
@@ -74,7 +76,7 @@ trainer:
     logging_batch_size_per_gpu: 2
   gradient_clip_val: 1.0
   max_steps: 5000000
-#  val_check_interval: 10
+  #  val_check_interval: 10
   callbacks:
     - _target_: lightning.pytorch.callbacks.LearningRateMonitor
       logging_interval: step
@@ -82,10 +84,10 @@ trainer:
       verbose: true
       save_top_k: 3
       save_last: true
-#      monitor: Pass@1_val
-      monitor: top64_acc_val
+      monitor: Pass@1_val
+#      monitor: top64_acc_val
       mode: max
       dirpath: ${exp_config.directory}/checkpoints
       auto_insert_metric_name: true
-#      filename: "{epoch}-{step}-{Pass@1_val:.2f}"
-      filename: "{epoch}-{step}-{top64_acc:.2f}"
+      filename: "{epoch}-{step}-{Pass@1_val:.2f}"
+#      filename: "{epoch}-{step}-{top64_acc:.2f}"

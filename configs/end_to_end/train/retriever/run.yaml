@@ -1,0 +1,63 @@
+# @package _global_
+defaults:
+  - /base/logging_config@_here_
+  - /base/exp_config@_here_
+
+exp_config:
+  name: retriever_test
+  experiment: retrieval
+
+logging_config:
+  project: retriever
+  offline: true
+
+model:
+  _target_: models.end_to_end.tactic_models.retrieval.model.PremiseRetriever
+  model_name: kaiyuy/leandojo-lean3-retriever-byt5-small
+  lr: 1e-4
+  warmup_steps: 2000
+  num_retrieved: 100
+  max_seq_len: 2300
+
+data_module:
+  _target_: models.end_to_end.tactic_models.retrieval.datamodule.RetrievalDataModule
+  model_name: kaiyuy/leandojo-lean3-retriever-byt5-small
+  data_path: data/LeanDojo/data/leandojo_benchmark/random/
+  corpus_path: data/LeanDojo/data/leandojo_benchmark/corpus.jsonl
+  num_negatives: 3
+  num_in_file_negatives: 1
+  batch_size: 2
+  eval_batch_size: 32
+  max_seq_len: 1024
+  num_workers: 0
+
+trainer:
+  accelerator: gpu
+  devices: 1
+  precision: bf16-mixed
+  strategy:
+    _target_: lightning.pytorch.strategies.DeepSpeedStrategy
+    stage: 2
+    offload_optimizer: false
+    cpu_checkpointing: false
+    logging_batch_size_per_gpu: 2
+  gradient_clip_val: 1.0
+  max_steps: 5000000
+  #  val_check_interval: 10
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.LearningRateMonitor
+      logging_interval: step
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      verbose: true
+      save_top_k: 3
+      save_last: true
+      monitor: Recall@10_val
+      mode: max
+      dirpath: ${exp_config.directory}/checkpoints
+      auto_insert_metric_name: true
+      filename: "{epoch}-{step}-{Recall@10_val}"
+    - _target_: lightning.pytorch.callbacks.EarlyStopping
+      monitor: Recall@10_val
+      patience: 3
+      mode: max
+      verbose: true

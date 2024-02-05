@@ -1,10 +1,10 @@
-"""Ligihtning module for the premise retriever."""
-import math
 import pickle
+
+import math
 from typing import Dict, Any
 
 import numpy as np
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 import torch.nn.functional as F
 from loguru import logger
@@ -16,7 +16,7 @@ from experiments.end_to_end.common import (
     get_optimizers,
     load_checkpoint,
     zip_strict,
-    cpu_checkpointing_enabled,
+    cpu_checkpointing_enabled, IndexedCorpus,
 )
 
 torch.set_float32_matmul_precision("medium")
@@ -45,6 +45,7 @@ class PremiseRetriever(pl.LightningModule):
     def load(cls, ckpt_path: str, device, freeze: bool) -> "PremiseRetriever":
         return load_checkpoint(cls, ckpt_path, device, freeze)
 
+    # todo load corpus from other environments
     def load_corpus(self, path_or_corpus) -> None:
         """Associate the retriever with a corpus."""
         if isinstance(path_or_corpus, LeanDojoCorpus):
@@ -63,6 +64,12 @@ class PremiseRetriever(pl.LightningModule):
             self.corpus = indexed_corpus.corpus
             self.corpus_embeddings = indexed_corpus.embeddings
             self.embeddings_staled = False
+
+    def save_corpus(self, path):
+        pickle.dump(
+            IndexedCorpus(self.corpus, self.corpus_embeddings.cpu()),
+            open(path, "wb"),
+        )
 
     @property
     def embedding_size(self) -> int:
@@ -127,6 +134,10 @@ class PremiseRetriever(pl.LightningModule):
     ############
 
     def on_fit_start(self) -> None:
+        ckpt_path = f"{self.trainer.log_dir}/checkpoints/initial.ckpt"
+        self.trainer.save_checkpoint(ckpt_path)
+        logger.info(f"Saved checkpoint to {ckpt_path}")
+
         self.corpus = self.trainer.datamodule.corpus
         self.corpus_embeddings = None
         self.embeddings_staled = True
@@ -227,7 +238,8 @@ class PremiseRetriever(pl.LightningModule):
                 else:
                     r = float(TP) / len(all_pos_premises)
                 msg = f"Recall@{self.num_retrieved}: {r}\n\nGround truth:\n\n```\n{msg_gt}\n```\n\nRetrieved:\n\n```\n{msg_retrieved}\n```"
-                tb.add_text(f"premises_val", msg, self.global_step)
+
+                # tb.log_text(f"premises_val", msg, self.global_step)
 
             all_pos_premises = set(all_pos_premises)
             if len(all_pos_premises) == 0:

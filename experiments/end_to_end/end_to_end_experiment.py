@@ -212,7 +212,7 @@ class EndToEndProver:
             if root:
                 logger.warning(f"Error in search {e}")
                 root.status = Status.FAILED
-                self.log_error(str(e))
+                self.log_error(str(e), get_thm_name(self.env_name, env.thm))
             else:
                 raise Exception(e)
 

@@ -41,7 +41,7 @@ class RetrievalAugmentedGenerator(GenTacModel):
         super().__init__(config)
 
         # number of candidate tactics generated per goal
-        self.num_val_samples = config.num_val_samples
+        self.num_val_samples = config.num_val_samples if hasattr(config, 'num_val_samples') else 0
 
         self.save_hyperparameters()
 

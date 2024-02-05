@@ -23,6 +23,8 @@ def main() -> None:
         repo = LeanGitRepo(url, commit)
         if not is_available_in_cache(repo):
             repos.add(repo)
+        else:
+            logger.info(f'{repo} already traced')
 
     logger.info(f"Repos to trace: {repos}")
 

@@ -1,0 +1,2 @@
+# data generation script from https://github.com/albertqjiang/INT
+python -m environments.INT.data_generation.combos_and_orders --combo_path data/INT/data/benchmark/field --max_k 5 --max_l 5 --trial 10000

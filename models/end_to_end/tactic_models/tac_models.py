@@ -8,7 +8,8 @@ import ray
 from loguru import logger
 
 from data.HOList.utils import io_util
-from models.end_to_end.tactic_models.dpo.model import  DPOTrainModule
+from experiments.end_to_end.common import Context
+from models.end_to_end.tactic_models.dpo.model import DPOTrainModule
 from models.end_to_end.tactic_models.generator.model import RetrievalAugmentedGenerator
 from models.end_to_end.tactic_models.holist_model import holparam_predictor
 from models.end_to_end.tactic_models.holist_model import embedding_store
@@ -35,9 +36,10 @@ class ReProverTacGen(TacModel):
         tactics = self.tac_model.generate(
             state=goals,
             num_samples=self.num_sampled_tactics,
-            retriever_args={'file_path': path,
-                            'theorem_full_name': theorem.full_name,
-                            'theorem_pos': position}
+            retriever_args=Context(path=path, theorem_full_name=theorem.full_name, theorem_pos=position, state=goals),
+            # {'file_path': path,
+            #                 'theorem_full_name': theorem.full_name,
+            #                 'theorem_pos': position}
         )
         return tactics
 
@@ -57,20 +59,22 @@ class HOListTacGen(TacModel):
 def get_tac_model(config, device):
     if config.model == 'reprover':
 
-        if hasattr(config, 'ckpt_path'):
+        if hasattr(config, 'ckpt_path') and config.ckpt_path:
             tac_gen = RetrievalAugmentedGenerator.load(
                 config.ckpt_path, device=device, freeze=True
             )
 
         else:
             tac_gen = RetrievalAugmentedGenerator(config.config).to(device)
+            tac_gen.freeze()
 
-        # todo retriever
         if tac_gen.retriever is not None:
-            assert config.indexed_corpus_path is not None
-            tac_gen.retriever.load_corpus(config.indexed_corpus_path)
+            assert config.config.indexed_corpus_path is not None
+            tac_gen.retriever.load_corpus(config.config.indexed_corpus_path)
 
-        tac_gen.freeze()
+            # check if corpus is up to date, otherwise recompute
+            if tac_gen.retriever.embeddings_staled:
+                tac_gen.retriever.reindex_corpus(batch_size=2)
 
         if config.distributed:
             return ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(ReProverTacGen).remote(

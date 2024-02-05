@@ -92,14 +92,14 @@ class GeneratorDataModule(pl.LightningDataModule):
                         collection.insert_one({'goal': node.goal, 'tactic': edge.tactic, 'split': split})
 
         logger.info('Processing traces for training seq2seq model...')
-        for trace in tqdm(traces[:0.9 * len(traces)]):
+        for trace in tqdm(traces[:int(0.9 * len(traces))]):
             if isinstance(trace.tree, ErrorNode):
                 continue
 
             add_trace(trace, 'train')
 
         logger.info('Processing traces for validating seq2seq model...')
-        for trace in tqdm(traces[0.9 * len(traces):]):
+        for trace in tqdm(traces[int(0.9 * len(traces)):]):
             if isinstance(trace.tree, ErrorNode):
                 continue
 
