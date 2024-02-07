@@ -114,6 +114,7 @@ class HolEnv:
 
         self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
         self.process.sendline("val _ = set_trace \"types\" 1;".encode("utf-8"))
+
         for i in self.import_theories:
             self.process.sendline("load \"{}\";".format(i).encode("utf-8"))
             self.process.sendline("open {};".format(i).encode("utf-8"))
@@ -130,8 +131,10 @@ class HolEnv:
         # load utils
         # logging.debug("Loading modules...")
         self.process.sendline("use \"helper.sml\";")
+
         # self.process.sendline("val _ = load \"Timeout\";")
         sleep(5)
+
         # logging.debug("Configuration done.")
         self.process.expect('\r\n>')
         # self.process.readline()
@@ -372,20 +375,26 @@ class HolEnv:
             self.process.sendline("top_goals();".encode("utf-8"))
             self.process.expect("val it =")
             self.process.expect([": goal list", ":\r\n +goal list"])
+
             polished_raw = self.process.before.decode("utf-8")
+
             # print("sub: {}".format(raw))
+
             polished_subgoals = re.sub("“|”", "\"", polished_raw)
             polished_subgoals = re.sub("\r\n +", " ", polished_subgoals)
 
             # print("content:{}".format(subgoals))
             # exit()
             # escape colored characters
+
             polished_subgoals = ansi_escape.sub('', polished_subgoals)
             subgoals = ansi_escape.sub('', subgoals)
 
             pd = eval(polished_subgoals)
             d = eval(subgoals)
+
             # data = list(zip(pd, d))
+
             data = zip(pd, d)
             data = [{"polished": {"assumptions": e[0][0], "goal": e[0][1]},
                      "plain": {"assumptions": e[1][0], "goal": e[1][1]}}
