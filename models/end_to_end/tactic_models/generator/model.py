@@ -8,6 +8,8 @@ from torchmetrics import Metric
 from experiments.end_to_end.common import remove_marks
 from models.end_to_end.tactic_models.gen_tac_model import GenTacModel
 
+from torchmetrics.text import SacreBLEUScore
+
 torch.set_float32_matmul_precision("medium")
 
 
@@ -50,6 +52,8 @@ class RetrievalAugmentedGenerator(GenTacModel):
             acc = TopkAccuracy(k)
             self.topk_accuracies[k] = acc
             self.add_module(f"top{k}_acc_val", acc)
+
+        self.bleu = SacreBLEUScore()
 
     def forward(
             self,
@@ -115,7 +119,8 @@ class RetrievalAugmentedGenerator(GenTacModel):
 
         batch_size = state_ids.size(0)
 
-        assert len(output_text) == batch_size * self.num_val_samples, (len(output_text), batch_size, self.num_val_samples)
+        assert len(output_text) == batch_size * self.num_val_samples, (
+            len(output_text), batch_size, self.num_val_samples)
 
         tactics_pred = [
             output_text[i * self.num_val_samples: (i + 1) * self.num_val_samples]
@@ -127,3 +132,16 @@ class RetrievalAugmentedGenerator(GenTacModel):
             topk_acc = self.topk_accuracies[k]
             topk_acc(tactics_pred, batch["tactic"])
             self.log(f"top{k}_acc_val", topk_acc, on_step=False, on_epoch=True, prog_bar=False)
+
+        # for us, we only have one target (reference) so targets will be a list of lists,
+        # with targets[i * num_val_samples: (i+1) * num_val_samples] being the target for the corresponding sample
+        bleu_targets = [
+            [batch['tactic'][i]]
+            for i in range(batch_size)
+            for _ in range(self.num_val_samples)
+        ]
+
+        self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+
+        self.log('avg_seq_len', sum([len(o) for o in output_text]) / len(output_text), on_step=False, on_epoch=True,
+                 prog_bar=False)
