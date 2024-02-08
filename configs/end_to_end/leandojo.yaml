@@ -4,12 +4,17 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: retriever
+  name: seq2seq_iter_2
   experiment: end_to_end
+  
+  resume: true
+  directory: runs/end_to_end/seq2seq_iter_2/2024_02_05/17_04_28
+
 
 logging_config:
   project: end_to_end
   offline: false
+  id: px5107fl 
 
 num_theorems: 2000 #94000
 
@@ -61,7 +66,7 @@ num_sampled_tactics: 64
 
 tac_model:
   model: reprover
-  ckpt_path: null #runs/end_to_end/generator_seq2seq/2024_01_31/18_48_45/checkpoints/epoch=57-step=204160-Pass@1_val=0.51.ckpt
+  ckpt_path: runs/end_to_end/seq2seq_iteration1_best.ckpt #null
 
   distributed: true
   gpu_per_process: 0.45
