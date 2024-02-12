@@ -9,7 +9,6 @@ from models.end_to_end.tactic_models.gen_tac_model import GenTacModel
 torch.set_float32_matmul_precision("medium")
 
 
-
 class DPOTrainModule(GenTacModel):
     def __init__(self, config) -> None:
         super().__init__(config)

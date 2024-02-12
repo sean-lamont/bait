@@ -203,22 +203,20 @@ class PerTokenIQL(GenTacModel):
             return torch.clip(values, self.value_min, self.value_max)
         return values
 
-    @classmethod
-    def load(cls, ckpt_path: str, device, freeze: bool):
-        return load_checkpoint(cls, ckpt_path, device, freeze)
-
-    def configure_optimizers(self) -> Dict[str, Any]:
-        return get_optimizers(
-            self.parameters(), self.trainer, self.lr, self.warmup_steps
-        )
-
-    # todo generation
-
-    def on_fit_start(self) -> None:
-        if self.logger is not None and self.global_rank == 0:
-            self.logger.log_hyperparams(self.hparams)
-            assert self.trainer is not None
-            logger.info(f"Logging to {self.trainer.log_dir}")
+    # @classmethod
+    # def load(cls, ckpt_path: str, device, freeze: bool):
+    #     return load_checkpoint(cls, ckpt_path, device, freeze)
+    #
+    # def configure_optimizers(self) -> Dict[str, Any]:
+    #     return get_optimizers(
+    #         self.parameters(), self.trainer, self.lr, self.warmup_steps
+    #     )
+    #
+    # def on_fit_start(self) -> None:
+    #     if self.logger is not None and self.global_rank == 0:
+    #         self.logger.log_hyperparams(self.hparams)
+    #         assert self.trainer is not None
+    #         logger.info(f"Logging to {self.trainer.log_dir}")
 
     def training_step(self, batch, batch_idx: int):
         loss, (v_loss, q_loss, cql_loss, token_loss) = self.get_loss(batch)
@@ -294,9 +292,9 @@ class PerTokenIQL(GenTacModel):
 
     def forward(self,
                 input_ids: torch.Tensor,
-                input_attn_mask: torch.Tensor,
-                target_ids: torch.Tensor,
-                target_attn_mask: torch.Tensor,
+                input_attn_mask: Optional[torch.Tensor] = None,
+                target_ids: Optional[torch.Tensor] = None,
+                target_attn_mask: Optional[torch.Tensor] = None,
                 qv_kwargs=None, policy_kwargs=None, target_kwargs=None,
                 skip_policy_on_train=False,
                 detach_full_policy=False
@@ -313,6 +311,14 @@ class PerTokenIQL(GenTacModel):
             qv_kwargs.update(target_kwargs)
         if self.lm_policy is None:
             qv_kwargs.update(policy_kwargs)
+
+        if input_attn_mask is None:
+            input_attn_mask = torch.ones(input_ids.shape, dtype=torch.long).to(self.device)
+
+        if target_ids is None:
+            target_ids = torch.empty((input_ids.shape[0], 0, self.h_dim)).to(self.device)
+        if target_attn_mask is None:
+            target_attn_mask = torch.ones(target_ids.shape[:2]).to(self.device)
 
         input_attn_mask = input_attn_mask
 
@@ -466,7 +472,7 @@ class PerTokenIQL(GenTacModel):
     def get_v_loss(self, vs, target_qs, terminals):
         target_qs = target_qs.detach()
         return (((target_qs >= vs).int() * self.tau * (target_qs - vs) ** 2 + (target_qs < vs).int() * (
-                    1 - self.tau) * (target_qs - vs) ** 2) * (1 - terminals[:, :-1])).sum() / max(
+                1 - self.tau) * (target_qs - vs) ** 2) * (1 - terminals[:, :-1])).sum() / max(
             (1 - terminals[:, :-1]).sum().item(), 1.0)
 
     def get_q_loss(self, vns, qs, rs, gamma, terminals):
@@ -488,8 +494,8 @@ class PerTokenIQL(GenTacModel):
             b, t, d = q1.shape
             return ((F.cross_entropy(q1.reshape(-1, d) / self.cql_temp, action_tokens.reshape(-1),
                                      reduction='none').reshape(b, t) * (1 - terminals[:, :-1])) + (
-                                F.cross_entropy(q2.reshape(-1, d) / self.cql_temp, action_tokens.reshape(-1),
-                                                reduction='none').reshape(b, t) * (1 - terminals[:, :-1]))).sum() / max(
+                            F.cross_entropy(q2.reshape(-1, d) / self.cql_temp, action_tokens.reshape(-1),
+                                            reduction='none').reshape(b, t) * (1 - terminals[:, :-1]))).sum() / max(
                 n.item(), 1.0)
         b, t, d = qs.shape
         return (F.cross_entropy(qs.reshape(-1, d) / self.cql_temp, action_tokens.reshape(-1), reduction='none').reshape(
@@ -506,7 +512,7 @@ class PerTokenIQL(GenTacModel):
 
         rs = prepared_inputs['rewards']
 
-        self_outputs = self(tokens, attn_mask, target, target_mask,
+        self_outputs = self.forward(tokens, attn_mask, target, target_mask,
                             qv_kwargs, policy_kwargs, target_kwargs,
                             **kwargs)
 
@@ -614,92 +620,148 @@ class PerTokenIQL(GenTacModel):
 
         return loss, (v_loss, q_loss, cql_loss, token_loss)
 
+    ##############
+    # Prediction #
+    ##############
 
-class IQL_Policy:
-    def __init__(self, iql_model: PerTokenIQL,
-                 kind: str, **generation_kwargs) -> None:
+    def sample_gen(self, state, state_ids, state_mask, num_samples):
+        # score for nucleus sampling
+        tactics_with_scores = []
 
-        self.iql_model = iql_model
-        assert kind in {'beam', 'sample'}
-        self.kind = kind
-        self.generation_kwargs = generation_kwargs
-        self.kls_all = []
-        self.logprobs_all = []
+        output_text = []
+        output_score = []
+        gen_step = 0
 
-    def beam_raw(self,
-                 tokens: torch.Tensor,
-                 attn_mask: torch.Tensor,
-                 state_ids: torch.Tensor,
-                 action_ids: torch.Tensor,
-                 termination_condition: Callable[[np.ndarray], bool],
-                 max_generation_len: Optional[int] = None, beam_width=1,
-                 temp=1.0, top_k=None, top_p=None,
-                 exp_adv=False, adv_weight=0.0, adv_clip=None,
-                 include_logits=True, include_adv=True, ):
+        gen_idx = 0
+        # keep sampling until num_samples unique samples are generated, with at most 10 loops
+        while len(output_text) < num_samples and gen_idx < 10:
+            gen_idx += 1
+            output = self.generator.generate(
+                input_ids=state_ids,
+                attention_mask=state_mask,
+                max_length=self.max_seq_len,
+                do_sample=True,
+                num_return_sequences=num_samples * 2,
+                output_scores=True,
+                return_dict_in_generate=True,
+            )
 
-        tokenizer = self.iql_model.tokenizer
-        max_length = self.iql_model.max_len
+            transitions = self.generator.compute_transition_scores(output.sequences, output.scores,
+                                                                   normalize_logits=True)
+            # Return the output.
+            raw_output_text = self.tokenizer.batch_decode(
+                output.sequences, skip_special_tokens=True
+            )
 
-        if max_length is None:
-            max_length = self.iql_model.model.config.n_positions
+            for j in range(num_samples * 2):
+                t = raw_output_text[j]
+                if t not in output_text:
+                    output_text.append(t)
+                    score = torch.sum(transitions[j][transitions[j] != -torch.inf]).item()
+                    output_score.append(score)
+                if len(output_text) >= num_samples:
+                    break
 
-        max_length = min(max_length, self.iql_model.model.config.n_positions)
-        device = self.iql_model.device
-        bsize, vocab_size = tokens.shape[0], tokenizer.vocab_size
+            gen_step += 1
 
-        n = bsize * beam_width
+        tactics_with_scores.append(list(zip_strict(output_text, output_score))[:num_samples])
 
-        if max_generation_len is None:
-            max_generation_len = max_length + 1
+        return tactics_with_scores
 
-        input_strs = [
-            tokenizer.decode(tokens[i, :][:attn_mask[i, :].sum().long()].tolist(),
-                             clean_up_tokenization_spaces=False)
-            for i in range(len(tokens))]
+    def beamsearch_gen(self, state, state_ids, state_mask, num_samples,
+                       ):
 
-        model_outputs = self.iql_model(tokens,
-                                       attn_mask,
-                                       state_ids,
-                                       action_ids,
-                                       qv_kwargs={'use_cache': True},
-                                       policy_kwargs={'use_cache': True},
-                                       target_kwargs={'use_cache': True})['model_outputs']
+        # Generate tactic candidates using beam search.
+        output = self.generator.generate(
+            input_ids=state_ids,
+            attention_mask=state_mask,
+            max_length=self.max_seq_len,
+            num_beams=num_samples,
+            length_penalty=self.gen_config.length_penalty,
+            do_sample=False,
+            num_return_sequences=num_samples,
+            early_stopping=False,
+            output_scores=True,
+            return_dict_in_generate=True,
+        )
+
+        # Return the output.
+        raw_output_text = self.tokenizer.batch_decode(
+            output.sequences, skip_special_tokens=True
+        )
+        raw_scores = output.sequences_scores.tolist()
+        tactics_with_scores = []
+
+        for i in range(len(state)):
+            output_text = []
+            output_score = []
+
+            for j in range(i * num_samples, (i + 1) * num_samples):
+                t = raw_output_text[j]
+                if t not in output_text:
+                    output_text.append(t)
+                    output_score.append(raw_scores[j])
+
+            tactics_with_scores.append(list(zip_strict(output_text, output_score)))
+
+        return tactics_with_scores
+
+    def beam_raw(self, state, state_ids, state_mask, num_samples,
+                 temp=1.0, top_k=None, top_p=None, exp_adv=False,
+                 adv_weight=0.0, adv_clip=None,
+                 include_logits=True, include_adv=True):
+
+        tokenizer = self.tokenizer
+        max_length = self.max_len
+
+        device = self.device
+
+        bsize, vocab_size = len(state), tokenizer.vocab_size
+
+        n = bsize * num_samples
+
+        max_generation_len = max_length + 1
+
+        input_strs = state
+
+        model_outputs = self.forward(state_ids,
+                             state_mask,
+                             qv_kwargs={'use_cache': True},
+                             policy_kwargs={'use_cache': True},
+                             target_kwargs={'use_cache': True})['model_outputs']
 
         kvs = {'qv': model_outputs['qv_model_outputs'].past_key_values}
 
-        if self.iql_model.lm_target is not None:
+        if self.lm_target is not None:
             kvs['target'] = model_outputs['target_model_outputs'].past_key_values
-        if self.iql_model.lm_policy is not None:
+        if self.lm_policy is not None:
             kvs['policy'] = model_outputs['policy_model_outputs'].past_key_values
 
-        original_dialogue_lens = attn_mask.sum(dim=1)
+        original_dialogue_lens = state_mask.sum(dim=1)
 
-        batch_indicator = torch.stack(beam_width * [torch.arange(0, bsize).to(device)], dim=1)
+        batch_indicator = torch.stack(num_samples * [torch.arange(0, bsize).to(device)], dim=1)
 
-        tokens = pad_sequence(torch.repeat_interleave(tokens, beam_width, dim=0), max_length,
+        tokens = pad_sequence(torch.repeat_interleave(state_ids, num_samples, dim=0), max_length,
                               tokenizer.pad_token_id,
                               device, 1)
 
-        dialogue_lens = torch.repeat_interleave(original_dialogue_lens, beam_width, dim=0)
+        dialogue_lens = torch.repeat_interleave(original_dialogue_lens, num_samples, dim=0)
 
         kvs['qv'] = map_all_kvs(
-            lambda x: pad_sequence(torch.repeat_interleave(x, beam_width, dim=0), max_length, 0.0, device, 2),
+            lambda x: pad_sequence(torch.repeat_interleave(x, num_samples, dim=0), max_length, 0.0, device, 2),
             kvs['qv'])
         if 'target' in kvs:
             kvs['target'] = map_all_kvs(
-                lambda x: pad_sequence(torch.repeat_interleave(x, beam_width, dim=0), max_length, 0.0, device, 2),
+                lambda x: pad_sequence(torch.repeat_interleave(x, num_samples, dim=0), max_length, 0.0, device, 2),
                 kvs['target'])
         if 'policy' in kvs:
             kvs['policy'] = map_all_kvs(
-                lambda x: pad_sequence(torch.repeat_interleave(x, beam_width, dim=0), max_length, 0.0, device, 2),
+                lambda x: pad_sequence(torch.repeat_interleave(x, num_samples, dim=0), max_length, 0.0, device, 2),
                 kvs['policy'])
 
-        curr_scores = torch.zeros(bsize, beam_width).to(device)  # (batch, k)
-        logit_scores = torch.zeros(bsize, beam_width).to(device)  # (batch, k)
+        curr_scores = torch.zeros(bsize, num_samples).to(device)  # (batch, k)
+        logit_scores = torch.zeros(bsize, num_samples).to(device)  # (batch, k)
         termination_mask = torch.full((n,), 1).to(device)
-
-        state_idxs_temp, action_idxs_temp = torch.zeros((dialogue_lens.shape[0], 1,)).long().to(device), torch.zeros(
-            (dialogue_lens.shape[0], 1,)).long().to(device)
 
         t = torch.min(dialogue_lens).int()
         base_logits = torch.full((dialogue_lens.shape[0],), 0.0).to(device)
@@ -716,10 +778,10 @@ class IQL_Policy:
 
             # since we are using past_key_values, only need to provide a single token at a time
             # as we only want the Q/V values for the one token, state/action idxs gives us this
-            iql_outputs = self.iql_model(curr_token, None, state_idxs_temp, action_idxs_temp,
-                                         qv_kwargs={'use_cache': True, 'past_key_values': curr_kvs},
-                                         policy_kwargs={'use_cache': True, 'past_key_values': curr_policy_kvs},
-                                         target_kwargs={'use_cache': True, 'past_key_values': curr_target_kvs})
+            iql_outputs = self.forward(curr_token,
+                                       qv_kwargs={'use_cache': True, 'past_key_values': curr_kvs},
+                                       policy_kwargs={'use_cache': True, 'past_key_values': curr_policy_kvs},
+                                       target_kwargs={'use_cache': True, 'past_key_values': curr_target_kvs})
 
             model_outputs, logits = iql_outputs['model_outputs'], iql_outputs['logits']
 
@@ -750,54 +812,58 @@ class IQL_Policy:
             full_logits = (edited_logits if include_logits else 0.0) + (
                 adv_logits if include_adv else 0.0) + base_logits.unsqueeze(1).unsqueeze(2)
 
-            scores = (torch.log(F.softmax(full_logits, dim=-1)).reshape(1, bsize, beam_width, -1).permute(3, 0, 1, 2)
+            scores = (torch.log(F.softmax(full_logits, dim=-1)).reshape(1, bsize, num_samples, -1).permute(3, 0, 1, 2)
                       + curr_scores).permute(1, 2, 3, 0).reshape(1, bsize, -1)  # (time, batch, k*vocab)
 
             scores[0, :, vocab_size:] = scores[0, :, vocab_size:].masked_fill_(
                 (t == original_dialogue_lens).unsqueeze(1).repeat(1, scores.shape[2] - vocab_size), float('-inf'))
 
-            curr_scores, top_k_ = torch.topk(scores[0, :, :], k=beam_width, dim=1)  # (batch, k), (batch, k)
+            curr_scores, top_k_ = torch.topk(scores[0, :, :], k=num_samples, dim=1)  # (batch, k), (batch, k)
 
-            tokens = tokens[(batch_indicator * beam_width + (top_k_ // vocab_size)).reshape(-1), :]
+            tokens = tokens[(batch_indicator * num_samples + (top_k_ // vocab_size)).reshape(-1), :]
 
-            logits = logits[(batch_indicator * beam_width + (top_k_ // vocab_size)).reshape(-1), :, :]
+            logits = logits[(batch_indicator * num_samples + (top_k_ // vocab_size)).reshape(-1), :, :]
 
             logit_scores += torch.gather(torch.log(F.softmax(logits, dim=-1)).squeeze(1), dim=1,
                                          index=(top_k_.reshape(-1) % vocab_size).unsqueeze(1)).squeeze(1).reshape(-1,
-                                                                                                                  beam_width)
+                                                                                                                  num_samples)
             tokens[:, t] = top_k_.reshape(-1) % vocab_size  # (batch*k,)
-            fixed_kvs = map_all_kvs(lambda x: x[(batch_indicator * beam_width + torch.div(top_k_, vocab_size,
-                                                                                          rounding_mode='trunc')).reshape(
+            fixed_kvs = map_all_kvs(lambda x: x[(batch_indicator * num_samples + torch.div(top_k_, vocab_size,
+                                                                                           rounding_mode='trunc')).reshape(
                 -1), :, :, :], model_outputs['qv_model_outputs'].past_key_values)
-            kvs['qv'] = map_all_kvs(lambda x: x[(batch_indicator * beam_width + torch.div(top_k_, vocab_size,
-                                                                                          rounding_mode='trunc')).reshape(
+            kvs['qv'] = map_all_kvs(lambda x: x[(batch_indicator * num_samples + torch.div(top_k_, vocab_size,
+                                                                                           rounding_mode='trunc')).reshape(
                 -1), :, :, :], kvs['qv'])
             kvs['qv'] = update_kvs(kvs['qv'], fixed_kvs, torch.arange(0, n).to(device), t - 1)
             if 'target' in kvs:
-                fixed_target_kvs = map_all_kvs(lambda x: x[(batch_indicator * beam_width + torch.div(top_k_, vocab_size,
-                                                                                                     rounding_mode='trunc')).reshape(
-                    -1), :, :, :], model_outputs['target_model_outputs'].past_key_values)
-                kvs['target'] = map_all_kvs(lambda x: x[(batch_indicator * beam_width + torch.div(top_k_, vocab_size,
-                                                                                                  rounding_mode='trunc')).reshape(
+                fixed_target_kvs = map_all_kvs(
+                    lambda x: x[(batch_indicator * num_samples + torch.div(top_k_, vocab_size,
+                                                                           rounding_mode='trunc')).reshape(
+                        -1), :, :, :], model_outputs['target_model_outputs'].past_key_values)
+                kvs['target'] = map_all_kvs(lambda x: x[(batch_indicator * num_samples + torch.div(top_k_, vocab_size,
+                                                                                                   rounding_mode='trunc')).reshape(
                     -1), :, :, :], kvs['target'])
                 kvs['target'] = update_kvs(kvs['target'], fixed_target_kvs, torch.arange(0, n).to(device),
                                            t - 1)
             if 'policy' in kvs:
-                fixed_policy_kvs = map_all_kvs(lambda x: x[(batch_indicator * beam_width + torch.div(top_k_, vocab_size,
-                                                                                                     rounding_mode='trunc')).reshape(
-                    -1), :, :, :], model_outputs['policy_model_outputs'].past_key_values)
-                kvs['policy'] = map_all_kvs(lambda x: x[(batch_indicator * beam_width + torch.div(top_k_, vocab_size,
-                                                                                                  rounding_mode='trunc')).reshape(
+                fixed_policy_kvs = map_all_kvs(
+                    lambda x: x[(batch_indicator * num_samples + torch.div(top_k_, vocab_size,
+                                                                           rounding_mode='trunc')).reshape(
+                        -1), :, :, :], model_outputs['policy_model_outputs'].past_key_values)
+                kvs['policy'] = map_all_kvs(lambda x: x[(batch_indicator * num_samples + torch.div(top_k_, vocab_size,
+                                                                                                   rounding_mode='trunc')).reshape(
                     -1), :, :, :], kvs['policy'])
                 kvs['policy'] = update_kvs(kvs['policy'], fixed_policy_kvs, torch.arange(0, n).to(device),
                                            t - 1)
-            termination_mask = termination_mask[(batch_indicator * beam_width + (top_k_ // vocab_size)).reshape(-1)]
+            termination_mask = termination_mask[(batch_indicator * num_samples + (top_k_ // vocab_size)).reshape(-1)]
 
             for idx in range(n):
                 if tokens[idx, t] == tokenizer.eoa_token_id and t >= dialogue_lens[idx]:
-                    termination_mask[idx] *= (
-                            1 - int(termination_condition(tokenizer.decode(tokens[idx, :].tolist(),
-                                                                           clean_up_tokenization_spaces=False))))
+                    termination_mask[idx] *= 0
+
+                    # termination_mask[idx] *= (
+                    #         1 - int(termination_condition(tokenizer.decode(tokens[idx, :].tolist(),
+                    #                                                        clean_up_tokenization_spaces=False))))
             t += 1
 
             termination_mask *= ((t - dialogue_lens) < max_generation_len).int()
@@ -808,8 +874,8 @@ class IQL_Policy:
 
         for i in range(len(input_strs)):
             temp_outputs = []
-            for x in range(beam_width):
-                processed_str = output_strs[i * beam_width + x][len(input_strs[i]):].strip()
+            for x in range(num_samples):
+                processed_str = output_strs[i * num_samples + x][len(input_strs[i]):].strip()
                 if tokenizer.id_to_token(tokenizer.pad_token_id) in processed_str:
                     processed_str = processed_str[
                                     :processed_str.find(tokenizer.id_to_token(tokenizer.pad_token_id))].strip()
@@ -819,6 +885,18 @@ class IQL_Policy:
                 temp_outputs.append(processed_str)
             processed_outputs.append(temp_outputs)
         return list(zip(input_strs, processed_outputs)), curr_scores, -logit_scores
+
+
+class IQL_Policy:
+    def __init__(self, iql_model: PerTokenIQL,
+                 kind: str, **generation_kwargs) -> None:
+
+        self.iql_model = iql_model
+        assert kind in {'beam', 'sample'}
+        self.kind = kind
+        self.generation_kwargs = generation_kwargs
+        self.kls_all = []
+        self.logprobs_all = []
 
     def sample_raw(self,
                    tokens: torch.Tensor,
