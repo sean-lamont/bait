@@ -17,6 +17,10 @@ from models.end_to_end.tactic_models.retrieval.model import PremiseRetriever
 
 torch.set_float32_matmul_precision("medium")
 
+'''
+Generic class for Retrieval and Generative Tactic Models. 
+'''
+
 
 class GenTacModel(pl.LightningModule):
     def __init__(self, config) -> None:
@@ -29,8 +33,7 @@ class GenTacModel(pl.LightningModule):
         self.max_seq_len = config.max_seq_len
         self.eval_num_retrieved = config.eval_num_retrieved if hasattr(config, 'eval_num_retrieved') else None
 
-
-        # todo more general
+        # todo broader generation models (i.e. other than T5)
         self.tokenizer = AutoTokenizer.from_pretrained(config.model_name)
         generator = T5ForConditionalGeneration.from_pretrained(config.model_name)
 
@@ -81,10 +84,12 @@ class GenTacModel(pl.LightningModule):
     ###############################
 
     def on_validation_epoch_end(self) -> None:
-        # if self.global_step > 1 and self.live_eval:
-        if self.live_eval and self.trainer.current_epoch % self.eval_config.frequency == 0:
+        if self.live_eval and (self.trainer.current_epoch + 1) % self.eval_config.frequency == 0 and self.global_step > 1:
+        # if self.live_eval and (self.trainer.current_epoch + 1) % self.eval_config.frequency == 0:
             torch.cuda.empty_cache()
             self.run_eval()
+        else:
+            self.log("Pass@1_val", 0.0, prog_bar=True)
 
     def run_eval(self) -> None:
         ckpt_path = f"{self.trainer.log_dir}/checkpoints/last_eval.ckpt"
@@ -94,7 +99,7 @@ class GenTacModel(pl.LightningModule):
         # todo get config file from config
         cmd = f"python -m experiments.end_to_end.end_to_end_experiment --config-name=end_to_end/leandojo num_theorems={self.eval_config.eval_num_theorems}" \
               f" shuffle={self.eval_config.shuffle} env_timeout={self.eval_config.timeout} tac_model.ckpt_path={ckpt_path} log_level='ERROR' tac_model.model='reprover'" \
-              f" exp_config.name=eval_{self.global_step} exp_config.experiment=seq2seq_eval"
+              f" exp_config.name=eval_epoch_{self.trainer.current_epoch} exp_config.experiment=seq2seq_eval"
 
         logger.info(f'Running evaluation with {cmd}')
 

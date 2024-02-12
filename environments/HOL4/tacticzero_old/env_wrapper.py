@@ -273,12 +273,11 @@ class HolEnv:
         self.process.sendline("top_goals();".encode("utf-8"))
         self.process.expect("val it =")
         self.process.expect([": goal list", ":\r\n +goal list"])
+
         polished_raw = self.process.before.decode("utf-8")
         polished_subgoals = re.sub("“|”", "\"", polished_raw)
         polished_subgoals = re.sub("\r\n +", " ", polished_subgoals)
 
-        # print("content:{}".format(subgoals))
-        # exit()
         pd = eval(polished_subgoals)
 
         self.process.expect("\r\n>")

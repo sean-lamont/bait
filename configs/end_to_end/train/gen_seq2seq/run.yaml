@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: seq2seq_full_eval
+  name: seq2seq_detailed
   experiment: end_to_end
 
 logging_config:
@@ -16,8 +16,8 @@ model:
   config:
     model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
     #    lr: 1e-6
-    # learning rate used in HTPS
-    lr: 3e-5
+    # learning rate used in HTPS is 3e-5
+    lr: 1e-5
     warmup_steps: 150
     beta: 0.99
     max_seq_len: 2300
@@ -41,7 +41,7 @@ model:
       shuffle: false
       timeout: 600
       # frequency of live evaluation in epochs
-      frequency: 3
+      frequency: 1
 
     lora_config:
       target_modules: [ 'q', 'k', 'v', 'o', 'wo', 'lm_head' ]
@@ -58,8 +58,10 @@ data_module:
   max_seq_len: 2300
   num_workers: 0
 
-  trace_files: runs/original_reprover/original_reprover_2023_12_10/20_32_14/traces
-  collection: seq2seq
+  trace_files: runs/end_to_end/original/2024_02_08/09_55_29/traces/0
+  # old 60% traces
+  #runs/original_reprover/original_reprover_2023_12_10/20_32_14/traces
+  collection: seq2seq_0
 
 #  trace_files: null
 #  collection: null

@@ -4,17 +4,17 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: seq2seq_iter_2
+  name: original
   experiment: end_to_end
   
-  resume: true
-  directory: runs/end_to_end/seq2seq_iter_2/2024_02_05/17_04_28
+#  resume: true
+#  directory: runs/end_to_end/original/2024_02_08/09_55_29
 
 
 logging_config:
   project: end_to_end
   offline: false
-  id: px5107fl 
+#  id: aohfsen9
 
 num_theorems: 2000 #94000
 
@@ -66,7 +66,7 @@ num_sampled_tactics: 64
 
 tac_model:
   model: reprover
-  ckpt_path: runs/end_to_end/seq2seq_iteration1_best.ckpt #null
+  ckpt_path: null #runs/end_to_end/seq2seq_iteration1_best.ckpt #null
 
   distributed: true
   gpu_per_process: 0.45
@@ -97,12 +97,12 @@ tac_model:
       shuffle: false
       timeout: 600
     # configuration for LoRA models
-    lora_config:
-      target_modules: ['q', 'k', 'v', 'o', 'wo', 'lm_head']
-      task_type: "SEQ_2_SEQ_LM"
-      r: 16
-      lora_alpha: 16
-      lora_dropout: 0.01
+#    lora_config:
+#      target_modules: ['q', 'k', 'v', 'o', 'wo', 'lm_head']
+#      task_type: "SEQ_2_SEQ_LM"
+#      r: 16
+#      lora_alpha: 16
+#      lora_dropout: 0.01
 
 search_model:
   search: bestfs

@@ -58,14 +58,15 @@ class GeneratorDataModule(pl.LightningDataModule):
 
     def prepare_data(self):
         db = MongoClient()[self.database]
+
         if self.collection in db.list_collection_names():
             logger.info('Collection exists, skipping processing.')
             return
 
+        logger.info('Loading traces..')
+
         trace_files = filter_traces(self.trace_files)
         traces = []
-
-        logger.info('Loading traces..')
 
         for file in tqdm(trace_files):
             with open(file, 'rb') as f:
