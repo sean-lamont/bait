@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: seq2seq_detailed
+  name: seq2seq_detailed_2
   experiment: end_to_end
 
 logging_config:
@@ -93,3 +93,4 @@ trainer:
       auto_insert_metric_name: true
       filename: "{epoch}-{step}-{Pass@1_val:.2f}"
 #      filename: "{epoch}-{step}-{top64_acc:.2f}"
+# todo add early stopping

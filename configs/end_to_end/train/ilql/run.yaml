@@ -44,7 +44,7 @@ trainer:
 #      verbose: true
 
 experiment:
-  _target_: refactor.ilql.ilql_model.PerTokenIQL
+  _target_: models.end_to_end.tactic_models.ilql.ilql_model.PerTokenIQL
   config:
     model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
     lr: 1e-5

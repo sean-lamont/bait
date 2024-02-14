@@ -1,15 +1,13 @@
 import copy
 import math
 from typing import Callable
-from typing import Dict, Any, Optional, List
+from typing import Optional, List
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from loguru import logger
 
-from experiments.end_to_end.common import get_optimizers, load_checkpoint
 from models.end_to_end.tactic_models.dpo.model import GenTacModel
 
 select_batch_idxs = lambda x, idxs: torch.gather(x, dim=0, index=idxs.repeat(*x.shape[1:], 1).permute(len(x.shape) - 1,
@@ -134,46 +132,46 @@ class PerTokenIQL(GenTacModel):
             self.q = nn.Sequential(
                 nn.Linear(self.h_dim, self.h_dim * 2),
                 nn.ReLU(),
-                nn.Linear(self.h_dim * 2, self.tokenizer.vocab_size),
+                nn.Linear(self.h_dim * 2, len(self.tokenizer)),
             )
         else:
             self.q = TransformerMLP(self.h_dim,
                                     4 * self.h_dim if self.generator.config.n_inner is None else self.generator.config.n_inner,
-                                    self.tokenizer.vocab_size, self.generator.config.resid_pdrop)
+                                    len(self.tokenizer), self.generator.config.resid_pdrop)
         if self.double_q:
             if not self.advanced_mlp:
                 self.q2 = nn.Sequential(
                     nn.Linear(self.h_dim, self.h_dim * 2),
                     nn.ReLU(),
-                    nn.Linear(self.h_dim * 2, self.tokenizer.vocab_size),
+                    nn.Linear(self.h_dim * 2, len(self.tokenizer)),
                 )
             else:
                 self.q2 = TransformerMLP(self.h_dim,
                                          4 * self.h_dim if self.generator.config.n_inner is None else self.generator.config.n_inner,
-                                         self.tokenizer.vocab_size,
+                                         len(self.tokenizer),
                                          self.generator.config.resid_pdrop)
         if not self.advanced_mlp:
             self.target_q = nn.Sequential(
                 nn.Linear(self.h_dim, self.h_dim * 2),
                 nn.ReLU(),
-                nn.Linear(self.h_dim * 2, self.tokenizer.vocab_size),
+                nn.Linear(self.h_dim * 2, len(self.tokenizer)),
             )
         else:
             self.target_q = TransformerMLP(self.h_dim,
                                            4 * self.h_dim if self.generator.config.n_inner is None else self.generator.config.n_inner,
-                                           self.tokenizer.vocab_size,
+                                           len(self.tokenizer),
                                            self.generator.config.resid_pdrop)
         if self.double_q:
             if not self.advanced_mlp:
                 self.target_q2 = nn.Sequential(
                     nn.Linear(self.h_dim, self.h_dim * 2),
                     nn.ReLU(),
-                    nn.Linear(self.h_dim * 2, self.tokenizer.vocab_size),
+                    nn.Linear(self.h_dim * 2, len(self.tokenizer)),
                 )
             else:
                 self.target_q2 = TransformerMLP(self.h_dim,
                                                 4 * self.h_dim if self.generator.config.n_inner is None else self.generator.config.n_inner,
-                                                self.tokenizer.vocab_size,
+                                                len(self.tokenizer),
                                                 self.generator.config.resid_pdrop)
 
         for target_param, local_param in zip(self.target_q.parameters(), self.q.parameters()):
@@ -290,15 +288,15 @@ class PerTokenIQL(GenTacModel):
 
         return loss
 
-    def forward(self,
-                input_ids: torch.Tensor,
-                input_attn_mask: Optional[torch.Tensor] = None,
-                target_ids: Optional[torch.Tensor] = None,
-                target_attn_mask: Optional[torch.Tensor] = None,
-                qv_kwargs=None, policy_kwargs=None, target_kwargs=None,
-                skip_policy_on_train=False,
-                detach_full_policy=False
-                ):
+    def inference_forward(self,
+                          input_ids: torch.Tensor,
+                          input_attn_mask: Optional[torch.Tensor] = None,
+                          target_ids: Optional[torch.Tensor] = None,
+                          target_attn_mask: Optional[torch.Tensor] = None,
+                          qv_kwargs=None, policy_kwargs=None, target_kwargs=None,
+                          skip_policy_on_train=False,
+                          detach_full_policy=False
+                          ):
 
         if qv_kwargs is None:
             qv_kwargs = {}
@@ -316,11 +314,137 @@ class PerTokenIQL(GenTacModel):
             input_attn_mask = torch.ones(input_ids.shape, dtype=torch.long).to(self.device)
 
         if target_ids is None:
-            target_ids = torch.empty((input_ids.shape[0], 0, self.h_dim)).to(self.device)
+            # target_ids = torch.empty((input_ids.shape[0], 0, self.h_dim), dtype=torch.long).to(self.device)
+
+            # set target_ids as padding index (start of sequence id)
+            target_ids = torch.ones((input_ids.shape[0], 1), dtype=torch.long).to(
+                self.device) * self.tokenizer.pad_token_id
         if target_attn_mask is None:
-            target_attn_mask = torch.ones(target_ids.shape[:2]).to(self.device)
+            # target_attn_mask = torch.ones(target_ids.shape[:2], dtype=torch.long).to(self.device)
+            target_attn_mask = torch.ones(target_ids.shape, dtype=torch.long).to(self.device)
 
         input_attn_mask = input_attn_mask
+
+        model_outputs = self.generator(input_ids=input_ids,
+                                       attention_mask=input_attn_mask,
+                                       decoder_input_ids=target_ids,
+                                       decoder_attention_mask=target_attn_mask,
+                                       output_hidden_states=True,
+                                       **qv_kwargs)
+
+        all_model_outputs = {
+            'qv_model_outputs': model_outputs,
+            'policy_model_outputs': model_outputs,
+            'target_model_outputs': model_outputs
+        }
+
+        if self.advanced_mlp:
+            hidden_states = model_outputs.decoder_hidden_states[-2]
+        else:
+            hidden_states = model_outputs.decoder_hidden_states[-1]
+        if self.lm_target is None:
+            target_hidden_states = hidden_states
+        else:
+            with torch.no_grad():
+                target_outputs = self.generator(input_ids=input_ids,
+                                                attention_mask=input_attn_mask,
+                                                decoder_input_ids=target_ids,
+                                                decoder_attention_mask=target_attn_mask,
+                                                output_hidden_states=True,
+                                                **qv_kwargs)
+
+            all_model_outputs['target_model_outputs'] = target_outputs
+
+            if self.advanced_mlp:
+                target_hidden_states = target_outputs.decoder_hidden_states[-2]
+            else:
+                target_hidden_states = target_outputs.decoder_hidden_states[-1]
+
+        if self.lm_policy is None:
+            policy_hidden_states = model_outputs.decoder_hidden_states[-1]
+        else:
+            if skip_policy_on_train and self.training:
+                policy_hidden_states = hidden_states
+            else:
+                if detach_full_policy:
+                    with torch.no_grad():
+                        policy_outputs = self.generator(input_ids=input_ids,
+                                                        attention_mask=input_attn_mask,
+                                                        decoder_input_ids=target_ids,
+                                                        decoder_attention_mask=target_attn_mask,
+                                                        output_hidden_states=True,
+                                                        **qv_kwargs)
+                else:
+                    policy_outputs = self.generator(input_ids=input_ids,
+                                                    attention_mask=input_attn_mask,
+                                                    decoder_input_ids=target_ids,
+                                                    decoder_attention_mask=target_attn_mask,
+                                                    output_hidden_states=True,
+                                                    **qv_kwargs)
+
+                all_model_outputs['policy_model_outputs'] = policy_outputs
+
+                policy_hidden_states = policy_outputs.decoder_hidden_states[-1]
+
+        state_hidden_states = hidden_states
+
+        # for inference, keep the last q value
+        action_hidden_states = hidden_states  # [:, :-1, :]
+
+        action_target_hidden_states = target_hidden_states  # [:, :-1, :]
+
+        vs = self.v(state_hidden_states.detach() if self.detach_v else state_hidden_states).squeeze(2)
+
+        qs = self.q(action_hidden_states.detach() if self.detach_q else action_hidden_states)
+
+        if self.double_q:
+            qs2 = self.q2(action_hidden_states.detach() if self.detach_q else action_hidden_states)
+
+        with torch.no_grad():
+            target_qs = self.target_q(action_target_hidden_states)
+            if self.double_q:
+                target_qs2 = self.target_q2(action_target_hidden_states)
+
+        if skip_policy_on_train and self.training and self.lm_policy is not None:
+            logits = torch.zeros((policy_hidden_states.shape[0], policy_hidden_states.shape[1],
+                                  len(self.tokenizer),)).to(self.device)
+        else:
+            if detach_full_policy:
+                with torch.no_grad():
+                    logits = self.pi(policy_hidden_states.detach() if self.detach_pi else policy_hidden_states)
+            else:
+                logits = self.pi(policy_hidden_states.detach() if self.detach_pi else policy_hidden_states)
+
+        return {
+            'model_outputs': all_model_outputs,
+            'vs': vs,
+            'target_vs': vs,
+            'qs': (qs, qs2,) if self.double_q else qs,
+            'target_qs': self.clip_values(torch.minimum(target_qs, target_qs2) if self.double_q else target_qs),
+            'logits': logits,
+        }
+
+    def forward(self,
+                input_ids: torch.Tensor,
+                input_attn_mask,
+                target_ids,
+                target_attn_mask,
+                qv_kwargs=None, policy_kwargs=None, target_kwargs=None,
+                skip_policy_on_train=False,
+                detach_full_policy=False
+                ):
+
+        if qv_kwargs is None:
+            qv_kwargs = {}
+        if target_kwargs is None:
+            target_kwargs = {}
+        if policy_kwargs is None:
+            policy_kwargs = {}
+
+        if self.lm_target is None:
+            qv_kwargs.update(target_kwargs)
+        if self.lm_policy is None:
+            qv_kwargs.update(policy_kwargs)
 
         model_outputs = self.generator(input_ids=input_ids,
                                        attention_mask=input_attn_mask,
@@ -404,7 +528,7 @@ class PerTokenIQL(GenTacModel):
 
         if skip_policy_on_train and self.training and self.lm_policy is not None:
             logits = torch.zeros((policy_hidden_states.shape[0], policy_hidden_states.shape[1],
-                                  self.tokenizer.vocab_size,)).to(self.device)
+                                  len(self.tokenizer),)).to(self.device)
         else:
             if detach_full_policy:
                 with torch.no_grad():
@@ -513,8 +637,8 @@ class PerTokenIQL(GenTacModel):
         rs = prepared_inputs['rewards']
 
         self_outputs = self.forward(tokens, attn_mask, target, target_mask,
-                            qv_kwargs, policy_kwargs, target_kwargs,
-                            **kwargs)
+                                    qv_kwargs, policy_kwargs, target_kwargs,
+                                    **kwargs)
 
         model_outputs, vs, qs = self_outputs['model_outputs'], self_outputs['vs'], self_outputs['qs']
 
@@ -624,99 +748,17 @@ class PerTokenIQL(GenTacModel):
     # Prediction #
     ##############
 
-    def sample_gen(self, state, state_ids, state_mask, num_samples):
-        # score for nucleus sampling
-        tactics_with_scores = []
-
-        output_text = []
-        output_score = []
-        gen_step = 0
-
-        gen_idx = 0
-        # keep sampling until num_samples unique samples are generated, with at most 10 loops
-        while len(output_text) < num_samples and gen_idx < 10:
-            gen_idx += 1
-            output = self.generator.generate(
-                input_ids=state_ids,
-                attention_mask=state_mask,
-                max_length=self.max_seq_len,
-                do_sample=True,
-                num_return_sequences=num_samples * 2,
-                output_scores=True,
-                return_dict_in_generate=True,
-            )
-
-            transitions = self.generator.compute_transition_scores(output.sequences, output.scores,
-                                                                   normalize_logits=True)
-            # Return the output.
-            raw_output_text = self.tokenizer.batch_decode(
-                output.sequences, skip_special_tokens=True
-            )
-
-            for j in range(num_samples * 2):
-                t = raw_output_text[j]
-                if t not in output_text:
-                    output_text.append(t)
-                    score = torch.sum(transitions[j][transitions[j] != -torch.inf]).item()
-                    output_score.append(score)
-                if len(output_text) >= num_samples:
-                    break
-
-            gen_step += 1
-
-        tactics_with_scores.append(list(zip_strict(output_text, output_score))[:num_samples])
-
-        return tactics_with_scores
-
     def beamsearch_gen(self, state, state_ids, state_mask, num_samples,
-                       ):
-
-        # Generate tactic candidates using beam search.
-        output = self.generator.generate(
-            input_ids=state_ids,
-            attention_mask=state_mask,
-            max_length=self.max_seq_len,
-            num_beams=num_samples,
-            length_penalty=self.gen_config.length_penalty,
-            do_sample=False,
-            num_return_sequences=num_samples,
-            early_stopping=False,
-            output_scores=True,
-            return_dict_in_generate=True,
-        )
-
-        # Return the output.
-        raw_output_text = self.tokenizer.batch_decode(
-            output.sequences, skip_special_tokens=True
-        )
-        raw_scores = output.sequences_scores.tolist()
-        tactics_with_scores = []
-
-        for i in range(len(state)):
-            output_text = []
-            output_score = []
-
-            for j in range(i * num_samples, (i + 1) * num_samples):
-                t = raw_output_text[j]
-                if t not in output_text:
-                    output_text.append(t)
-                    output_score.append(raw_scores[j])
-
-            tactics_with_scores.append(list(zip_strict(output_text, output_score)))
-
-        return tactics_with_scores
-
-    def beam_raw(self, state, state_ids, state_mask, num_samples,
-                 temp=1.0, top_k=None, top_p=None, exp_adv=False,
-                 adv_weight=0.0, adv_clip=None,
-                 include_logits=True, include_adv=True):
+                       temp=1.0, top_k=None, top_p=None, exp_adv=False,
+                       adv_weight=0.0, adv_clip=None,
+                       include_logits=True, include_adv=True):
 
         tokenizer = self.tokenizer
-        max_length = self.max_len
+        max_length = self.max_seq_len
 
         device = self.device
 
-        bsize, vocab_size = len(state), tokenizer.vocab_size
+        bsize, vocab_size = len(state), len(tokenizer)
 
         n = bsize * num_samples
 
@@ -724,11 +766,11 @@ class PerTokenIQL(GenTacModel):
 
         input_strs = state
 
-        model_outputs = self.forward(state_ids,
-                             state_mask,
-                             qv_kwargs={'use_cache': True},
-                             policy_kwargs={'use_cache': True},
-                             target_kwargs={'use_cache': True})['model_outputs']
+        model_outputs = self.inference_forward(state_ids,
+                                               state_mask,
+                                               qv_kwargs={'use_cache': True},
+                                               policy_kwargs={'use_cache': True},
+                                               target_kwargs={'use_cache': True})['model_outputs']
 
         kvs = {'qv': model_outputs['qv_model_outputs'].past_key_values}
 
@@ -737,6 +779,7 @@ class PerTokenIQL(GenTacModel):
         if self.lm_policy is not None:
             kvs['policy'] = model_outputs['policy_model_outputs'].past_key_values
 
+        # length of the input sequences
         original_dialogue_lens = state_mask.sum(dim=1)
 
         batch_indicator = torch.stack(num_samples * [torch.arange(0, bsize).to(device)], dim=1)
@@ -745,15 +788,18 @@ class PerTokenIQL(GenTacModel):
                               tokenizer.pad_token_id,
                               device, 1)
 
+        # length of each generated sequence repeated [l1 * (num_samples), l2 * (num_samples),...]
         dialogue_lens = torch.repeat_interleave(original_dialogue_lens, num_samples, dim=0)
 
         kvs['qv'] = map_all_kvs(
             lambda x: pad_sequence(torch.repeat_interleave(x, num_samples, dim=0), max_length, 0.0, device, 2),
             kvs['qv'])
+
         if 'target' in kvs:
             kvs['target'] = map_all_kvs(
                 lambda x: pad_sequence(torch.repeat_interleave(x, num_samples, dim=0), max_length, 0.0, device, 2),
                 kvs['target'])
+
         if 'policy' in kvs:
             kvs['policy'] = map_all_kvs(
                 lambda x: pad_sequence(torch.repeat_interleave(x, num_samples, dim=0), max_length, 0.0, device, 2),
@@ -766,6 +812,8 @@ class PerTokenIQL(GenTacModel):
         t = torch.min(dialogue_lens).int()
         base_logits = torch.full((dialogue_lens.shape[0],), 0.0).to(device)
 
+        # print (dialogue_lens)
+
         while termination_mask.sum() > 0 and t < max_length:
             curr_token = tokens[:, t - 1].unsqueeze(1)
             curr_kvs = map_all_kvs(lambda x: x[:, :, :t - 1, :], kvs['qv'])
@@ -776,12 +824,17 @@ class PerTokenIQL(GenTacModel):
             if 'policy' in kvs:
                 curr_policy_kvs = map_all_kvs(lambda x: x[:, :, :t - 1, :], kvs['policy'])
 
+            # print (termination_mask)
+            # print (state_ids)
+            # print (tokens[:, :t-1])
+            # print (curr_token)
+
             # since we are using past_key_values, only need to provide a single token at a time
             # as we only want the Q/V values for the one token, state/action idxs gives us this
-            iql_outputs = self.forward(curr_token,
-                                       qv_kwargs={'use_cache': True, 'past_key_values': curr_kvs},
-                                       policy_kwargs={'use_cache': True, 'past_key_values': curr_policy_kvs},
-                                       target_kwargs={'use_cache': True, 'past_key_values': curr_target_kvs})
+            iql_outputs = self.inference_forward(curr_token,
+                                                 qv_kwargs={'use_cache': True, 'past_key_values': curr_kvs},
+                                                 policy_kwargs={'use_cache': True, 'past_key_values': curr_policy_kvs},
+                                                 target_kwargs={'use_cache': True, 'past_key_values': curr_target_kvs})
 
             model_outputs, logits = iql_outputs['model_outputs'], iql_outputs['logits']
 
@@ -794,6 +847,7 @@ class PerTokenIQL(GenTacModel):
             edited_logits = process_logits(logits.clone(), temp=temp, top_k=top_k, top_p=top_p)
 
             vs, qs = iql_outputs['target_vs'], iql_outputs['target_qs']
+
             if exp_adv:
                 adv_logits = adv_weight * (qs - vs.unsqueeze(2))
             else:
@@ -824,17 +878,28 @@ class PerTokenIQL(GenTacModel):
 
             logits = logits[(batch_indicator * num_samples + (top_k_ // vocab_size)).reshape(-1), :, :]
 
+            # total score for sequence?
             logit_scores += torch.gather(torch.log(F.softmax(logits, dim=-1)).squeeze(1), dim=1,
                                          index=(top_k_.reshape(-1) % vocab_size).unsqueeze(1)).squeeze(1).reshape(-1,
                                                                                                                   num_samples)
             tokens[:, t] = top_k_.reshape(-1) % vocab_size  # (batch*k,)
+
+            # logits: (batch * k, 1, vocab_size), tokens: (batch*k, max_seq_len),
+
+
+            print (model_outputs['qv_model_outputs'].past_key_values[0])
+            print (kvs['qv'][0])
+
             fixed_kvs = map_all_kvs(lambda x: x[(batch_indicator * num_samples + torch.div(top_k_, vocab_size,
                                                                                            rounding_mode='trunc')).reshape(
                 -1), :, :, :], model_outputs['qv_model_outputs'].past_key_values)
+
             kvs['qv'] = map_all_kvs(lambda x: x[(batch_indicator * num_samples + torch.div(top_k_, vocab_size,
                                                                                            rounding_mode='trunc')).reshape(
                 -1), :, :, :], kvs['qv'])
+
             kvs['qv'] = update_kvs(kvs['qv'], fixed_kvs, torch.arange(0, n).to(device), t - 1)
+
             if 'target' in kvs:
                 fixed_target_kvs = map_all_kvs(
                     lambda x: x[(batch_indicator * num_samples + torch.div(top_k_, vocab_size,

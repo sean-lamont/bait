@@ -168,6 +168,7 @@ class ILQLDataModule(pl.LightningDataModule):
         )
 
         target_ids = tokenized_target.input_ids
+
         # values set to -100 ignored in HuggingFace loss
         # target_ids[target_ids == self.tokenizer.pad_token_id] = -100
 

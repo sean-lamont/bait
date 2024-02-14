@@ -35,6 +35,7 @@ class GenTacModel(pl.LightningModule):
 
         # todo broader generation models (i.e. other than T5)
         self.tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+
         generator = T5ForConditionalGeneration.from_pretrained(config.model_name)
 
         ret_ckpt_path = config.ret_ckpt_path if hasattr(config, 'ret_ckpt_path') else None
@@ -84,8 +85,8 @@ class GenTacModel(pl.LightningModule):
     ###############################
 
     def on_validation_epoch_end(self) -> None:
-        if self.live_eval and (self.trainer.current_epoch + 1) % self.eval_config.frequency == 0 and self.global_step > 1:
-        # if self.live_eval and (self.trainer.current_epoch + 1) % self.eval_config.frequency == 0:
+        # if self.live_eval and (self.trainer.current_epoch + 1) % self.eval_config.frequency == 0 and self.global_step > 1:
+        if self.live_eval and (self.trainer.current_epoch + 1) % self.eval_config.frequency == 0:
             torch.cuda.empty_cache()
             self.run_eval()
         else:
