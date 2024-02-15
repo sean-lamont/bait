@@ -864,16 +864,19 @@ class PerTokenIQL(GenTacModel):
                 t < dialogue_lens, 1e7)
 
             full_logits = (edited_logits if include_logits else 0.0) + (
-                adv_logits if include_adv else 0.0) + base_logits.unsqueeze(1).unsqueeze(2)
+                adv_logits if include_adv else 0.0) + base_logits.unsqueeze(1).unsqueeze(
+                2)  # (batch*k, (time?), vocab_size)
 
             scores = (torch.log(F.softmax(full_logits, dim=-1)).reshape(1, bsize, num_samples, -1).permute(3, 0, 1, 2)
                       + curr_scores).permute(1, 2, 3, 0).reshape(1, bsize, -1)  # (time, batch, k*vocab)
 
+            # mask out all tokens except for the first beam (only when t is the end of the original sequence)
             scores[0, :, vocab_size:] = scores[0, :, vocab_size:].masked_fill_(
                 (t == original_dialogue_lens).unsqueeze(1).repeat(1, scores.shape[2] - vocab_size), float('-inf'))
 
             curr_scores, top_k_ = torch.topk(scores[0, :, :], k=num_samples, dim=1)  # (batch, k), (batch, k)
 
+            # top_k_ is indices, indexed by multiple of vocab_size for each beam
             tokens = tokens[(batch_indicator * num_samples + (top_k_ // vocab_size)).reshape(-1), :]
 
             logits = logits[(batch_indicator * num_samples + (top_k_ // vocab_size)).reshape(-1), :, :]
@@ -886,10 +889,6 @@ class PerTokenIQL(GenTacModel):
 
             # logits: (batch * k, 1, vocab_size), tokens: (batch*k, max_seq_len),
 
-
-            print (model_outputs['qv_model_outputs'].past_key_values[0])
-            print (kvs['qv'][0])
-
             fixed_kvs = map_all_kvs(lambda x: x[(batch_indicator * num_samples + torch.div(top_k_, vocab_size,
                                                                                            rounding_mode='trunc')).reshape(
                 -1), :, :, :], model_outputs['qv_model_outputs'].past_key_values)
@@ -898,6 +897,9 @@ class PerTokenIQL(GenTacModel):
                                                                                            rounding_mode='trunc')).reshape(
                 -1), :, :, :], kvs['qv'])
 
+            # kvs['qv'] 4 tuple of 4 tuple, each is (6,6,2300, 64). Represents
+            # fixed_kvs is also a 4 tuple, represents top k past key values? shape is (6,6,8,64) why?
+            # update the kvs of for the t-1 token with the new kvs from the model.
             kvs['qv'] = update_kvs(kvs['qv'], fixed_kvs, torch.arange(0, n).to(device), t - 1)
 
             if 'target' in kvs:
@@ -923,7 +925,7 @@ class PerTokenIQL(GenTacModel):
             termination_mask = termination_mask[(batch_indicator * num_samples + (top_k_ // vocab_size)).reshape(-1)]
 
             for idx in range(n):
-                if tokens[idx, t] == tokenizer.eoa_token_id and t >= dialogue_lens[idx]:
+                if tokens[idx, t] == tokenizer.eos_token_id and t >= dialogue_lens[idx]:
                     termination_mask[idx] *= 0
 
                     # termination_mask[idx] *= (
