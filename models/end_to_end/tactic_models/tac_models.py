@@ -16,6 +16,7 @@ from models.end_to_end.tactic_models.holist_model import embedding_store
 from models.end_to_end.tactic_models.holist_model import action_generator
 from experiments.end_to_end.proof_node import *
 
+from models.end_to_end.tactic_models.ilql.ilql_model import PerTokenIQL
 
 class TacModel:
     @abstractmethod
@@ -81,6 +82,26 @@ def get_tac_model(config, device):
                 tac_model=tac_gen)
         else:
             return ReProverTacGen(tac_model=tac_gen)
+
+    elif config.model == 'ilql':
+
+        if hasattr(config, 'ckpt_path') and config.ckpt_path:
+            tac_gen = PerTokenIQL.load(
+                config.ckpt_path, device=device, freeze=True
+            )
+
+        else:
+            raise NotImplementedError
+
+        if tac_gen.retriever is not None:
+            raise NotImplementedError
+
+        if config.distributed:
+            return ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(ReProverTacGen).remote(
+                tac_model=tac_gen)
+        else:
+            return ReProverTacGen(tac_model=tac_gen)
+
 
     elif config.model == 'dpo':
         logger.info('Using DPO model..')

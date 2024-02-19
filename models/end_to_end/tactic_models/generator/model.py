@@ -1,14 +1,18 @@
 """Lightning module for the tactic generator."""
 
-from typing import Dict, Any, Optional, List
+import re
+from subprocess import CalledProcessError
+from typing import Dict, Any
+from typing import Optional, List
 
 import torch
+from lean_dojo.utils import execute
+from loguru import logger
 from torchmetrics import Metric
+from torchmetrics.text import SacreBLEUScore
 
 from experiments.end_to_end.common import remove_marks
 from models.end_to_end.tactic_models.gen_tac_model import GenTacModel
-
-from torchmetrics.text import SacreBLEUScore
 
 torch.set_float32_matmul_precision("medium")
 
@@ -145,3 +149,28 @@ class RetrievalAugmentedGenerator(GenTacModel):
 
         self.log('avg_seq_len', sum([len(o) for o in output_text]) / len(output_text), on_step=False, on_epoch=True,
                  prog_bar=False)
+
+    def run_eval(self) -> None:
+        ckpt_path = f"{self.trainer.log_dir}/checkpoints/last_eval.ckpt"
+        self.trainer.save_checkpoint(ckpt_path)
+        logger.info(f"Saved checkpoint to {ckpt_path}")
+
+        cmd = f"python -m experiments.end_to_end.end_to_end_experiment --config-name=end_to_end/train/gen_seq2seq/eval num_theorems={self.eval_config.eval_num_theorems}" \
+              f" shuffle={self.eval_config.shuffle} env_timeout={self.eval_config.timeout} tac_model.ckpt_path={ckpt_path} log_level='ERROR' tac_model.model='reprover'" \
+              f" exp_config.name=eval_epoch_{self.trainer.current_epoch} exp_config.experiment=seq2seq_eval" \
+              f" num_iterations=1"
+
+        logger.info(f'Running evaluation with {cmd}')
+
+        try:
+            _, err = execute(cmd, capture_output=True)
+        except CalledProcessError as ex:
+            logger.error(ex)
+            logger.error("Failed to evaluate.")
+            return
+
+        m = re.search(r"Pass@1: (\S+)", err)
+        assert m is not None, err
+        acc = float(m.group(1))
+        self.log("Pass@1_val", acc, prog_bar=True)
+        logger.info(f"Pass@1: {acc}")

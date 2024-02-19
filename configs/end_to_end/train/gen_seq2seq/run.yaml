@@ -4,11 +4,11 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: seq2seq_detailed_2
-  experiment: end_to_end
+  name: seq2seq_train
+  experiment: seq2seq
 
 logging_config:
-  project: end_to_end
+  project: seq2seq
   offline: false
 
 model:
@@ -37,7 +37,7 @@ model:
     # config for live evaluation
     live_eval: true
     eval_config:
-      eval_num_theorems: 300
+      eval_num_theorems: 200
       shuffle: false
       timeout: 600
       # frequency of live evaluation in epochs
@@ -58,9 +58,8 @@ data_module:
   max_seq_len: 2300
   num_workers: 0
 
-  trace_files: runs/end_to_end/original/2024_02_08/09_55_29/traces/0
   # old 60% traces
-  #runs/original_reprover/original_reprover_2023_12_10/20_32_14/traces
+  trace_files: null #runs/end_to_end/original/2024_02_15/00_47_29/traces
   collection: seq2seq_0
 
 #  trace_files: null
@@ -84,13 +83,18 @@ trainer:
       logging_interval: step
     - _target_: lightning.pytorch.callbacks.ModelCheckpoint
       verbose: true
-      save_top_k: 3
-      save_last: true
+      save_top_k: 1
+      save_last: false
       monitor: Pass@1_val
 #      monitor: top64_acc_val
       mode: max
       dirpath: ${exp_config.directory}/checkpoints
       auto_insert_metric_name: true
-      filename: "{epoch}-{step}-{Pass@1_val:.2f}"
+      filename: "last"
+#      filename: "{epoch}-{step}-{Pass@1_val:.2f}"
 #      filename: "{epoch}-{step}-{top64_acc:.2f}"
-# todo add early stopping
+    - _target_: lightning.pytorch.callbacks.EarlyStopping
+      monitor: Pass@1_val
+      patience: 1
+      mode: max
+      verbose: true

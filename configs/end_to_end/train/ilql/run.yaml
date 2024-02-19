@@ -11,6 +11,59 @@ logging_config:
   project: ilql
   offline: false
 
+model:
+  _target_: models.end_to_end.tactic_models.ilql.ilql_model.PerTokenIQL
+  config:
+    model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
+    lr: 1e-5
+    warmup_steps: 200
+    max_seq_len: 2300
+
+    gen_config:
+      strategy: beam
+      length_penalty: 0.0
+
+    live_eval: true
+    eval_config:
+      eval_num_theorems: 200
+      shuffle: false
+      timeout: 600
+      frequency: 1
+
+    alpha: 0.005
+    gamma: 1.0
+    beta: 1.0
+    transition_weight: 0.0
+    clip_weight: null
+    value_max: null
+    value_min: null
+    detach_v: False
+    detach_pi: False
+    detach_q: False
+    double_q: True
+    tau: 0.9
+    separate_policy: True
+    separate_target: True
+    exp_weights: True
+    advanced_mlp: False
+    cql_temp: 1.0
+
+
+    lora_config:
+      target_modules: ['q', 'k', 'v', 'o', 'wo', 'lm_head']
+      task_type: "SEQ_2_SEQ_LM"
+      r: 16
+      lora_alpha: 16
+      lora_dropout: 0.01
+
+data_module:
+  _target_: models.end_to_end.tactic_models.ilql.datamodule.ILQLDataModule
+  model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
+  batch_size: 1  # effective_batch_size == batch_size * accumulate_grad_batches * devices
+  eval_batch_size: 1
+  max_seq_len: 2300
+  num_workers: 0
+
 trainer:
   accelerator: gpu
   devices: 1
@@ -23,8 +76,8 @@ trainer:
     logging_batch_size_per_gpu: 1
   gradient_clip_val: 1.0
   max_steps: 10_000_000
-  val_check_interval: 10_000
-  limit_val_batches: 5000
+  val_check_interval: 100_000
+  limit_val_batches: 5_000
   callbacks:
     - _target_: lightning.pytorch.callbacks.LearningRateMonitor
       logging_interval: step
@@ -43,48 +96,3 @@ trainer:
 #      mode: max
 #      verbose: true
 
-experiment:
-  _target_: models.end_to_end.tactic_models.ilql.ilql_model.PerTokenIQL
-  config:
-    model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
-    lr: 1e-5
-    warmup_steps: 200
-    max_seq_len: 2300
-    gen_config:
-      strategy: beam
-      length_penalty: 0.0
-    eval_config:
-      eval_num_theorems: 200
-      shuffle: false
-      timeout: 600
-    alpha: 0.005
-    gamma: 1.0
-    beta: 1.0
-    transition_weight: 0.0
-    clip_weight: null
-    value_max: null
-    value_min: null
-    detach_v: False
-    detach_pi: False
-    detach_q: False
-    double_q: True
-    tau: 0.9
-    separate_policy: True
-    separate_target: True
-    exp_weights: True
-    advanced_mlp: False
-    cql_temp: 1.0
-    lora_config:
-      target_modules: ['q', 'k', 'v', 'o', 'wo', 'lm_head']
-      task_type: "SEQ_2_SEQ_LM"
-      r: 16
-      lora_alpha: 16
-      lora_dropout: 0.01
-
-data_module:
-  _target_: refactor.ilql.datamodule.ILQLDataModule
-  model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
-  batch_size: 1  # effective_batch_size == batch_size * accumulate_grad_batches * devices
-  eval_batch_size: 1
-  max_seq_len: 2300
-  num_workers: 0

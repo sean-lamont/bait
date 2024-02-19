@@ -27,4 +27,19 @@ from hydra.utils import instantiate
 model = instantiate(config.experiment)
 #%%
 # model.batch_generate(['x : ℝ\n⊢ log |x| = log x', 'n : ℕ∞,\nh : n ≤ 0\n⊢ ↑0 - ↑n ≤ ↑(0 - n)'], None, 2)
-model.batch_generate(['abcdefg', 'abcdefghi'], None, 3)
+# strs = [
+# 'E : Type u_3,\n' +
+#       '_inst_1 : normed_add_comm_group E,\n' +
+#       'f : ℝ → E,\n' +
+#       'a b c d : ℝ,\n' +
+#       'μ : measure ℝ,\n' +
+#       'hf : interval_integrable f μ a b,\n' +
+#       'h : [c, d] ⊆ [a, b],\n' +
+#       '_inst : measurable_space E := borel E,\n' +
+#       '_inst_2 : borel_space E\n' +
+#       '⊢ interval_integrable f μ c d',]
+#     # tactic: 'exact <a>interval_integrable.symm</a> hf',]
+#
+
+strs = ['abc', 'abcde']
+ret = model.batch_generate(strs, None, 3)

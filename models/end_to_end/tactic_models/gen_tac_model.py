@@ -85,8 +85,8 @@ class GenTacModel(pl.LightningModule):
     ###############################
 
     def on_validation_epoch_end(self) -> None:
-        # if self.live_eval and (self.trainer.current_epoch + 1) % self.eval_config.frequency == 0 and self.global_step > 1:
-        if self.live_eval and (self.trainer.current_epoch + 1) % self.eval_config.frequency == 0:
+        if self.live_eval and (self.trainer.current_epoch + 1) % self.eval_config.frequency == 0 and self.global_step > 1:
+        # if self.live_eval and (self.trainer.current_epoch + 1) % self.eval_config.frequency == 0:
             torch.cuda.empty_cache()
             self.run_eval()
         else:

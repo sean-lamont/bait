@@ -60,8 +60,8 @@ class GeneratorDataModule(pl.LightningDataModule):
         db = MongoClient()[self.database]
 
         if self.collection in db.list_collection_names():
-            logger.info('Collection exists, skipping processing.')
-            return
+            logger.info('Collection exists, dropping.')
+            db[self.collection].drop()
 
         logger.info('Loading traces..')
 
@@ -93,14 +93,14 @@ class GeneratorDataModule(pl.LightningDataModule):
                         collection.insert_one({'goal': node.goal, 'tactic': edge.tactic, 'split': split})
 
         logger.info('Processing traces for training seq2seq model...')
-        for trace in tqdm(traces[:int(0.9 * len(traces))]):
+        for trace in tqdm(traces[:int(0.5 * len(traces))]):
             if isinstance(trace.tree, ErrorNode):
                 continue
 
             add_trace(trace, 'train')
 
         logger.info('Processing traces for validating seq2seq model...')
-        for trace in tqdm(traces[int(0.9 * len(traces)):]):
+        for trace in tqdm(traces[int(0.5 * len(traces)):]):
             if isinstance(trace.tree, ErrorNode):
                 continue
 
