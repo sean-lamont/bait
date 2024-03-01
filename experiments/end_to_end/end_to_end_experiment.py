@@ -280,8 +280,8 @@ def get_thm_name(env, thm):
     elif env == 'leandojo':
         return thm.full_name
     elif env == 'hol4':
+        # theoryName.LemmaName
         return '.'.join(hol4_thm_db[thm[0]][:2])
-        # return thm[0]
     else:
         raise NotImplementedError
 

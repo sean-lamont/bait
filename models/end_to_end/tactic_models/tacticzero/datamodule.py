@@ -17,35 +17,23 @@ from experiments.end_to_end.process_traces import add_rand_idx, filter_traces
 from experiments.end_to_end.proof_node import ErrorNode
 from experiments.end_to_end.stream_dataset import GoalStreamDataset, worker_init_fn
 
+'''
+
+Data module for training TacticZero on traces produced in End-to-End training.
+
+---- Currently not implemented for any specific training regime. 
+Can be either policy gradient based as done originally, 
+or could be modified to use e.g. supervised learning on successful proofs. ---- 
+
+'''
+
 
 class TacticZeroDataModule(pl.LightningDataModule):
     def __init__(
-            self,
-            model_name: str,
-            batch_size: int,
-            eval_batch_size: int,
-            max_seq_len: int,
-            num_workers: int,
-            trace_files=None,
-            database='lean_e2e',
-            collection='seq2seq'
+            self
     ) -> None:
 
         super().__init__()
-
-        if trace_files is None:
-            trace_files = []
-        self.batch_size = batch_size
-        self.eval_batch_size = eval_batch_size
-        self.max_seq_len = max_seq_len
-        self.num_workers = num_workers
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-
-        self.fields = ['goal', 'tactic']
-        self.collection = collection
-        self.database = database
-        self.current_train_batch_index = 0
-        self.trace_files = trace_files
 
     def state_dict(self):
         self.current_train_batch_index = self.ds_train.start_idx
@@ -77,22 +65,9 @@ class TacticZeroDataModule(pl.LightningDataModule):
 
         collection = MongoClient()[self.database][self.collection]
 
-        # todo process nodes to extract arguments and tactics (goal will be handled in search_model)
-        # just string processing on edge tactics, then process reward similarly to ILQL
+        # todo process nodes here to extract arguments and tactics (goal will be handled in search_model)
         def add_trace(trace, split):
-
-            nodes = trace.nodes
-            nodes[trace.tree.goal] = trace.tree
-
-            for node in nodes.values():
-                if node.out_edges:
-                    # get best edge
-                    distance = min(edge.distance_to_proof() for edge in node.out_edges)
-                    # edge is proving
-                    if distance < math.inf:
-                        # take first element to break ties
-                        edge = [e for e in node.out_edges if e.distance_to_proof() == distance][0]
-                        collection.insert_one({'goal': node.goal, 'tactic': edge.tactic, 'split': split})
+            pass
 
         logger.info('Processing traces for training TacticZero model...')
         for trace in tqdm(traces[:int(0.9 * len(traces))]):
@@ -154,40 +129,10 @@ class TacticZeroDataModule(pl.LightningDataModule):
                           pin_memory=True
                           )
 
+    # todo
     def collate_fn(self, examples) -> Batch:
         state = [ex["goal"] for ex in examples]
 
-        tokenized_state = self.tokenizer(
-            state,
-            padding="longest",
-            max_length=self.max_seq_len,
-            truncation=True,
-            return_tensors="pt",
-        )
-
         tactic = [ex["tactic"] for ex in examples]
 
-        tokenized_tactic = self.tokenizer(
-            tactic,
-            padding="longest",
-            max_length=self.max_seq_len,
-            truncation=True,
-            return_tensors="pt",
-        )
-        tactic_ids = tokenized_tactic.input_ids
-        tactic_ids[tactic_ids == self.tokenizer.pad_token_id] = -100
-
-        batch = {}
-        batch["state"] = state
-        batch["state_ids"] = tokenized_state.input_ids
-        batch["state_mask"] = tokenized_state.attention_mask
-        batch["tactic"] = tactic
-        batch["tactic_ids"] = tactic_ids
-        batch["tactic_mask"] = tokenized_tactic.attention_mask
-
-        # Copy other fields.
-        for k in examples[0].keys():
-            if k not in batch:
-                batch[k] = [ex[k] for ex in examples]
-
-        return batch
+        return

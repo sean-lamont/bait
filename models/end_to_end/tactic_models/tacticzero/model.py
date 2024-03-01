@@ -14,6 +14,28 @@ from environments.HOL4.tacticzero_old.env_wrapper import *
 
 torch.set_float32_matmul_precision("medium")
 
+"""
+
+Implementation of TacticZero in our End-to-End AI-ITP framework. 
+
+Differs from the original approach:
+    - Offline training
+    - Not restricted to a single search strategy
+    - Doesn't "replay" proofs
+
+
+Online/replays could be implemented by re-training the model after each proof attempt with the most recent trace
+for online, and most recently proved trace for replays.
+
+Fringes as in the original approach are delegated to Search. Original Fringe training can be implemented by 
+using the Fringe search model, by processing traces to give the probability and reward based on the final outcome,
+and by training on these with policy gradient.
+
+---- Currently only implemented and tested for End-to-End evaluation. Training still needs to be written, 
+along with DataModule.  ---- 
+
+"""
+
 
 class TacticZeroTacModel(pl.LightningModule):
     def __init__(self,
@@ -53,7 +75,7 @@ class TacticZeroTacModel(pl.LightningModule):
         # number of candidate tactics generated per goal
         self.num_val_samples = config.num_val_samples if hasattr(config, 'num_val_samples') else 0
 
-    # todo loading
+    # todo load model
 
     def converter(self, data_list):
         if self.config.data_config.data_type == 'fixed':
@@ -257,7 +279,8 @@ class TacticZeroTacModel(pl.LightningModule):
                                                      candidate_args=premises,
                                                      )
 
-            # todo if we want to do importance sampling, need to keep track of tac and arg prob separately
+            # todo if we want to train as done originally (or to importance sample)
+            #  need to keep track of tac and arg prob separately
             # could do e.g. tactic trace, then process that as part of prepare_data
 
             # combine probabilities
@@ -268,4 +291,3 @@ class TacticZeroTacModel(pl.LightningModule):
             actions.append(action)
 
         return actions
-

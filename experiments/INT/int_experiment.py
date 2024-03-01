@@ -20,6 +20,12 @@ from environments.INT.data_generation.utils import Dataset
 from utils.utils import config_to_dict
 
 
+'''
+
+Reimplementation of original INT models, using Lightning and with WandB logging.
+
+'''
+
 def load_data(data_dir, mode="train"):
     file_name = os.path.join(data_dir, '{}.pkl'.format(mode))
     with open(file_name, 'rb') as f:
@@ -155,10 +161,6 @@ class INTDataModule(pl.LightningDataModule):
             self.train_first_dataset.merge(one_piece_of_data["all_first"])
 
     def train_dataloader(self):
-        # sampler = data_handler.RandomSampler(self.train_dataset)
-        # batcher = data_handler.BatchSampler(sampler, batch_size=self.config.batch_size, drop_last=False)
-        # batch = self.train_dataset.get_multiple(indices=indices)
-        # batch_states, batch_actions, batch_name_actions = batch_process(batch, mode=self.config.obs_mode)
         return torch.utils.data.DataLoader(self.train_dataset, batch_size=self.config.batch_size,
                                            collate_fn=self.collate)
 
@@ -419,7 +421,6 @@ def int_experiment(config):
     else:
         trainer.fit(model=experiment, datamodule=data_module)
 
-    # trainer.fit(model=experiment, datamodule=data_module)
     logger.experiment.finish()
 
 

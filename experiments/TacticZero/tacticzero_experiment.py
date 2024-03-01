@@ -82,7 +82,7 @@ def tactic_zero_experiment(config):
                              offline=config.logging_config.offline
                              )
 
-    module = RLData(config.data_config)
+    module = OriginalTacticZeroDataModule(config.data_config)
 
     module.prepare_data()
     module.setup(stage="fit")

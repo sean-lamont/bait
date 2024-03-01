@@ -10,10 +10,9 @@ from tqdm import tqdm
 from data.HOL4.utils import ast_def
 from data.utils.graph_data_utils import transform_expr, transform_batch
 from environments.HOL4.tacticzero_old.env_wrapper import HolEnv
-from environments.HOL4.tacticzero_old.get_env import get_env
 
 
-class RLData(pl.LightningDataModule):
+class OriginalTacticZeroDataModule(pl.LightningDataModule):
 
     def __init__(self, config):
         super().__init__()
