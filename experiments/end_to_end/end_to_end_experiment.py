@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import glob
+import json
 import os
 import pickle
 import random
@@ -16,22 +17,22 @@ import hydra
 import ray
 import torch
 import wandb
-from lean_dojo.utils import execute
 from loguru import logger
 from omegaconf import OmegaConf
 from ray.util.actor_pool import ActorPool
 from tqdm import tqdm
 
 from data.HOList.utils import io_util
+from environments.HOL4.hol4_env import HOL4Env
+from environments.HOList.holist_env import HOListEnv
 from environments.HOList.proof_assistant import proof_assistant_pb2
+from environments.LeanDojo.get_lean_theorems import _get_theorems
 from experiments.end_to_end.common import set_logger
 from experiments.end_to_end.common import zip_strict
-from environments.LeanDojo.get_lean_theorems import _get_theorems
-from environments.HOList.holist_env import HOListEnv
-from environments.LeanDojo.leandojo_env import LeanDojoEnv
+# from environments.LeanDojo.leandojo_env import LeanDojoEnv
 from experiments.end_to_end.proof_node import *
-from models.end_to_end.search_models.search_models import get_search_model
 from experiments.end_to_end.search_result import SearchResult
+from models.end_to_end.search_models.search_models import get_search_model
 from models.end_to_end.tactic_models.tac_models import get_tac_model
 from utils.utils import config_to_dict
 
@@ -85,7 +86,7 @@ class EndToEndProver:
             data={'search_trace': self.search_model.search_trace} if hasattr(self.search_model, 'search_trace') else {}
         )
 
-        with open(f"{self.dir}/{get_thm_name(self.env_name, theorem)}", "wb") as f:
+        with open(os.path.join(self.dir, get_thm_name(self.env_name, theorem)), "wb") as f:
             pickle.dump(result, f)
 
         return
@@ -149,7 +150,7 @@ class EndToEndProver:
         self.search_time += time.monotonic() - t0
 
     def log_error(self, msg, theorem):
-        with open(f"{self.error_dir}/{theorem}", "a") as f:
+        with open(os.path.join(self.error_dir, theorem), "a") as f:
             f.writelines([msg])
 
     def search(self, env):
@@ -269,11 +270,18 @@ class DistributedProver:
             sys.exit(1)
 
 
+# todo hack for now, just load theorem database globally for hol4 get_thm_name
+hol4_thm_db = json.load(open('/home/sean/Documents/phd/bait/data/HOL4/data/adjusted_db.json'))
+
+
 def get_thm_name(env, thm):
     if env == 'holist':
         return thm.fingerprint
     elif env == 'leandojo':
         return thm.full_name
+    elif env == 'hol4':
+        return '.'.join(hol4_thm_db[thm[0]][:2])
+        # return thm[0]
     else:
         raise NotImplementedError
 
@@ -283,8 +291,28 @@ def get_env(cfg):
         return LeanDojoEnv
     elif cfg == 'holist':
         return HOListEnv
+    elif cfg == 'hol4':
+        return HOL4Env
     else:
         raise NotImplementedError
+
+
+def get_hol4_theorems(thm_db, goal_db, prev_theorems):
+    thm_db = json.load(open(thm_db))
+
+    goals = pickle.load(open(goal_db, "rb"))
+    final_theorems = []
+
+    for theorem in goals:
+        # for theorem in enumerate(thm_db.keys()):
+        if theorem in prev_theorems:
+            continue
+        else:
+            final_theorems.append(theorem)
+
+    theorems = final_theorems
+    theorems = list(zip_strict(theorems, [thm_db] * len(theorems)))
+    return theorems
 
 
 def get_holist_theorems(thm_db, prev_theorems):
@@ -336,6 +364,8 @@ def get_theorems(cfg, prev_theorems):
         return get_lean_thms(cfg, prev_theorems)
     elif cfg.env == 'holist':
         return get_holist_theorems(cfg.path_theorem_database, prev_theorems)
+    elif cfg.env == 'hol4':
+        return get_hol4_theorems(cfg.path_theorem_database, cfg.path_goal_database, prev_theorems)
 
 
 @hydra.main(config_path="../../configs")

@@ -1,12 +1,13 @@
 import json
 import os
+import subprocess
 from abc import ABC, abstractmethod
 import random
 import re
 import sys
 import tempfile
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any, Tuple, Generator
+from typing import Optional, List, Dict, Any, Tuple, Generator, Union
 
 import lightning.pytorch as pl
 import networkx as nx
@@ -487,15 +488,15 @@ def load_checkpoint(model_cls, ckpt_path: str, device, freeze: bool):
     return model
 
 
-def zip_strict(*args):
-    assert len(args) > 1 and all(len(args[0]) == len(a) for a in args[1:])
-    return zip(*args)
 
 
 def log_to_file(file, msg):
     with open(file, 'a') as f:
         f.write(msg)
 
+def zip_strict(*args):
+    assert len(args) > 1 and all(len(args[0]) == len(a) for a in args[1:])
+    return zip(*args)
 
 def set_logger(level) -> None:
     """
@@ -517,3 +518,4 @@ def cpu_checkpointing_enabled(pl_module) -> bool:
         )
     except RuntimeError:
         return False
+

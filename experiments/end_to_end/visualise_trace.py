@@ -1,9 +1,11 @@
+import argparse
 import math
 
 import dash_cytoscape as cyto
 from dash import Dash, html, dcc
 from dash import Input, Output, callback
 
+from experiments.end_to_end.end_to_end_experiment import get_thm_name
 from experiments.end_to_end.process_traces import get_traces
 from experiments.end_to_end.proof_node import InternalNode, ProofFinishedNode, Status
 
@@ -15,7 +17,42 @@ styles = {
 }
 
 
-def render_bestfs(trace, node_map, rev_map, step):
+def create_node_map(trace):
+    node_map = {}
+    i = 0
+    for edge in trace.trace:
+        if edge.src.goal not in node_map:
+            node_map[edge.src.goal] = i
+            i += 1
+        for d in edge.dst:
+            if isinstance(d, InternalNode):
+                if d.goal not in node_map:
+                    node_map[d.goal] = i
+                    i += 1
+                    if d.goal not in trace.nodes:
+                        trace.nodes[d.goal] = d
+    return node_map
+
+
+def create_siblings(edges, node_map):
+    siblings = []
+    for edge in edges:
+        siblings_ = []
+        for d in edge.dst:
+            if hasattr(edge.src, 'goal') and hasattr(d, 'goal'):
+                siblings_.append((node_map[edge.src.goal], node_map[d.goal]))
+            elif isinstance(d, ProofFinishedNode):
+                siblings_.append((node_map[edge.src.goal], -1))
+        if siblings_:
+            siblings.append((siblings_, edge))
+    return siblings
+
+
+def render_bestfs(trace, index):
+    node_map = create_node_map(trace)
+
+    rev_map = {v: k for k, v in node_map.items()}
+
     cur_step = 1
     prev_goal = trace.trace[0].src
 
@@ -25,23 +62,12 @@ def render_bestfs(trace, node_map, rev_map, step):
             prev_goal = edge.src
 
         # break condition
-        if cur_step > step:
+        if cur_step > index:
             break
 
-    responses = trace.trace[:min(len(trace.trace), (i+1))]
+    responses = trace.trace[:min(len(trace.trace), (i + 1))]
 
-    siblings = []
-
-    for edge in responses:
-        siblings_ = []
-        for d in edge.dst:
-            if hasattr(edge.src, 'goal') and hasattr(d, 'goal'):
-                siblings_.append((node_map[edge.src.goal], node_map[d.goal]))
-            elif isinstance(d, ProofFinishedNode):
-                siblings_.append((node_map[edge.src.goal], -1))
-
-        if siblings_:
-            siblings.append((siblings_, edge))
+    siblings = create_siblings(responses, node_map)
 
     processed_nodes = set()
 
@@ -124,8 +150,12 @@ def render_bestfs(trace, node_map, rev_map, step):
     return elements
 
 
-def render_updown(trace, node_map, rev_map, search_trace):
-    siblings = []
+def render_updown(trace, index):
+    search_trace = trace.data['search_trace'][index]
+
+    node_map = create_node_map(trace)
+
+    rev_map = {v: k for k, v in node_map.items()}
 
     (fringe_goals, node_scores, initial_scores, updated_scores), responses = search_trace
 
@@ -137,16 +167,7 @@ def render_updown(trace, node_map, rev_map, search_trace):
 
     responses = trace.trace[:max_ind + 1]
 
-    for edge in responses:
-        siblings_ = []
-        for d in edge.dst:
-            if hasattr(edge.src, 'goal') and hasattr(d, 'goal'):
-                siblings_.append((node_map[edge.src.goal], node_map[d.goal]))
-            elif isinstance(d, ProofFinishedNode):
-                siblings_.append((node_map[edge.src.goal], -1))
-
-        if siblings_:
-            siblings.append((siblings_, edge))
+    siblings = create_siblings(responses, node_map)
 
     processed_nodes = set()
 
@@ -234,21 +255,16 @@ def render_updown(trace, node_map, rev_map, search_trace):
     return elements
 
 
-def render_htps(trace, node_map, rev_map, search_trace):
-    siblings = []
+def render_htps(trace, index):
+    search_trace = trace.data['search_trace'][index]
+    node_map = create_node_map(trace)
+
+    rev_map = {v: k for k, v in node_map.items()}
+
     edge_trace, tree, leaves = search_trace
+    edges = [data['edge'] for data in edge_trace.values()]
 
-    for data in edge_trace.values():
-        edge = data['edge']
-        siblings_ = []
-        for d in edge.dst:
-            if hasattr(edge.src, 'goal') and hasattr(d, 'goal'):
-                siblings_.append((node_map[edge.src.goal], node_map[d.goal]))
-            elif isinstance(d, ProofFinishedNode):
-                siblings_.append((node_map[edge.src.goal], -1))
-
-        if siblings_:
-            siblings.append((siblings_, edge))
+    siblings = create_siblings(edges, node_map)
 
     processed_nodes = set()
 
@@ -317,8 +333,7 @@ def render_htps(trace, node_map, rev_map, search_trace):
                               'classes': 'nodes'})
 
     leaf_goals = [l[0].goal for l in leaves]
-    #
-    expanded_nodes = set([g for (g, t), v in edge_trace.items()])
+    # expanded_nodes = set([g for (g, t), v in edge_trace.items()])
 
     for node in child_nodes:
         classes = ""
@@ -341,67 +356,36 @@ def render_htps(trace, node_map, rev_map, search_trace):
 
 
 if __name__ == '__main__':
+    # parse arguments
+    parser = argparse.ArgumentParser()
 
-    # traces = get_traces(
-    #     "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/set.definable.compl")
+    parser.add_argument('trace_dir', type=str, help='Path to the trace directory')
+    parser.add_argument('trace_type', type=str, help='Type of trace file, one of "bestfs", "fringe", "updown", "htps"',
+                        choices=['bestfs', 'fringe', 'updown', 'htps'])
 
-    # good example of updown not exploring, only one edge from the root node is explored,
-    # as the others are initially estimated very low:
-    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/tsub_lt_tsub_iff_left_of_le")
+    args = parser.parse_args()
 
-    # as above
-    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/X_in_terms_of_W_vars_subset")
+    # get trace_file and trace_type from args
+    trace_dir = args.trace_dir
+    trace_type = args.trace_type
 
-    # nodes 6,7,9 are all semantically identical, varying only with renaming of a variable, yet all have
-    # very different scores. Indicates the goal model doesn't have a good understanding (it should learn
-    # that renamed variables don't impact the provability)
-    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/upper_set.coe_Inf")
-
-    # another example of same hypotheses (although scored similarly here)
-    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/subgroup.subset_closure")
-
-    # Failing after expanding all valid nodes, note that path is terminated once member of context is found to fail
-    # Think HTPS wouldn't pick up on this? (node 6,7,8,9)
-    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/simple_graph.nonempty_of_pos_dist")
-
-    # very large graph, with timeout. Again, lot's of variable renaming with same goal
-    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/set.definable.compl")
-
-    # holist test:
-    # traces = get_traces('../runs/end_to_end_holist/test_2024_01_08/15_46_13/traces/*')
-    
-    
-    # bestfs test: 
-    traces = get_traces('../../runs/seq2seq_eval/eval_88000/2024_02_05/08_08_35/traces/0/*')
+    traces = get_traces(trace_dir + '*')
 
     cyto.load_extra_layouts()
 
-    trace = traces[1]
-
-    node_map = {}
-    i = 0
-    for edge in trace.trace:
-        if edge.src.goal not in node_map:
-            node_map[edge.src.goal] = i
-            i += 1
-        for d in edge.dst:
-            if isinstance(d, InternalNode):
-                if d.goal not in node_map:
-                    node_map[d.goal] = i
-                    i += 1
-                    if d.goal not in trace.nodes:
-                        trace.nodes[d.goal] = d
-
-    rev_map = {v: k for k, v in node_map.items()}
+    # load first trace to begin with
+    trace = traces[0]
 
     # search_trace = trace.data['search_trace']
 
-    elements = render_bestfs(node_map=node_map,
-                             rev_map=rev_map,
-                             trace=trace,
-                             step=0)
+    elements = render_bestfs(trace=trace,
+                             index=0)
 
     app = Dash(__name__)
+
+    # todo just add search_trace to bestfs
+    dropdown_len = range(len(trace.data['search_trace'])) if 'search_trace' in trace.data else range(
+        len(set([edge.src for edge in trace.trace])))
 
     app.layout = html.Div([
         cyto.Cytoscape(
@@ -468,39 +452,55 @@ if __name__ == '__main__':
         ),
         dcc.Markdown(id='cytoscape-tapNodeData-json', style={'white-space': 'pre'}),
         dcc.Markdown(id='cytoscape-tapEdgeData-json'),
+
         dcc.Dropdown(
             id='dropdown-update-layout',
             value=0,
             clearable=False,
             options=[
                 {'label': str(index), 'value': index}
-                # for index in range(len(trace.data['search_trace']))
-                for index in range(len(set([edge.src for edge in trace.trace])))
+                for index in dropdown_len
             ]
         ),
+
+        dcc.Dropdown(
+            id='dropdown-select-trace',
+            value=get_thm_name('hol4', trace.theorem),
+            # value=get_thm_name('leandojo', trace.theorem),
+            clearable=False,
+            options=[
+                {'label': get_thm_name('hol4', t.theorem), 'value': index}
+                # {'label': get_thm_name('leandojo', t.theorem), 'value': index}
+                for index, t in enumerate(traces)
+            ]
+        ),
+
     ])
+
+
+    # this will update the layout based on the trace type
+    def render_trace(trace, trace_type, value):
+        if trace_type == 'bestfs':
+            return render_bestfs(trace, value)
+        if trace_type == 'htps':
+            return render_htps(trace, value)
+        if trace_type == 'updown':
+            return render_updown(trace, value)
 
 
     @callback(Output('cytoscape-compound', 'elements'),
               Input('dropdown-update-layout', 'value'))
     def update_layout(value):
-        # return render_htps(node_map=node_map,
-        #                    search_trace=search_trace[value],
-        #                    rev_map=rev_map,
-        #                    trace=trace)
-
-        # return render_updown(node_map=node_map,
-        #                      search_trace=search_trace[value],
-        #                      rev_map=rev_map,
-        #                      trace=trace)
-
-        return render_bestfs(node_map=node_map,
-                             rev_map=rev_map,
-                             trace=trace,
-                             step=value)
+        return render_trace(trace, trace_type, value)
 
 
-    # todo add scores
+    # update trace based on dropdown
+    @callback(Input('dropdown-select-trace', 'value'))
+    def update_trace(value):
+        trace = traces[value]
+        # return render_trace(trace, trace_type, 0)
+
+
     @callback(Output('cytoscape-tapNodeData-json', 'children'),
               Input('cytoscape-compound', 'tapNodeData'))
     def displayTapNodeData(data):
@@ -531,3 +531,31 @@ if __name__ == '__main__':
 
 
     app.run(debug=True)
+
+    # traces = get_traces(
+    #     "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/set.definable.compl")
+
+    # good example of updown not exploring, only one edge from the root node is explored,
+    # as the others are initially estimated very low:
+    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/tsub_lt_tsub_iff_left_of_le")
+
+    # as above
+    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/X_in_terms_of_W_vars_subset")
+
+    # nodes 6,7,9 are all semantically identical, varying only with renaming of a variable, yet all have
+    # very different scores. Indicates the goal model doesn't have a good understanding (it should learn
+    # that renamed variables don't impact the provability)
+    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/upper_set.coe_Inf")
+
+    # another example of same hypotheses (although scored similarly here)
+    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/subgroup.subset_closure")
+
+    # Failing after expanding all valid nodes, note that path is terminated once member of context is found to fail
+    # Think HTPS wouldn't pick up on this? (node 6,7,8,9)
+    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/simple_graph.nonempty_of_pos_dist")
+
+    # very large graph, with timeout. Again, lot's of variable renaming with same goal
+    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/set.definable.compl")
+
+    # holist test:
+    # traces = get_traces('../runs/end_to_end_holist/test_2024_01_08/15_46_13/traces/*')

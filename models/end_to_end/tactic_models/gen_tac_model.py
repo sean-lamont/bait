@@ -6,7 +6,6 @@ from typing import Dict, Any
 
 import lightning.pytorch as pl
 import torch
-import torch.nn.functional as F
 from lean_dojo.utils import execute
 from loguru import logger
 from peft import LoraConfig, get_peft_model

@@ -214,21 +214,6 @@ class PerTokenIQL(GenTacModel):
             return torch.clip(values, self.value_min, self.value_max)
         return values
 
-    # @classmethod
-    # def load(cls, ckpt_path: str, device, freeze: bool):
-    #     return load_checkpoint(cls, ckpt_path, device, freeze)
-    #
-    # def configure_optimizers(self) -> Dict[str, Any]:
-    #     return get_optimizers(
-    #         self.parameters(), self.trainer, self.lr, self.warmup_steps
-    #     )
-    #
-    # def on_fit_start(self) -> None:
-    #     if self.logger is not None and self.global_rank == 0:
-    #         self.logger.log_hyperparams(self.hparams)
-    #         assert self.trainer is not None
-    #         logger.info(f"Logging to {self.trainer.log_dir}")
-
     def training_step(self, batch, batch_idx: int):
         loss, (v_loss, q_loss, cql_loss, token_loss) = self.get_loss(batch)
 

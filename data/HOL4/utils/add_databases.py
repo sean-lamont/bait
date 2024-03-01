@@ -7,8 +7,7 @@ from pymongo import MongoClient
 import pickle
 
 
-def add_databases():
-    data_dir = "data/hol4/data/"
+def add_databases(data_dir):
 
     with open(data_dir + "dep_data.json") as f:
         dep_data = json.load(f)
@@ -124,6 +123,10 @@ def add_databases():
 
     for k, v in tqdm(vocab_dict.items()):
         info = vocab.insert_one({"_id": k, "index": v})
+
+    with open(data_dir + "vocab.pk", "wb") as f:
+        pickle.dump(vocab_dict, f)
+
 
     for k, v in tqdm(new_db.items()):
         info = expression_info_data.insert_one(

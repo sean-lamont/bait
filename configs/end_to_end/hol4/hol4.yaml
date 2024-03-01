@@ -1,0 +1,78 @@
+# @package _global_
+defaults:
+  - /base/logging_config@_here_
+  - /base/exp_config@_here_
+
+exp_config:
+  name: test
+  experiment: end_to_end_hol4
+
+logging_config:
+  project: end_to_end_hol4
+  offline: true
+
+env_config:
+  env: hol4
+  path_theorem_database: data/HOL4/data/adjusted_db.json
+  path_goal_database: data/HOL4/data/valid_goals_shuffled.pk
+
+data_path: data/leandojo/data/leandojo_benchmark/random/
+split: test
+file_path: null
+full_name: null
+num_theorems: 2000
+shuffle: false
+name_filter: null
+name: null
+indexed_corpus_path: null
+num_sampled_tactics: 64
+total_timeout: 6000
+env_timeout: 10
+with_gpus: true
+log_level: 'INFO'
+logical_gpus: 1
+num_gpus: 1
+num_cpus: 16
+gpu_per_prover: 0.01
+cpu_per_prover: 1
+provers_per_gpu: 2
+
+tac_model:
+  model: tacticzero
+  vocab_dir: data/HOL4/data/vocab.pk
+
+  pretrain: false
+  num_sampled_tactics: 64
+
+
+  ckpt_path: null
+  distributed: true
+  gpu_per_process: 0.9
+  cpu_per_process: 1
+
+  model_config:
+    # original autoencoder used in TacticZero
+    model_type: 'fixed_autoencoder'
+    model_attributes:
+      # default path for the original encoder
+      checkpoint_path: 'models/TacticZero/pretrained_autoencoder'
+      embedding_dim: 256
+      vocab_size: 2200
+
+  # specify the allowed tactics.
+  tac_config:
+    thms_tactic: [ "simp", "fs", "metis_tac", "rw" ] #["simp", "fs", "metis_tac"]
+    thm_tactic: [ "irule", "drule" ] #["irule"]
+    term_tactic: [ "Induct_on" ]
+    no_arg_tactic: [ "strip_tac", "EQ_TAC" ] # ["strip_tac"]
+    tactic_pool: [ "simp", "fs", "metis_tac", "rw", "irule", "drule","Induct_on","strip_tac", "EQ_TAC" ]
+
+  # how many arguments to give to the argument model
+  arg_len: 5
+
+  data_config:
+    type: fixed #sequence, graph, fixed
+    data_type: fixed #sequence, graph, fixed
+
+search_model:
+  search: bestfs

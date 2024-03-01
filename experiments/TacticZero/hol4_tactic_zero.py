@@ -10,7 +10,7 @@ from experiments.TacticZero.tactic_zero_module import TacticZeroLoop
 
 '''
 
-HOL4 Implementation of TacticZero as outlined in orignial paper
+HOL4 Implementation of TacticZero as outlined in original paper
 
 '''
 

@@ -50,9 +50,16 @@ Environment Wrapper over HOL4.
 
 '''
 
-HOLPATH = "environments/HOL4/HOL/bin/hol --maxheap=256"
+HOLPATH = "/home/sean/Documents/phd/hol/HOL/bin/hol --maxheap=256"
+
+# HOLPATH = "environments/HOL4/HOL/bin/hol --maxheap=256"
 
 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+thms_tactic = ["simp", "fs", "metis_tac", "rw"]
+thm_tactic = ["irule", "drule"]
+term_tactic = ["Induct_on"]
+no_arg_tactic = ["strip_tac", "EQ_TAC"]
 
 
 class HOL4Env:
@@ -60,23 +67,28 @@ class HOL4Env:
         self.timeout = timeout
         self.environment_time = 0
 
-        # dictionary mapping goals to their state
+        # maps polished goal string to full representation and corresponding proof node.
         self.node_map = {}
 
         self.thm, self.database = thm
 
-        self.premises = self.retrieve_premises()
+        self.premises, self.goal_theory = self.retrieve_premises()
 
     def __enter__(self):
         try:
+
             self.import_theories = ["probabilityTheory"]
             self.process = pexpect.spawn(HOLPATH, timeout=3)
+
+            self.toggle_simpset(self.goal_theory)
+
+            logger.info("Removed simpset of {}".format(self.goal_theory))
 
             # experimental feature
             self.process.delaybeforesend = None
 
             # import theories
-            logger.debug("Importing theories...")
+            logger.info("Importing theories...")
 
             self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
             self.process.sendline("val _ = set_trace \"types\" 1;".encode("utf-8"))
@@ -89,7 +101,7 @@ class HOL4Env:
             self.process.sendline("use \"helper.sml\";")
             sleep(5)
 
-            logger.debug("Configuration done.")
+            logger.info("Configuration done.")
             self.process.expect('\r\n>')
             self.process.sendline("val _ = HOL_Interactive.toggle_quietdec();".encode("utf-8"))
 
@@ -97,14 +109,14 @@ class HOL4Env:
             self.process.expect('\r\n>')
 
             # polished goal
-            goal = self.thm[0]
+            goal = self.thm[1]
 
-            polished_goal = self.get_polish(goal)
+            polished_goal = self.get_polish(goal)[0]
 
-            logger.debug("Initialization done. Main goal is:\n{}.".format(goal))
+            logger.info("Initialization done. Main goal is:\n{}.".format(goal))
 
             # use polished goal as the state
-            init_state = goal
+            init_state = self.thm[0]
 
         except Exception as e:
             raise EnvInitError(e)
@@ -128,6 +140,7 @@ class HOL4Env:
         self.process.sendline("top_goals();".encode("utf-8"))
         self.process.expect("val it =")
         self.process.expect([": goal list", ":\r\n +goal list"])
+
 
         polished_raw = self.process.before.decode("utf-8")
         polished_subgoals = re.sub("“|”", "\"", polished_raw)
@@ -162,24 +175,20 @@ class HOL4Env:
         goal_theory = self.database[self.thm[0]][0]
 
         try:
-            allowed_arguments_ids = []
             candidate_args = []
             for i, t in enumerate(self.database):
                 theory_allowed = self.database[t][0] in allowed_theories
                 diff_theory = self.database[t][0] != goal_theory
                 prev_theory = int(self.database[t][3]) < int(self.database[self.thm[0]][3])
                 if theory_allowed and (diff_theory or prev_theory):
-                    allowed_arguments_ids.append(i)
+                    # allowed_arguments_ids.append(i)
                     candidate_args.append(t)
-
-            self.toggle_simpset(goal_theory)
-
-            logger.debug("Removed simpset of {}".format(goal_theory))
 
         except Exception as e:
             raise Exception(f"Error generating fact pool: {e}")
 
-        return allowed_arguments_ids, candidate_args
+        # return allowed_arguments_ids, candidate_args
+        return candidate_args, goal_theory
 
     def construct_tactic(self, tac, limited_time=True):
         if limited_time:
@@ -284,23 +293,65 @@ class HOL4Env:
 
         return data
 
+    def get_names(self, exps):
+        # look up the names of exps
+        names = []
+        for e in exps:
+            theorem_name = self.database[e][1]
+            theory_name = self.database[e][0]
+            full_name = theory_name + "Theory." + theorem_name
+            names.append(full_name)
+        return names
+
+    def assemble_tactic(self, tac):
+        # assume args are split by comma
+
+        tac = tac.split("<arg>")
+
+        if len(tac) > 1:
+            tac, args = tac[0], tac[1:]
+
+            # args is a list of strings
+            if tac in thms_tactic:
+                names = self.get_names(args)
+                action = tac + re.sub("'", "", str(names))
+            # args just a single theorem
+            else:
+                names = self.get_names(args)
+                if names:
+                    action = tac + " " + names[0]
+                else:
+                    # this will raise an error in HOL4
+                    action = tac
+        else:
+            # term tactics will be already assembled
+            # no_arg_tactic are handled as is
+            action = tac[0]
+
+        return action
+
     def run_tactic(self, node, tactic):
-        t0 = time.monotonic()
         tactic, tac_logprob = tactic
+
+        tactic = self.assemble_tactic(tactic)
+
+        t0 = time.monotonic()
 
         node, goal_logprob = node
 
-        pre_target, _ = self.node_map[node.goal][0]
+        pre_target = self.node_map[node.goal][0]
 
         target = pre_target["plain"]
 
         if target["assumptions"]:
             # there are assumptions
             goal = revert_assumptions(pre_target)
+            logger.info(f'running goal with tactic {goal, tactic}')
             response = self.query(goal, "rpt strip_tac >> " + tactic)
         else:
             # no assumptions
             goal = target["goal"]
+            logger.info(f'running goal with tactic {goal, tactic}')
             response = self.query(goal, tactic)
 
         elapsed = time.monotonic() - t0
@@ -309,6 +360,8 @@ class HOL4Env:
         # process response here
 
         result_node = []
+
+        logger.info(f'tactic response: {response}')
 
         if response == "unexpected" or response == "exception" or response == "timeout":
             response = EnvironmentError(message=response)

@@ -2,10 +2,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
+import warnings
+import torch
 
 import ray
 from loguru import logger
+
+from experiments.TacticZero.tactic_zero_data_module import *
+from models.TacticZero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy
+from models.embedding_models.gnn.formula_net.formula_net import FormulaNetEdges
+from models.end_to_end.tactic_models.tacticzero.model import TacticZeroTacModel
+from models.get_model import get_model
+
+warnings.filterwarnings('ignore')
 
 from data.HOList.utils import io_util
 from experiments.end_to_end.common import Context
@@ -18,13 +27,15 @@ from experiments.end_to_end.proof_node import *
 
 from models.end_to_end.tactic_models.ilql.ilql_model import PerTokenIQL
 
+
+# todo tidy
 class TacModel:
     @abstractmethod
     def get_tactics(self, goals, premises):
         return
 
 
-# todo make tac_gen and retriever more system agnostic
+# todo make more system agnostic
 class ReProverTacGen(TacModel):
     def __init__(self, tac_model, num_sampled_tactics=64):
         super().__init__()
@@ -53,6 +64,28 @@ class HOListTacGen(TacModel):
     def get_tactics(self, goals, premises):
         tactics = self.tac_model.get_tactics(goals, premises)
         return tactics
+
+
+class HOL4TacGen(TacModel):
+    def __init__(self, tac_model):
+        super().__init__()
+        self.tac_model = tac_model
+
+    def get_tactics(self, goals, premises):
+        tactics = self.tac_model.get_tactics(goals, premises)
+        return tactics
+
+
+def get_model_dict(prefix, state_dict):
+    return {k[len(prefix) + 1:]: v for k, v in state_dict.items()
+            if k.startswith(prefix)}
+
+
+def load_pretrained_encoders(self, encoder_premise, encoder_goal):
+    ckpt_dir = self.config.pretrain_ckpt
+    ckpt = torch.load(ckpt_dir)['state_dict']
+    encoder_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
+    encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
 
 
 # todo better/more efficient loading for LoRA models.
@@ -121,7 +154,43 @@ def get_tac_model(config, device):
         else:
             return ReProverTacGen(tac_model=tac_gen)
 
-    # todo
+    elif config.model == 'tacticzero':
+        pretrain = config.pretrain
+
+        # default policy models
+        context_net = ContextPolicy()
+        tac_net = TacPolicy(len(config.tac_config.tactic_pool))
+        arg_net = ArgPolicy(len(config.tac_config.tactic_pool), config.model_config.model_attributes.embedding_dim)
+        term_net = TermPolicy(len(config.tac_config.tactic_pool), config.model_config.model_attributes.embedding_dim)
+
+        induct_net = FormulaNetEdges(config.model_config.model_attributes.vocab_size,
+                                     config.model_config.model_attributes.embedding_dim,
+                                     num_iterations=3, global_pool=False,
+                                     batch_norm=False)
+
+        encoder_premise = get_model(config.model_config)
+        encoder_goal = get_model(config.model_config)
+
+        if pretrain:
+            logger.info("Loading pretrained encoder models..")
+            load_pretrained_encoders(encoder_premise, encoder_goal)
+
+        tac_model = TacticZeroTacModel(goal_net=context_net,
+                                       tac_net=tac_net,
+                                       arg_net=arg_net,
+                                       term_net=term_net,
+                                       induct_net=induct_net,
+                                       encoder_premise=encoder_premise,
+                                       encoder_goal=encoder_goal,
+                                       config=config
+                                       )
+
+        if config.distributed:
+            return ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(HOL4TacGen).remote(
+                tac_model=tac_model)
+        else:
+            return HOL4TacGen(tac_model=tac_model)
+
     elif config.model == 'holist':
         theorem_database = io_util.load_theorem_database_from_file(
             str(config.path_theorem_database))
