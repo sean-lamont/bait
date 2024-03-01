@@ -50,9 +50,9 @@ Environment Wrapper over HOL4.
 
 '''
 
-HOLPATH = "/home/sean/Documents/phd/hol/HOL/bin/hol --maxheap=256"
+# HOLPATH = "/home/sean/Documents/phd/hol/HOL/bin/hol --maxheap=256"
 
-# HOLPATH = "environments/HOL4/HOL/bin/hol --maxheap=256"
+HOLPATH = "environments/HOL4/HOL/bin/hol --maxheap=256"
 
 ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 

@@ -355,6 +355,16 @@ def render_htps(trace, index):
     return elements
 
 
+# this will update the layout based on the trace type
+def render_trace(trace, trace_type, value):
+    if trace_type == 'bestfs':
+        return render_bestfs(trace, value)
+    if trace_type == 'htps':
+        return render_htps(trace, value)
+    if trace_type == 'updown':
+        return render_updown(trace, value)
+
+
 if __name__ == '__main__':
     # parse arguments
     parser = argparse.ArgumentParser()
@@ -378,8 +388,7 @@ if __name__ == '__main__':
 
     # search_trace = trace.data['search_trace']
 
-    elements = render_bestfs(trace=trace,
-                             index=0)
+    elements = render_trace(trace=trace, trace_type=trace_type, value=0)
 
     app = Dash(__name__)
 
@@ -456,7 +465,6 @@ if __name__ == '__main__':
         dcc.Dropdown(
             id='dropdown-update-layout',
             value=0,
-            clearable=False,
             options=[
                 {'label': str(index), 'value': index}
                 for index in dropdown_len
@@ -465,7 +473,8 @@ if __name__ == '__main__':
 
         dcc.Dropdown(
             id='dropdown-select-trace',
-            value=get_thm_name('hol4', trace.theorem),
+            # value=get_thm_name('hol4', trace.theorem),
+            value=0,
             # value=get_thm_name('leandojo', trace.theorem),
             clearable=False,
             options=[
@@ -478,28 +487,29 @@ if __name__ == '__main__':
     ])
 
 
-    # this will update the layout based on the trace type
-    def render_trace(trace, trace_type, value):
-        if trace_type == 'bestfs':
-            return render_bestfs(trace, value)
-        if trace_type == 'htps':
-            return render_htps(trace, value)
-        if trace_type == 'updown':
-            return render_updown(trace, value)
-
-
+    # update trace based on dropdowns
     @callback(Output('cytoscape-compound', 'elements'),
-              Input('dropdown-update-layout', 'value'))
-    def update_layout(value):
-        return render_trace(trace, trace_type, value)
+              Output('dropdown-update-layout', 'options'),
+              Input('dropdown-update-layout', 'value'),
+              Input('dropdown-select-trace', 'value'),
+              )
+    def update_layout(step, trace_ind):
+        trace = traces[trace_ind]
+        dropdown_len = range(len(trace.data['search_trace'])) if 'search_trace' in trace.data else range(
+            len(set([edge.src for edge in trace.trace])))
+
+        return render_trace(trace, trace_type, int(step)), [
+            {'label': str(index), 'value': index}
+            for index in dropdown_len
+        ]
 
 
-    # update trace based on dropdown
-    @callback(Input('dropdown-select-trace', 'value'))
-    def update_trace(value):
-        trace = traces[value]
-        # return render_trace(trace, trace_type, 0)
-
+    # @callback(Output('cytoscape-compound', 'elements'),
+    #           Input('dropdown-select-trace', 'value'))
+    # def update_trace(value):
+    #     trace = traces[value]
+    #     return render_trace(trace, trace_type, value)
+    # return render_trace(trace, trace_type, 0)
 
     @callback(Output('cytoscape-tapNodeData-json', 'children'),
               Input('cytoscape-compound', 'tapNodeData'))

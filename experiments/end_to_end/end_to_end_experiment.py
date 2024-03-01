@@ -29,7 +29,7 @@ from environments.HOList.proof_assistant import proof_assistant_pb2
 from environments.LeanDojo.get_lean_theorems import _get_theorems
 from experiments.end_to_end.common import set_logger
 from experiments.end_to_end.common import zip_strict
-# from environments.LeanDojo.leandojo_env import LeanDojoEnv
+from environments.LeanDojo.leandojo_env import LeanDojoEnv
 from experiments.end_to_end.proof_node import *
 from experiments.end_to_end.search_result import SearchResult
 from models.end_to_end.search_models.search_models import get_search_model

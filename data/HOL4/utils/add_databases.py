@@ -52,7 +52,7 @@ def add_databases(data_dir):
 
     # Database used for replicating TacticZero, and for pretraining using HOL4 dependency information.
     # Contains information from the HOL4 standard library up to and including "probabilityTheory"
-    db_name = "hol4"
+    db_name = "hol4_"
 
     # Collection containing meta information about an expression (library, theorem name, etc.)
     info_name = "expression_metadata"
