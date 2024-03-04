@@ -12,7 +12,7 @@ include_footer: false
 {: .text-center}
 {: .text-center}
 
-<a href="https://github.com/sean-lamont/bait" class="btn btn--primary">Code</a> <a href="#" class="btn btn--primary">Paper</a>
+<a href="https://github.com/sean-lamont/bait" class="btn btn--primary">Code</a> <a href="/bait/assets/images/paper.pdf" class="btn btn--primary">Paper</a>
 <a href="/bait/assets/images/poster.pdf" class="btn btn--primary">Poster</a> <a href="/bait/docs/" class="btn btn--primary">Docs</a>
 {: .text-center}
 
@@ -54,3 +54,8 @@ Despite the large variety in approaches, the AI-ITP setup used in most approache
 
 This motivates the design of BAIT, which aims to decouple the Data, Environment and Model.
 These are combined into experiments, which represent tasks in ITP.
+
+
+## Results
+Please see the [paper]() for our results using BAIT to experiment with Embedding 
+Architectures in AI-ITP.
