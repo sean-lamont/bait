@@ -57,5 +57,5 @@ These are combined into experiments, which represent tasks in ITP.
 
 
 ## Results
-Please see the [paper]() for our results using BAIT to experiment with Embedding 
+Please see the paper for our results using BAIT to experiment with Embedding 
 Architectures in AI-ITP.

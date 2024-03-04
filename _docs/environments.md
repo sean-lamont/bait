@@ -58,7 +58,3 @@ Currently under development, will be updated in a future release.
 # HOL4
 
 The HOL4 environment used in [TacticZero](https://arxiv.org/abs/2102.09756).
-
-## Future additions
-
-- Integrate with End-to-End environment, where all models/approaches and features can be used 
