@@ -123,7 +123,9 @@ class ProofLogToExamples(object):
         """Compute the basic features of a proof step (goal, tactic, and args)."""
         # preprocessed goal's conclusion's features
         features = {'goal': goal_proto.conclusion}
+
         tactic_id = self.tactic_name_id_map[tactic_application.tactic]
+
         theorem_parameters, hard_negatives = self._extract_theorem_parameters(
             tactic_application)
         features.update({'thms': theorem_parameters})
@@ -189,6 +191,7 @@ def create_processor(
                          'provided. Only provide one.')
     if not tactics:
         tactics = io_util.load_tactics_from_file(str(options.tactics_path), None)
+
     tactics_name_id_map = {tactic.name: tactic.id for tactic in tactics}
 
     if options.replacements_hack:

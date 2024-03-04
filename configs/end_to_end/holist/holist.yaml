@@ -13,15 +13,14 @@ logging_config:
 
 env_config:
   env: holist
-  path_theorem_database: 'data/holist/theorem_database_v1.1.textpb'
+  path_theorem_database: 'data/HOList/theorem_database_v1.1.textpb'
 
 
-data_path: data/leandojo/data/leandojo_benchmark/random/
 split: test
 file_path: null
 full_name: null
 num_theorems: 2000
-shuffle: false
+shuffle: true
 name_filter: null
 name: null
 indexed_corpus_path: null
@@ -56,13 +55,13 @@ tac_model:
 
 
   # Setting ProverOptions Proto
-  path_tactics: 'experiments/configs/holist/hollight_tactics.textpb'
-  path_tactics_replace: 'experiments/configs/holist/hollight_tactics_replacements.textpb'
-  path_theorem_database: 'data/holist/theorem_database_v1.1.textpb'
+  path_tactics: 'experiments/HOList/config/hollight_tactics.textpb'
+  path_tactics_replace: 'experiments/HOList/config/hollight_tactics_replacements.textpb'
+  path_theorem_database: 'data/HOList/theorem_database_v1.1.textpb'
 
   model_architecture: PARAMETERS_CONDITIONED_ON_TAC
-  theorem_embeddings: 'experiments/holist/checkpoints/checkpoint.npy'
-  path_model_prefix: 'experiments/holist/checkpoints/checkpoint'
+
+  theorem_embeddings: 'runs/HOList_embeddings/checkpoint.npy'
 
   data_config:
     attributes: {}

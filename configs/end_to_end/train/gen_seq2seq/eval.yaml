@@ -4,17 +4,16 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: seq2seq_eval
+  name: seq2seq_eval_iteration_1
   experiment: seq2seq
   
 #  resume: true
-#  directory: runs/end_to_end/original/2024_02_08/09_55_29
-
+#  directory: runs/seq2seq/seq2seq_eval/2024_02_19/12_53_01
 
 logging_config:
   project: seq2seq
   offline: false
-#  id: aohfsen9
+#  id: jh508tmi
 
 num_theorems: 2000 #94000
 
@@ -66,7 +65,8 @@ num_sampled_tactics: 64
 
 tac_model:
   model: reprover
-  ckpt_path: null #runs/end_to_end/seq2seq_iteration1_best.ckpt #null
+  # best iteration 1 ckpt
+  ckpt_path: runs/seq2seq/seq2seq_train/2024_02_21/01_11_14/checkpoints/last.ckpt #null
 
   distributed: true
   gpu_per_process: 0.45
@@ -75,10 +75,10 @@ tac_model:
     model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
 
 
-##   retriever args
-#    ret_ckpt_path: runs/retrieval/retriever_test/2024_02_02/17_56_51/checkpoints/initial.ckpt
-#    indexed_corpus_path: runs/retrieval/retriever_test/2024_02_02/17_56_51/indexed_corpus.pk
-#    eval_num_retrieved: 100
+    ##   retriever args
+    #    ret_ckpt_path: runs/retrieval/retriever_test/2024_02_02/17_56_51/checkpoints/initial.ckpt
+    #    indexed_corpus_path: runs/retrieval/retriever_test/2024_02_02/17_56_51/indexed_corpus.pk
+    #    eval_num_retrieved: 100
 
     ret_ckpt_path: null
 
@@ -122,10 +122,10 @@ search_model:
 
 # Commands to run for retraining the model(s) after every evaluation
 train_after_eval:
-#  - python3 -m experiments.lightning_runner --config-name=end_to_end/train/goal_model/run data_module.trace_files=${exp_config.directory}/traces
+  #  - python3 -m experiments.lightning_runner --config-name=end_to_end/train/goal_model/run data_module.trace_files=${exp_config.directory}/traces
   - python3 -m experiments.lightning_runner --config-name=end_to_end/train/gen_seq2seq/run data_module.trace_files=${exp_config.directory}/traces
 # The model and its checkpoint attribute to update.
 # Must be same length as train_after_eval, with each index corresponding to the associated command
 update_checkpoints:
-#  - [ search_model, ckpt_path ]
-  - [tac_model, ckpt_path]
+  #  - [ search_model, ckpt_path ]
+  - [ tac_model, ckpt_path ]

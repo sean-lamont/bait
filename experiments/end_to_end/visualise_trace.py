@@ -1,5 +1,7 @@
 import argparse
+import glob
 import math
+import pickle
 
 import dash_cytoscape as cyto
 from dash import Dash, html, dcc
@@ -16,6 +18,8 @@ styles = {
     }
 }
 
+
+# todo proof statistics, e.g. success/fail, proof if it exists, num nodes/edges, time taken, num errors, num subgoals proven, num goals failed
 
 def create_node_map(trace):
     node_map = {}
@@ -56,6 +60,7 @@ def render_bestfs(trace, index):
     cur_step = 1
     prev_goal = trace.trace[0].src
 
+    i = 0
     for i, edge in enumerate(trace.trace[1:]):
         if edge.src != prev_goal:
             cur_step += 1
@@ -379,12 +384,14 @@ if __name__ == '__main__':
     trace_dir = args.trace_dir
     trace_type = args.trace_type
 
-    traces = get_traces(trace_dir + '*')
+    # traces = get_traces(trace_dir + '*')
 
     cyto.load_extra_layouts()
 
+    files = glob.glob(trace_dir + '*', recursive=True)
+
     # load first trace to begin with
-    trace = traces[0]
+    trace = pickle.load(open(files[0], "rb"))
 
     # search_trace = trace.data['search_trace']
 
@@ -393,8 +400,8 @@ if __name__ == '__main__':
     app = Dash(__name__)
 
     # todo just add search_trace to bestfs
-    dropdown_len = range(len(trace.data['search_trace'])) if 'search_trace' in trace.data else range(
-        len(set([edge.src for edge in trace.trace])))
+    dropdown_len = range(len(trace.data['search_trace']) + 1) if 'search_trace' in trace.data else range(
+        len(set([edge.src for edge in trace.trace])) + 1)
 
     app.layout = html.Div([
         cyto.Cytoscape(
@@ -478,9 +485,10 @@ if __name__ == '__main__':
             # value=get_thm_name('leandojo', trace.theorem),
             clearable=False,
             options=[
-                {'label': get_thm_name('hol4', t.theorem), 'value': index}
+                {'label': t, 'value': index}
                 # {'label': get_thm_name('leandojo', t.theorem), 'value': index}
-                for index, t in enumerate(traces)
+                # {'label': get_thm_name('leandojo', t.theorem), 'value': index}
+                for index, t in enumerate(files)
             ]
         ),
 
@@ -488,28 +496,21 @@ if __name__ == '__main__':
 
 
     # update trace based on dropdowns
-    @callback(Output('cytoscape-compound', 'elements'),
-              Output('dropdown-update-layout', 'options'),
-              Input('dropdown-update-layout', 'value'),
-              Input('dropdown-select-trace', 'value'),
-              )
+    @callback(
+        Output('dropdown-update-layout', 'options'),
+        Output('cytoscape-compound', 'elements'),
+        Input('dropdown-update-layout', 'value'),
+        Input('dropdown-select-trace', 'value'),
+    )
     def update_layout(step, trace_ind):
-        trace = traces[trace_ind]
-        dropdown_len = range(len(trace.data['search_trace'])) if 'search_trace' in trace.data else range(
-            len(set([edge.src for edge in trace.trace])))
+        trace = pickle.load(open(files[trace_ind], "rb"))
 
-        return render_trace(trace, trace_type, int(step)), [
-            {'label': str(index), 'value': index}
-            for index in dropdown_len
-        ]
+        dropdown_len = range(len(trace.data['search_trace']) + 1) if 'search_trace' in trace.data else range(
+            len(set([edge.src for edge in trace.trace])) + 1)
 
+        return [{'label': str(index), 'value': index} for index in dropdown_len], \
+            render_trace(trace, trace_type, int(step))
 
-    # @callback(Output('cytoscape-compound', 'elements'),
-    #           Input('dropdown-select-trace', 'value'))
-    # def update_trace(value):
-    #     trace = traces[value]
-    #     return render_trace(trace, trace_type, value)
-    # return render_trace(trace, trace_type, 0)
 
     @callback(Output('cytoscape-tapNodeData-json', 'children'),
               Input('cytoscape-compound', 'tapNodeData'))

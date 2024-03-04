@@ -69,7 +69,7 @@ class TheoremEmbeddingStore(object):
       file_path: Path to the text protobuf file containing the theorem database.
     """
 
-        logging.info('Reading theorems database from "%s"', file_path)
+        logging.info(f'Reading theorems database from {file_path}')
         theorem_database = io_util.load_theorem_database_from_file(file_path)
         self.compute_embeddings_for_thms_from_db(theorem_database)
 

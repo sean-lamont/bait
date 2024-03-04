@@ -58,7 +58,7 @@ class TheoremEmbeddingStore(object):
       file_path: Path to the text protobuf file containing the theorem database.
     """
 
-        logger.info('Reading theorems database from "%s"', file_path)
+        logger.info(f'Reading theorems database from {file_path}')
         theorem_database = io_util.load_theorem_database_from_file(file_path)
         self.compute_embeddings_for_thms_from_db(theorem_database)
 
@@ -82,7 +82,7 @@ class TheoremEmbeddingStore(object):
         The directory and all parent directories are created if necessary.
     """
         dir_name = os.path.dirname(file_path)
-        logger.info('Writing embeddings "%s"', file_path)
+        logger.info(f'Writing embeddings {file_path}')
 
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)

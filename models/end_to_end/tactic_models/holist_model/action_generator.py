@@ -359,8 +359,5 @@ class ActionGenerator(object):
 class MesonActionGenerator(object):
     """Trivial action generator, which always returns MESON tactic."""
 
-    def step(self, goal: proof_assistant_pb2.Theorem,
-             thm: proof_assistant_pb2.Theorem) -> List[Tuple[Text, float]]:
-        del goal  # unused
-        del thm  # unused
+    def get_tactics(self, goal, premises) -> List[Tuple[Text, float]]:
         return [('ASM_MESON_TAC [ ]', 1.0)]

@@ -68,11 +68,14 @@ Torch Reimplementation of original TF1 HolparamPredictor
 
 
 # todo lightning training and data modules
-class HolparamPredictor(predictions.Predictions):
+predictions_predictions = predictions.Predictions
+
+
+class HolparamPredictor(predictions_predictions):
     """Compute embeddings and make predictions from a save checkpoint."""
 
     def __init__(self,
-                 ckpt: Text,
+                 ckpt,
                  max_embedding_batch_size: Optional[int] = 512,
                  max_score_batch_size: Optional[int] = 512, config=None) -> None:
         """Restore from the checkpoint into the session."""
@@ -84,7 +87,7 @@ class HolparamPredictor(predictions.Predictions):
         self.embedding_model_goal = get_model(config.model_config).cuda()
         self.embedding_model_premise = get_model(config.model_config).cuda()
 
-        self.tac_model = TacticPrecdictor(
+        self.tac_model = TacticPredictor(
             embedding_dim=1024,
             num_tactics=41).cuda()
 
@@ -93,7 +96,8 @@ class HolparamPredictor(predictions.Predictions):
             num_tactics=41,
             tac_embed_dim=128).cuda()
 
-        # self.load_pretrained_model(ckpt)
+        if ckpt:
+            self.load_pretrained_model(ckpt)
 
         self.embedding_model_goal.eval()
         self.embedding_model_premise.eval()
@@ -245,7 +249,7 @@ class TacDependentPredictor(HolparamPredictor):
     """Derived class, adds dependence on tactic for computing theorem scores."""
 
     def __init__(self,
-                 ckpt: Text,
+                 ckpt,
                  max_embedding_batch_size: Optional[int] = 512,
                  max_score_batch_size: Optional[int] = 512, config=None) -> None:
         """Restore from the checkpoint into the session."""

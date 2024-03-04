@@ -356,8 +356,7 @@ def cache_embeddings(options: deephol_pb2.ProverOptions, config):
 
     if options.HasField('theorem_embeddings') and not os.path.exists(emb_path):
         logging.info(
-            'theorem_embeddings file "%s" does not exist, computing & saving.',
-            emb_path)
+            f'theorem_embeddings file {emb_path} does not exist, computing & saving.')
 
         emb_store = embedding_store.TheoremEmbeddingStore(get_predictor(options, config))
 

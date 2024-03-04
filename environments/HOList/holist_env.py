@@ -2,10 +2,11 @@ import time
 from typing import Tuple
 
 from loguru import logger
+from tqdm import tqdm
 
 from data.HOList.utils import normalization_lib
 from data.HOList.utils.theorem_fingerprint import Fingerprint
-from environments.HOList import proof_assistant
+import environments.HOList.proof_assistant.proof_assistant as proof_assistant
 from environments.HOList.proof_assistant import proof_assistant_pb2
 from experiments.HOList.utils import error
 from experiments.end_to_end.proof_node import *
@@ -18,27 +19,33 @@ class EnvInitError(Exception):
 # todo abstract environment class with init, enter, exit, run_tactic, retrieve_premises
 
 
-# todo don't think this needs to be done for every new theorem..
+# todo hacky
+thms_registered = False
+
 def setup_prover(theorem_database: proof_assistant_pb2.TheoremDatabase):
     """Starts up HOL and seeds it with given TheoremDatabase."""
 
     logger.info('Setting up and registering theorems with proof assistant...')
+
     proof_assistant_obj = proof_assistant.ProofAssistant()
 
-    for thm in theorem_database.theorems:
-        response = proof_assistant_obj.RegisterTheorem(
-            proof_assistant_pb2.RegisterTheoremRequest(theorem=thm))
+    global thms_registered
 
-        if response.HasField('error_msg') and response.error_msg:
-            logger.error('Registration failed for %d with: %s' %
-                         (response.fingerprint, response.error_msg))
+    if not thms_registered:
+        for thm in tqdm(theorem_database.theorems):
+            response = proof_assistant_obj.RegisterTheorem(
+                proof_assistant_pb2.RegisterTheoremRequest(theorem=thm))
+
+            if response.HasField('error_msg') and response.error_msg:
+                logger.error('Registration failed for %d with: %s' %
+                             (response.fingerprint, response.error_msg))
+        thms_registered = True
 
     logger.info('Proof assistant setup done.')
 
     return proof_assistant_obj
 
 
-# todo normalization lib? or do that in tac_gen. Seems like only normalised before running tactic
 def _thm_string(thm: proof_assistant_pb2.Theorem):
     # Turn theorem into a string
 
@@ -50,8 +57,8 @@ def _thm_string(thm: proof_assistant_pb2.Theorem):
     #     return '|-' + str(thm.conclusion)
 
     # for now, just use normalized conclusion from original HOList model
-
     return normalization_lib.normalize(thm).conclusion
+
 
 '''
 
@@ -74,7 +81,7 @@ class HOListEnv:
 
     def __enter__(self):
         try:
-            # todo setup docker container and multiple instances?
+            # todo setup multiple instances of docker container?
             self.hol_wrapper = setup_prover(self.theorem_database)
 
             logger.info('HOList dependencies initialization complete.')
@@ -90,7 +97,6 @@ class HOListEnv:
         return self, root
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        # todo
         pass
 
     def retrieve_premises(self):
@@ -114,13 +120,13 @@ class HOListEnv:
 
         node, theorem = self.node_map[node.goal]
 
-        # todo some kind of tactic pre-processing?
-        # tactic_ = remove_marks(tactic)
-
         holist_request = proof_assistant_pb2.ApplyTacticRequest(tactic=tactic, goal=theorem)
 
         failed = False
         result_node = []
+
+        # logger.info(f'Applying tactic {tactic} to goal {theorem}')
+
         try:
             response = self.hol_wrapper.ApplyTactic(holist_request)
         except error.StatusNotOk as exception:
@@ -150,6 +156,8 @@ class HOListEnv:
         else:
             assert response.HasField('goals')
             new_goals = list(response.goals.goals)
+
+            # logger.info(f'Response goals: {new_goals}')
 
             def is_same_expr(t1, t2):
                 return t1.conclusion == t2.conclusion and t1.hypotheses == t2.hypotheses

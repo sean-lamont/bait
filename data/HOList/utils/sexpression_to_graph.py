@@ -27,7 +27,7 @@ def sexpression_to_polish(sexpression_text):
     return out
 
 
-def sexpression_to_graph(sexpression_txt: Text, type='graph'):
+def sexpression_to_graph(sexpression_txt: Text, type='graph', attention_edge=False):
     sexpression = SExpressionGraph(sexpression_txt)
 
     if type == 'sequence':
@@ -84,11 +84,10 @@ def sexpression_to_graph(sexpression_txt: Text, type='graph'):
 
     # todo add options (e.g. attention_edge_index or depth)
 
-    if type == 'graph':
+    if type == 'graph' and not attention_edge:
         return {'tokens': tok_list, 'edge_index': [senders, receivers], 'edge_attr': edge_attr}
 
-
-    elif type == 'ensemble':
+    elif type == 'ensemble' or attention_edge:
         edge_index = [senders, receivers]
         attention_edge_index = get_directed_edge_index(len(tok_list), torch.LongTensor(edge_index)).tolist()
         depth = get_depth_from_graph(len(tok_list), torch.LongTensor(edge_index)).tolist()

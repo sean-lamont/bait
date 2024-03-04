@@ -207,11 +207,11 @@ def get_tac_model(config, device):
             model_arch = config.model_architecture
 
             if model_arch == 'PAIR_DEFAULT':
-                predictor = holparam_predictor.HolparamPredictor(str(config.ckpt_path), config=config)
+                predictor = holparam_predictor.HolparamPredictor(config.ckpt_path, config=config)
 
             elif model_arch == 'PARAMETERS_CONDITIONED_ON_TAC':
                 predictor = holparam_predictor.TacDependentPredictor(
-                    str(config.ckpt_path), config=config)
+                    config.ckpt_path, config=config)
             else:
                 raise NotImplementedError
 
@@ -224,7 +224,7 @@ def get_tac_model(config, device):
 
                 if not os.path.exists(emb_path):
                     logger.info(
-                        'theorem_embeddings file "%s" does not exist, computing & saving.',
+                        f'theorem_embeddings file {emb_path} does not exist, computing & saving.',
                         emb_path)
 
                     emb_store.compute_embeddings_for_thms_from_db_file(

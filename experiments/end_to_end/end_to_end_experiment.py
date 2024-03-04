@@ -12,6 +12,7 @@ import sys
 import time
 import traceback
 from subprocess import CalledProcessError
+from lean_dojo.utils import execute
 
 import hydra
 import ray
@@ -276,9 +277,9 @@ hol4_thm_db = json.load(open('/home/sean/Documents/phd/bait/data/HOL4/data/adjus
 
 def get_thm_name(env, thm):
     if env == 'holist':
-        return thm.fingerprint
+        return str(thm.fingerprint)
     elif env == 'leandojo':
-        return thm.full_name
+        return str(thm.full_name)
     elif env == 'hol4':
         # theoryName.LemmaName
         return '.'.join(hol4_thm_db[thm[0]][:2])
@@ -376,10 +377,10 @@ def main(config) -> None:
 
     prev_theorems = []
     prev_proven = 0
-    iteration = 0
+    cur_iteration = 0
 
     if config.exp_config.resume:
-        iteration = config.resume_iteration
+        cur_iteration = config.resume_iteration
         wandb.init(project=config.logging_config.project,
                    name=config.exp_config.name,
                    config=config_to_dict(config),
@@ -389,8 +390,8 @@ def main(config) -> None:
                    mode='offline' if config.logging_config.offline else 'online'
                    )
 
-        # prev_theorems = get_traces(f'{config.exp_config.directory}/traces/{iteration}/*')
-        trace_dir = glob.glob(f'{config.exp_config.directory}/traces/{iteration}/*')
+        # prev_theorems = get_traces(f'{config.exp_config.directory}/traces/{cur_iteration}/*')
+        trace_dir = glob.glob(f'{config.exp_config.directory}/traces/{cur_iteration}/*')
 
         logger.info('Loading previous proofs..')
 
@@ -424,7 +425,7 @@ def main(config) -> None:
 
     num_iterations = config.num_iterations if hasattr(config, 'num_iterations') else 1
 
-    for i in range(num_iterations):
+    for iteration in range(cur_iteration, num_iterations):
         prover = DistributedProver(config, iteration)
 
         logger.info(f'Attempting {len(theorems)} proofs..')
@@ -434,6 +435,8 @@ def main(config) -> None:
 
         # log as error for now, to minimise output for parent processes
         logger.error(f"Pass@1: {num_proven / config.num_theorems}")
+
+        wandb.log({'Pass@1': num_proven / config.num_theorems, 'Iteration': iteration})
 
         ray.shutdown()
 

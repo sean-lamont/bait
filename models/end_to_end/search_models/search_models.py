@@ -172,6 +172,10 @@ class BestFS(Search):
         super().__init__()
         self.priority_queue = []
 
+        # record the chosen nodes for further analysis
+        self.search_trace = []
+
+
     def reset(self, root):
         self.__init__()
         self.root = root
@@ -201,6 +205,8 @@ class BestFS(Search):
                               InternalNode) and result_node not in self.priority_queue and not result_node.is_explored:
                     self.nodes[result_node.goal] = result_node
                     self.priority_queue.append(result_node)
+
+        self.search_trace.append(responses)
 
         return
 
