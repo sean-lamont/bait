@@ -71,6 +71,12 @@ class EndToEndProver:
         else:
             proof = None
 
+        data = {}
+        if hasattr(self.search_model, 'search_trace'):
+            data['search_trace'] = self.search_model.search_trace
+
+        data['env'] = self.env_name
+
         result = SearchResult(
             theorem=theorem,
             status=root.status,
@@ -84,7 +90,7 @@ class EndToEndProver:
             num_expansions=self.num_expansions,
             trace=self.trace,
             num_nodes=len(nodes),
-            data={'search_trace': self.search_model.search_trace} if hasattr(self.search_model, 'search_trace') else {}
+            data=data
         )
 
         with open(os.path.join(self.dir, get_thm_name(self.env_name, theorem)), "wb") as f:

@@ -13,6 +13,7 @@ class SearchResult:
     proof: Optional[List[str]]
     tree: Node
     nodes: Dict = field(repr=False)
+    # Environment used to prove the theorem
 
     # Some statistics during proof search.
     total_time: float
