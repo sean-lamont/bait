@@ -22,7 +22,10 @@ from experiments.end_to_end.stream_dataset import worker_init_fn
 
 '''
 
-HOList DataModule adapted for End-to-End pipeline
+HOList DataModule adapted for End-to-End pipeline. 
+
+To train the model on initial human proofs, use the DataModule from the original HOList experiment,
+found in models/HOList/supervised/datamodule.py, then use the checkpoint for End-to-End.
 
 '''
 
@@ -38,7 +41,7 @@ class HOListDataModule(LightningDataModule):
         self.database = self.config.data_options['db']
 
         self.vocab_col = config.data_options['vocab_col']
-        self.collection = config.data_options['split_col']
+        self.collection = config.data_options['collection']
         self.thms_col = config.data_options['thms_col']
 
         self.trace_files = config.trace_files if config.trace_files else []
@@ -62,8 +65,12 @@ class HOListDataModule(LightningDataModule):
 
         logger.info('Loading traces..')
 
-        trace_files = filter_traces(self.trace_files)
+        if not self.trace_files:
+            return
+
         traces = []
+
+        trace_files = filter_traces(self.trace_files)
 
         for file in tqdm(trace_files):
             with open(file, 'rb') as f:
@@ -74,7 +81,7 @@ class HOListDataModule(LightningDataModule):
 
         collection = MongoClient()[self.database][self.collection]
 
-        tactics = io_util.load_tactics_from_file(str(self.config.tactics_path), None)
+        tactics = io_util.load_tactics_from_file(str(self.config.tactics_path), self.config.path_tactics_replace)
 
         tactics_name_id_map = {tactic.name: tactic.id for tactic in tactics}
 
@@ -96,16 +103,23 @@ class HOListDataModule(LightningDataModule):
                     if distance < math.inf:
                         # take first element to break ties
                         edge = [e for e in node.out_edges if e.distance_to_proof() == distance][0]
-                        # todo check
-                        tactic = edge.tactic.split(' THM')[0]
-                        args = edge.tactic.split(' THM')[1:]
+
+                        # strip brackets of tactic
+                        tactic_str = edge.tactic.replace('[', '')
+                        tactic_str = tactic_str.replace(']', '')
+
+                        tactic = tactic_str.split(' ')[0]
+                        args = tactic_str.split(' THM')[1:]
+
+                        logger.info(edge.tactic, tactic, args)
 
                         args = [fingerprint_conclusion_map[int(param.split(' ')[1])] for param in args]
 
                         collection.insert_one({'goal': node.goal,
                                                'tac_id': tactics_name_id_map[tactic],
                                                'thms': args,
-                                               'split': split})
+                                               'split': split,
+                                               'thms_hard_negatives': [],})
 
         logger.info('Processing traces for training seq2seq model...')
         for trace in tqdm(traces[:int(0.9 * len(traces))]):
@@ -157,10 +171,10 @@ class HOListDataModule(LightningDataModule):
         return goals, tacs, pos_thms, neg_thms
 
     def setup(self, stage: Optional[str] = None) -> None:
-        db = MongoClient()
-        db = db[self.config.data_options['db']]
+        db = MongoClient()[self.config.data_options['db']]
+        db_name = self.config.data_options['db']
         vocab_col = db[self.config.data_options['vocab_col']]
-        split_col = db[self.config.data_options['split_col']]
+        split_col = self.config.data_options['collection']
         thms_col = db[self.config.data_options['thms_col']]
 
         self.vocab = {v["_id"]: v["index"]
@@ -178,7 +192,7 @@ class HOListDataModule(LightningDataModule):
                       {'$sort': {'rand_idx': 1}}]
 
         if stage in (None, "fit"):
-            self.ds_train = GoalStreamDataset(db=db,
+            self.ds_train = GoalStreamDataset(db=db_name,
                                               col_name=split_col,
                                               fields=fields,
                                               filter_=train_filter,
@@ -187,7 +201,7 @@ class HOListDataModule(LightningDataModule):
                                               )
 
         if stage in (None, "fit", "validate"):
-            self.ds_train = GoalStreamDataset(db=db,
+            self.ds_train = GoalStreamDataset(db=db_name,
                                               col_name=split_col,
                                               fields=fields,
                                               filter_=train_filter,
@@ -195,7 +209,7 @@ class HOListDataModule(LightningDataModule):
                                               num_gpus=self.trainer.num_devices,
                                               )
 
-            self.ds_val = GoalStreamDataset(db=db,
+            self.ds_val = GoalStreamDataset(db=db_name,
                                             col_name=split_col,
                                             fields=fields,
                                             filter_=val_filter,
@@ -221,19 +235,3 @@ class HOListDataModule(LightningDataModule):
                           batch_size=self.batch_size,
                           pin_memory=True
                           )
-
-# config file will be as below:
-
-#batch_size: 32
-# data_options:
-#   db: holodec
-#   vocab_col: vocab
-#   split_col: proof_logs
-#   thms_col: train_thm_ls
-#   filter: ['depth', 'attention_edge']
-#
-# num_workers: 4
-# tactics_path: data/HOList/tactics/tactics.pkl
-# theorem_dir: data/HOList/theorem_database_v1.1.textpb
-# trace_files: null
-# type: # graph

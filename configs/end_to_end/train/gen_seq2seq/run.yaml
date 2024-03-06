@@ -7,9 +7,14 @@ exp_config:
   name: seq2seq_train
   experiment: seq2seq
 
+  resume: true
+  directory: runs/seq2seq/seq2seq_train/2024_03_03/11_01_25
+
 logging_config:
   project: seq2seq
   offline: false
+
+  id: xi59l6aq
 
 model:
   _target_: models.end_to_end.tactic_models.generator.model.RetrievalAugmentedGenerator
@@ -58,8 +63,8 @@ data_module:
   max_seq_len: 2300
   num_workers: 0
 
-  # old 60% traces
-  trace_files: null #runs/end_to_end/original/2024_02_15/00_47_29/traces
+  trace_files: runs/seq2seq/seq2seq_eval_iteration_1/2024_03_01/21_46_35/traces # null
+  
   collection: seq2seq_0
 
 #  trace_files: null

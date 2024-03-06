@@ -1,0 +1,91 @@
+# @package _global_
+defaults:
+  - /base/logging_config@_here_
+  - /base/exp_config@_here_
+  - /base/data_config@_here_
+
+exp_config:
+  name: holist_train
+  experiment: holist_end_to_end
+
+logging_config:
+  project: seq2seq
+  offline: true
+
+model:
+  _target_: models.HOList.supervised.train_module.HOListTraining_
+  goal_embedding_module:
+    input_shape: ${data_config.vocab_size}
+  premise_embedding_module:
+    input_shape: ${data_config.vocab_size}
+  tac_model:
+    _target_: models.embedding_models.holist_models.tactic_predictor.TacticPredictor
+    # final embedding dimension, for HOList models is 8 * original embedding dim
+    embedding_dim: 1024
+    num_tactics: 41
+  combiner_model:
+    _target_: models.embedding_models.holist_models.tactic_predictor.CombinerNetwork
+    # final embedding dimension, for HOList models is 8 * original embedding dim
+    embedding_dim: 1024
+    num_tactics: 41
+    tac_embed_dim: 128
+  batch_size: 16
+  lr: 1e-4
+
+#  # config for live evaluation
+#  live_eval: true
+#  eval_config:
+#    eval_num_theorems: 200
+#    shuffle: false
+#    timeout: 600
+#    # frequency of live evaluation in epochs
+#    frequency: 1
+
+data_config:
+  vocab_size: 1500
+  batch_size: 16
+  data_options:
+    # Collection for theorems to randomly sample negative premises
+    thms_col: train_thm_ls
+    db: holist
+    collection: proof_logs
+  num_workers: 4
+  tactics_path: experiments/HOList/config/hollight_tactics.textpb
+  path_tactics_replace: experiments/HOList/config/hollight_tactics_replacements.textpb
+  theorem_dir: data/HOList/theorem_database_v1.1.textpb
+  trace_files: runs/end_to_end_holist/test/2024_03_04/15_46_02/traces/0
+#  runs/end_to_end_holist/test/2024_03_04/15_46_02/traces/0
+
+data_module:
+  _target_: models.end_to_end.tactic_models.holist_model.datamodule.HOListDataModule
+  config: ${data_config}
+
+trainer:
+  enable_progress_bar: true
+  log_every_n_steps: 500
+  accelerator: gpu
+  devices: 1
+  precision: bf16-mixed
+  strategy:
+    _target_: lightning.pytorch.strategies.DeepSpeedStrategy
+    stage: 2
+    offload_optimizer: false
+    cpu_checkpointing: false
+    logging_batch_size_per_gpu: 1
+  gradient_clip_val: 1.0
+  max_epochs: 20
+  val_check_interval: 5 #2048
+  limit_val_batches: 5 #1000
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.LearningRateMonitor
+      logging_interval: step
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      verbose: true
+      save_top_k: 3
+      save_last: true
+      monitor: rel_param_acc
+      mode: max
+      dirpath: ${exp_config.directory}/checkpoints
+      auto_insert_metric_name: true
+      # save_on_train_epoch_end: true
+      filename: "{epoch}-{rel_param_acc}-{topk_acc}"

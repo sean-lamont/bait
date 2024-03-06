@@ -7,18 +7,23 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
+import os
+import tempfile
 from typing import List
 from typing import Optional
 from typing import Text
 
 import numpy as np
 import torch
+from deepspeed.utils.zero_to_fp32 import convert_zero_checkpoint_to_fp32_state_dict
 from pymongo import MongoClient
 
 from data.utils.graph_data_utils import transform_expr, transform_batch
+from experiments.end_to_end.common import _is_deepspeed_checkpoint
 from models.end_to_end.tactic_models.holist_model import predictions
 from data.HOList.utils import process_sexp
 from data.HOList.utils.sexpression_to_graph import sexpression_to_graph
+from models.end_to_end.tactic_models.holist_model.train_module import HOListTraining_
 from models.get_model import get_model
 from models.embedding_models.holist_models.tactic_predictor import TacticPredictor, CombinerNetwork
 
@@ -66,8 +71,6 @@ Torch Reimplementation of original TF1 HolparamPredictor
 
 '''
 
-
-# todo lightning training and data modules
 predictions_predictions = predictions.Predictions
 
 
@@ -84,20 +87,27 @@ class HolparamPredictor(predictions_predictions):
             max_score_batch_size=max_score_batch_size)
 
         self.config = config
-        self.embedding_model_goal = get_model(config.model_config).cuda()
-        self.embedding_model_premise = get_model(config.model_config).cuda()
-
-        self.tac_model = TacticPredictor(
-            embedding_dim=1024,
-            num_tactics=41).cuda()
-
-        self.combiner_model = CombinerNetwork(
-            embedding_dim=1024,
-            num_tactics=41,
-            tac_embed_dim=128).cuda()
 
         if ckpt:
-            self.load_pretrained_model(ckpt)
+            model = HOListTraining_.load(
+                config.ckpt_path, device='cuda', freeze=True
+            )
+            self.embedding_model_goal = model.embedding_model_goal
+            self.embedding_model_premise = model.embedding_model_premise
+            self.tac_model = model.tac_model
+            self.combiner_model = model.combiner_model
+        else:
+            self.embedding_model_goal = get_model(config.model_config).cuda()
+            self.embedding_model_premise = get_model(config.model_config).cuda()
+
+            self.tac_model = TacticPredictor(
+                embedding_dim=1024,
+                num_tactics=41).cuda()
+
+            self.combiner_model = CombinerNetwork(
+                embedding_dim=1024,
+                num_tactics=41,
+                tac_embed_dim=128).cuda()
 
         self.embedding_model_goal.eval()
         self.embedding_model_premise.eval()
@@ -113,14 +123,14 @@ class HolparamPredictor(predictions_predictions):
 
         self.vocab = {k['_id']: k['index'] for k in vocab_col.find()}
 
-    # todo better loading
-    def load_pretrained_model(self, ckpt_dir):
-        logging.info(f"Loading checkpoint from {ckpt_dir}")
-        ckpt = torch.load(ckpt_dir + '.ckpt', map_location={'cuda:1': 'cuda:0'})['state_dict']
-        self.embedding_model_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
-        self.embedding_model_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
-        self.tac_model.load_state_dict(get_model_dict('tac_model', ckpt))
-        self.combiner_model.load_state_dict(get_model_dict('combiner_model', ckpt))
+    # def load_pretrained_model(self, ckpt_dir):
+    #     logging.info(f"Loading checkpoint from {ckpt_dir}")
+    #     # ckpt = torch.load(ckpt_dir + '.ckpt', map_location={'cuda:1': 'cuda:0'})['state_dict']
+    #     ckpt = torch.load(ckpt_dir + '.ckpt')['state_dict']
+    #     self.embedding_model_premise.load_state_dict(get_model_dict('embedding_model_premise', ckpt))
+    #     self.embedding_model_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
+    #     self.tac_model.load_state_dict(get_model_dict('tac_model', ckpt))
+    #     self.combiner_model.load_state_dict(get_model_dict('combiner_model', ckpt))
 
     def to_torch(self, data_dict):
         return transform_expr(data_dict,
@@ -233,8 +243,6 @@ class HolparamPredictor(predictions_predictions):
         del tactic_id  # tactic id not use to predict theorem scores.
         # The checkpoint should have only one value in this collection.
         assert len(state_encodings) == len(thm_embeddings)
-
-        # todo use non tac dependent model
 
         tactic_id = [0]
         with torch.no_grad():

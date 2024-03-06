@@ -9,6 +9,8 @@ import traceback
 import warnings
 import einops
 
+from experiments.end_to_end.common import load_checkpoint
+
 warnings.filterwarnings('ignore')
 import lightning.pytorch as pl
 import torch
@@ -21,6 +23,8 @@ def auroc(pos, neg):
 ce_loss = torch.nn.CrossEntropyLoss()
 bce_loss = torch.nn.BCEWithLogitsLoss()
 
+
+# todo live evaluation
 
 class HOListTraining_(pl.LightningModule):
     def __init__(self,
@@ -83,8 +87,6 @@ class HOListTraining_(pl.LightningModule):
         return final_loss
 
     def val_func(self, tac_pred, true_tac, pos_premise_scores, neg_premise_scores, extra_neg_premise_scores):
-        # todo weighted tactics
-
         tac_acc = torch.sum(torch.argmax(tac_pred, dim=1) == true_tac) / tac_pred.shape[0]
         topk_preds = torch.topk(tac_pred, k=5, dim=1).indices
         topk_acc = sum([1 if torch.isin(true_tac[i], topk_preds[i]) else 0 for i in range(tac_pred.shape[0])]) / \
@@ -172,3 +174,7 @@ class HOListTraining_(pl.LightningModule):
             loss.backward()
         except Exception as e:
             logging.debug(f"Error in backward: {e}")
+
+    @classmethod
+    def load(cls, ckpt_path: str, device, freeze: bool):
+        return load_checkpoint(cls, ckpt_path, device, freeze)

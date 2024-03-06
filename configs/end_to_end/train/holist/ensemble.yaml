@@ -1,0 +1,60 @@
+# @package _global_
+defaults:
+  - holist_train
+  - /data_type/ensemble@_here_
+
+exp_config:
+  name: ensemble
+
+# Ensemble with GNN and Transformer from HOList experiments
+model:
+  goal_embedding_module:
+    _target_: models.embedding_models.ensemble.ensemble.EnsembleEmbedder
+    d_model: 1024 # (128 * 8)
+    dropout: 0.2
+    gnn_model:
+      _target_: models.embedding_models.holist_models.gnn.gnn_encoder.GNNEncoder
+      embedding_dim: 128
+      num_iterations: 12
+      max_edges: 3
+      dropout: 0.2
+      # input_shape passed in from experiment config
+      input_shape: ${data_config.vocab_size}
+
+    transformer_model:
+      _target_: models.embedding_models.holist_models.transformer.transformer_encoder_model.TransformerWrapper
+      d_model: 128
+      nhead: 4
+      nlayers: 4
+      dropout: 0.2
+      d_hid: 256
+      small_inner: false
+      max_len: ${data_config.attributes.max_len}
+      input_shape: ${data_config.vocab_size}
+
+
+  premise_embedding_module:
+    _target_: models.embedding_models.ensemble.ensemble.EnsembleEmbedder
+    d_model: 1024 # (128 * 8)
+    dropout: 0.2
+    gnn_model:
+      _target_: models.embedding_models.holist_models.gnn.gnn_encoder.GNNEncoder
+      embedding_dim: 128
+      num_iterations: 12
+      max_edges: 3
+      dropout: 0.2
+      # input_shape passed in from experiment config
+      input_shape: ${data_config.vocab_size}
+
+    transformer_model:
+      _target_: models.embedding_models.holist_models.transformer.transformer_encoder_model.TransformerWrapper
+      d_model: 128
+      nhead: 4
+      nlayers: 4
+      dropout: 0.2
+      d_hid: 256
+      small_inner: false
+      max_len: ${data_config.attributes.max_len}
+      input_shape: ${data_config.vocab_size}
+
+   

@@ -1,0 +1,31 @@
+# @package _global_
+defaults:
+  - holist_train
+  - /data_type/sequence@_here_
+
+exp_config:
+  name: transformer
+
+model:
+  goal_embedding_module:
+    _target_: models.embedding_models.holist_models.transformer.transformer_encoder_model.TransformerWrapper
+    # input_shape passed in from data config
+    input_shape: ${data_config.vocab_size}
+    d_model: 128
+    nhead: 4
+    nlayers: 4
+    dropout: 0.2
+    d_hid: 256
+    small_inner: false
+    max_len: ${data_config.attributes.max_len}
+
+  premise_embedding_module:
+    _target_: models.embedding_models.holist_models.transformer.transformer_encoder_model.TransformerWrapper
+    input_shape: ${data_config.vocab_size}
+    d_model: 128
+    nhead: 4
+    nlayers: 4
+    dropout: 0.2
+    d_hid: 256
+    small_inner: false
+    max_len: ${data_config.attributes.max_len}
