@@ -67,11 +67,12 @@ class UpDown(Search):
             self.initial_scores[root.goal] = scores[0].item()
             self.updated_scores[root.goal] = scores[0].item()
 
+    # sampling version
     def get_goals(self):
-        best_score = -math.inf
-        best_node = None
+        fringe_scores = []
 
         node_scores = {}
+
         for goal, node in self.nodes.items():
             if node.is_explored:
                 continue
@@ -86,25 +87,66 @@ class UpDown(Search):
                 score = self.initial_scores[goal]
 
             node_scores[node.goal] = score
-            if score > best_score:
-                best_score = score
-                best_node = node
 
-        if not best_node:
-            return []
+            fringe_scores.append(score)
+
+        # sample from fringe scores
+        fringe_probs = F.softmax(torch.FloatTensor(fringe_scores), dim=0)
+        fringe_m = Categorical(fringe_probs)
+        sampled_score = fringe_m.sample()
 
         # find fringe for selected node by choosing all goals with the same score.
         # (may include other goals with same score not in fringe)
-        best_fringe = []
+        chosen_fringe = []
 
         for goal, score in node_scores.items():
-            if score == best_score:
-                best_fringe.append((self.nodes[goal], best_score))
+            if score == sampled_score:
+                chosen_fringe.append((self.nodes[goal], sampled_score))
 
         self.search_trace.append(
-            copy.deepcopy(([f[0].goal for f in best_fringe], node_scores, self.initial_scores, self.updated_scores)))
+            copy.deepcopy(([f[0].goal for f in chosen_fringe], node_scores, self.initial_scores, self.updated_scores)))
 
-        return best_fringe
+        return chosen_fringe
+
+    # greedy version
+    # def get_goals(self):
+    #     best_score = -math.inf
+    #     best_node = None
+    #
+    #     node_scores = {}
+    #     for goal, node in self.nodes.items():
+    #         if node.is_explored:
+    #             continue
+    #         # Take the score for a node as the probability of proving that goal,
+    #         # multiplied by the probability of proving the best context of that goal
+    #         # (i.e how likely to prove the original goal, assuming this goal is used)
+    #         if node.context and len(node.context[0]) > 0:
+    #             score = self.initial_scores[goal] + max(
+    #                 [sum([self.updated_scores[ctx] for ctx in context]) for context in node.context])
+    #
+    #         else:
+    #             score = self.initial_scores[goal]
+    #
+    #         node_scores[node.goal] = score
+    #         if score > best_score:
+    #             best_score = score
+    #             best_node = node
+    #
+    #     if not best_node:
+    #         return []
+    #
+    #     # find fringe for selected node by choosing all goals with the same score.
+    #     # (may include other goals with same score not in fringe)
+    #     best_fringe = []
+    #
+    #     for goal, score in node_scores.items():
+    #         if score == best_score:
+    #             best_fringe.append((self.nodes[goal], best_score))
+    #
+    #     self.search_trace.append(
+    #         copy.deepcopy(([f[0].goal for f in best_fringe], node_scores, self.initial_scores, self.updated_scores)))
+    #
+    #     return best_fringe
 
     def _up_step(self, node):
         if node.out_edges:
@@ -174,7 +216,6 @@ class BestFS(Search):
 
         # record the chosen nodes for further analysis
         self.search_trace = []
-
 
     def reset(self, root):
         self.__init__()
@@ -431,7 +472,7 @@ class HTPS(Search):
         ret = []
         self.leaves = []
 
-        # (note: cycles are automatically ignored in tree construction)
+        # (note: cycles are automatically ignored in our tree construction)
         while to_explore:
             g, parent = to_explore.pop()
 
@@ -450,13 +491,14 @@ class HTPS(Search):
                     if g.goal not in self.T:
                         best_score = -math.inf
                         best_edge = None
+
                         # get the valid edges from this node, which will be edges with expandable (open/proven) children
                         # note that there must be at least valid edge, otherwise g.status == FAILED
                         goal_edges = [self.edge_data[e] for e in self.edge_data.keys() if e[0] == g.goal
                                       and any([d.status != Status.FAILED for d in self.edge_data[e]['edge'].dst])]
 
                         # todo check when this errors out
-                        assert goal_edges, g
+                        assert goal_edges, (g, g in self.leaves, g.status, g.goal, g.out_edges)
 
                         for edge in goal_edges:
                             edge_score = self.p_uct(edge)

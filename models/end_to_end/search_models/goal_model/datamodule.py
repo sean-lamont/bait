@@ -96,6 +96,7 @@ class GoalProvableDataModule(pl.LightningDataModule):
                 for a in node.ancestors:
                     visits[a] += node.visit_count
 
+            # todo soft labels for visit count, ranging from 0 to 0.5
             for node in trace.nodes.values():
                 node_data = {'goal': node.goal}
                 proof_len = node.distance_to_proof
@@ -111,8 +112,8 @@ class GoalProvableDataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None) -> None:
         # 90/10 train/val ratio
-        train_range = (0., 0.5)
-        val_range = (0.5, 1.)
+        train_range = (0., 0.9)
+        val_range = (0.9, 1.)
 
         train_filter = [{'$match': {'rand_idx': {'$gt': train_range[0], '$lt': train_range[1]}}},
                         {'$sort': {'rand_idx': 1}}]

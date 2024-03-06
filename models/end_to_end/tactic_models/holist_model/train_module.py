@@ -24,7 +24,8 @@ ce_loss = torch.nn.CrossEntropyLoss()
 bce_loss = torch.nn.BCEWithLogitsLoss()
 
 
-# todo live evaluation
+# todo live evaluation, combine with old HOList train module (since there are no changes)
+
 
 class HOListTraining_(pl.LightningModule):
     def __init__(self,
