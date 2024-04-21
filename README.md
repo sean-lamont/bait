@@ -21,7 +21,7 @@ You will need a working MongoDB server. To install one locally, you can follow t
 with e.g. Ubuntu instructions available here: https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/
 
 ### Download database dump
-We provide preprocessed databases containing data necessary for experiments across all platforms. You can download these here [here](https://huggingface.co/datasets/sean-lamont/bait_mongodb/tree/main)
+We provide preprocessed databases containing data necessary for experiments across all platforms. You can download these [here](https://huggingface.co/datasets/sean-lamont/bait_mongodb/tree/main)
 
 You can save a current mongodb file for restoration with: 
 
