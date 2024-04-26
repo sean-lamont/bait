@@ -3,6 +3,7 @@ import pickle
 from typing import Optional
 
 import lightning.pytorch as pl
+import torch
 from loguru import logger
 from pymongo import MongoClient
 from torch.utils.data import DataLoader
@@ -17,7 +18,7 @@ from experiments.end_to_end.proof_node import ErrorNode, Status
 from experiments.end_to_end.stream_dataset import GoalStreamDataset, worker_init_fn
 
 
-class GoalProvableDataModule(pl.LightningDataModule):
+class SoftGoalDataModule(pl.LightningDataModule):
     def __init__(
             self,
             model_name: str,
@@ -30,9 +31,8 @@ class GoalProvableDataModule(pl.LightningDataModule):
             unprovable_tok: str,
             trace_files=None,
             database='lean_e2e',
-            collection='train_goal_data_2',
-            visit_threshold=1024,
-            replace='keep', # keep, add or drop if collection exists
+            collection='soft_goal_data',
+            replace='keep',  # keep, add or drop if collection exists
     ) -> None:
 
         super().__init__()
@@ -54,8 +54,6 @@ class GoalProvableDataModule(pl.LightningDataModule):
         self.collection = collection
         self.database = database
         self.trace_files = trace_files
-
-        self.visit_threshold = visit_threshold
 
         self.current_train_batch_index = 0
 
@@ -111,8 +109,17 @@ class GoalProvableDataModule(pl.LightningDataModule):
                     node_data['target'] = 1
                 elif node.status == Status.FAILED:
                     node_data['target'] = 0
-                elif visits[node.goal] >= self.visit_threshold:
-                    node_data['target'] = 0
+                elif visits[node.goal] >= 64:
+                    if visits[node.goal] <= 128:
+                        node_data['target'] = 0.7
+                    elif visits[node.goal] <= 256:
+                        node_data['target'] = 0.6
+                    elif visits[node.goal] <= 512:
+                        node_data['target'] = 0.5
+                    elif visits[node.goal] <= 1024:
+                        node_data['target'] = 0.4
+                    else:
+                        node_data['target'] = 0.3
                 else:
                     continue
                 node_data['split'] = split
@@ -199,10 +206,10 @@ class GoalProvableDataModule(pl.LightningDataModule):
             return_tensors="pt",
         )
 
-        targets = [self.provable_tok if ex == 1 else self.unprovable_tok for ex in targets]
+        target_tokens = [self.provable_tok if ex == 1 else self.unprovable_tok for ex in targets]
 
         tokenized_target = self.tokenizer(
-            targets,
+            target_tokens,
             padding="longest",
             max_length=self.max_seq_len,
             truncation=True,
@@ -216,8 +223,9 @@ class GoalProvableDataModule(pl.LightningDataModule):
         batch = {"state": state,
                  "state_ids": tokenized_state.input_ids,
                  "state_mask": tokenized_state.attention_mask,
-                 "targets": targets,
+                 "targets": torch.tensor(targets, dtype=torch.bfloat16),
                  "target_ids": target_ids,
-                 "target_attention_mask": tokenized_target.attention_mask}
+                 "target_attention_mask": tokenized_target.attention_mask
+                 }
 
         return batch
