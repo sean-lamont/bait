@@ -583,11 +583,11 @@ class HTPS(Search):
             elif g.status == Status.FAILED:
                 self.T[g.goal] = {'v_score': 0, 'parent': parent, 'is_prop': True, 'edge': None}
             else:
-                # score = ray.get(self.goal_model.run.remote([g.goal]))
-                # self.T[g.goal] = {'v_score': math.exp(score.item()), 'parent': parent, 'is_prop': True, 'edge': None}
+                score = ray.get(self.goal_model.run.remote([g.goal]))
+                self.T[g.goal] = {'v_score': math.exp(score.item()), 'parent': parent, 'is_prop': True, 'edge': None}
 
-                # todo remove, testing with no critic model
-                self.T[g.goal] = {'v_score': 0.5, 'parent': parent, 'is_prop': True, 'edge': None}
+                # for no critic model:
+                # self.T[g.goal] = {'v_score': 0.5, 'parent': parent, 'is_prop': True, 'edge': None}
 
             to_backup.append(parent)
 

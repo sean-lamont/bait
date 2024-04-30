@@ -4,24 +4,24 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: soft_labels_ce
+  name: htps_soft_critic
   experiment: goal_model
 
 logging_config:
   project: goal_model
-  offline: true
+  offline: false
 
 model:
-  _target_: models.end_to_end.search_models.soft_goal_model.model.SoftGoalModel
+  _target_: models.end_to_end.search_models.htps_soft_critic.model.HTPSSoftCritic
   model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
-  lr: 5e-5
+  lr: 5e-4
   warmup_steps: 200
   provable_tok: '<extra_id_1>'
   unprovable_tok: '<extra_id_2>'
   max_seq_len: 2300
 
 data_module:
-  _target_: models.end_to_end.search_models.soft_goal_model.datamodule.SoftGoalDataModule
+  _target_: models.end_to_end.search_models.htps_soft_critic.datamodule.HTPSSoftCriticDataModule
   model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
   batch_size: 1 # effective_batch_size == batch_size * accumulate_grad_batches * devices
   eval_batch_size: 4
@@ -32,10 +32,11 @@ data_module:
   provable_tok: '<extra_id_1>'
   unprovable_tok: '<extra_id_2>'
   
-  trace_files: runs/end_to_end/original/2024_02_15/00_47_29/traces/0 # test traces from 1 iter
+  trace_files: runs/end_to_end/htps_no_critic/2024_04_21/16_34_02/traces/0/ # traces from htps with 0.5 critic
+  # runs/end_to_end/original/2024_02_15/00_47_29/traces/0 # test traces from 1 iter
   # runs/train_traces/0 # train traces
 
-  replace: 'drop' # add/keep/drop files wrt the existing collection
+  replace: 'keep' # add/keep/drop files wrt the existing collection
 
   # runs/seq2seq/seq2seq_eval_iteration_1/2024_03_01/21_46_35/traces/0
 

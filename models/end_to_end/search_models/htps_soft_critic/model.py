@@ -15,10 +15,7 @@ from experiments.end_to_end.common import (
 torch.set_float32_matmul_precision("medium")
 
 
-# todo live evaluation as with tactic models?
-
-# todo allow loading of pre-trained goal model
-class SoftGoalModel(pl.LightningModule):
+class HTPSSoftCritic(pl.LightningModule):
     def __init__(
             self,
             model_name: str,
@@ -50,14 +47,12 @@ class SoftGoalModel(pl.LightningModule):
 
         self.logits_processor = NoBadWordsLogitsProcessor(bad_words_ids=self.bad_ids, eos_token_id=None)
 
-        # self.mseloss = torch.nn.MSELoss()
-
         self.ce_loss = CrossEntropyLoss()
 
     @classmethod
     def load(
             cls, ckpt_path: str, device, freeze: bool
-    ) -> "SoftGoalModel":
+    ) -> "HTPSSoftCritic":
         return load_checkpoint(cls, ckpt_path, device, freeze)
 
     def forward(
@@ -67,6 +62,7 @@ class SoftGoalModel(pl.LightningModule):
             target_ids: torch.Tensor,
             soft_targets: torch.Tensor
     ) -> torch.Tensor:
+
         output = self.generator(
             input_ids=state_ids,
             attention_mask=state_mask,
@@ -84,6 +80,7 @@ class SoftGoalModel(pl.LightningModule):
         loss = self.ce_loss(logits, soft_targets)
 
         return loss
+
 
     ############
     # Training #

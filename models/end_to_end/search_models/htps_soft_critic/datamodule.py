@@ -1,5 +1,6 @@
 import math
 import pickle
+from pathlib import Path
 from typing import Optional
 
 import lightning.pytorch as pl
@@ -18,7 +19,7 @@ from experiments.end_to_end.proof_node import ErrorNode, Status
 from experiments.end_to_end.stream_dataset import GoalStreamDataset, worker_init_fn
 
 
-class SoftGoalDataModule(pl.LightningDataModule):
+class HTPSSoftCriticDataModule(pl.LightningDataModule):
     def __init__(
             self,
             model_name: str,
@@ -31,7 +32,7 @@ class SoftGoalDataModule(pl.LightningDataModule):
             unprovable_tok: str,
             trace_files=None,
             database='lean_e2e',
-            collection='soft_goal_data',
+            collection='htps_soft_data',
             replace='keep',  # keep, add or drop if collection exists
     ) -> None:
 
@@ -87,7 +88,10 @@ class SoftGoalDataModule(pl.LightningDataModule):
 
         collection = MongoClient()[self.database][self.collection]
 
-        trace_files = filter_traces(self.trace_files)
+        # trace_files = filter_traces(self.trace_files)
+
+        path = Path(self.trace_files)
+        trace_files = [x for x in path.rglob("*") if x.is_file()]
 
         if not trace_files:
             return
@@ -95,6 +99,16 @@ class SoftGoalDataModule(pl.LightningDataModule):
         def add_trace(trace, split):
             nodes = trace.nodes
             nodes[trace.tree.goal] = trace.tree
+
+            edge_data, _, _ = trace.data['search_trace'][-1] if trace.data['search_trace'] else ({}, {}, {})
+
+            edge_nodes = set([edge[0] for edge in edge_data.keys()])
+
+            #  the maximum edge for each goal in the hypergraph
+            node_edges = {
+                node: max([v['w_score'] / max(1, v['visit_count']) for k, v in edge_data.items() if node == k[0]])
+                for node in edge_nodes
+            }
 
             visits = {node: nodes[node].visit_count for node in nodes.keys()}
 
@@ -107,23 +121,16 @@ class SoftGoalDataModule(pl.LightningDataModule):
 
                 proof_len = node.distance_to_proof
 
+                # score 1 if proven, 0 if failed, otherwise the best edge score from HTPS trace
                 if proof_len < math.inf:
                     node_data['target'] = 1
                 elif node.status == Status.FAILED:
                     node_data['target'] = 0
-                elif visits[node.goal] >= 64:
-                    if visits[node.goal] <= 128:
-                        node_data['target'] = 0.7
-                    elif visits[node.goal] <= 256:
-                        node_data['target'] = 0.6
-                    elif visits[node.goal] <= 512:
-                        node_data['target'] = 0.5
-                    elif visits[node.goal] <= 1024:
-                        node_data['target'] = 0.4
-                    else:
-                        node_data['target'] = 0.3
+                elif node.goal in node_edges and visits[node.goal] > 64:
+                    node_data['target'] = node_edges[node.goal]
                 else:
                     continue
+
                 node_data['split'] = split
                 collection.insert_one(node_data)
 
@@ -222,7 +229,6 @@ class SoftGoalDataModule(pl.LightningDataModule):
         # values set to -100 ignored in HuggingFace loss
         target_ids = tokenized_target.input_ids
         target_ids[target_ids == self.tokenizer.pad_token_id] = -100
-
 
         batch = {"state": state,
                  "state_ids": tokenized_state.input_ids,
