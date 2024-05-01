@@ -180,6 +180,7 @@ class HTPSSoftCriticDataModule(pl.LightningDataModule):
                                             filter_=val_filter,
                                             gpu_id=self.trainer.global_rank,
                                             num_gpus=self.trainer.num_devices,
+
                                             )
 
     def train_dataloader(self):
@@ -205,6 +206,8 @@ class HTPSSoftCriticDataModule(pl.LightningDataModule):
         goals = [g['goal'] for g in examples]
         targets = [g['target'] for g in examples]
         theorems = [g['theorem'] for g in examples]
+
+        # state = [self.critic_tok + ex for ex in goals]
 
         state = [theorems[i] + self.critic_tok + goals[i] for i in range(len(examples))]
 

@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: train_data_with_fails
+  name: binary_model_htps_data
   experiment: goal_model
 
 logging_config:
@@ -36,6 +36,7 @@ data_module:
   # runs/train_traces/0 # train traces
 
   replace: 'keep' # add/keep/drop files wrt the existing collection
+#  collection: 'htps_soft_data'
 
   # runs/seq2seq/seq2seq_eval_iteration_1/2024_03_01/21_46_35/traces/0
 

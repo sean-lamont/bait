@@ -5,6 +5,7 @@ import lightning.pytorch as pl
 from torch.nn import CrossEntropyLoss
 import torch
 from loguru import logger
+from torchmetrics.classification import BinaryConfusionMatrix
 from transformers import T5ForConditionalGeneration, AutoTokenizer, NoBadWordsLogitsProcessor
 
 from experiments.end_to_end.common import (
@@ -49,6 +50,8 @@ class HTPSSoftCritic(pl.LightningModule):
 
         self.ce_loss = CrossEntropyLoss()
 
+        self.bcm = BinaryConfusionMatrix()  # normalize='true')
+
     @classmethod
     def load(
             cls, ckpt_path: str, device, freeze: bool
@@ -62,7 +65,6 @@ class HTPSSoftCritic(pl.LightningModule):
             target_ids: torch.Tensor,
             soft_targets: torch.Tensor
     ) -> torch.Tensor:
-
         output = self.generator(
             input_ids=state_ids,
             attention_mask=state_mask,
@@ -80,7 +82,6 @@ class HTPSSoftCritic(pl.LightningModule):
         loss = self.ce_loss(logits, soft_targets)
 
         return loss
-
 
     ############
     # Training #
@@ -120,24 +121,72 @@ class HTPSSoftCritic(pl.LightningModule):
     # Validation #
     ##############
     def validation_step(self, batch, batch_idx: int):
-        loss = self(
-            batch["state_ids"],
-            batch["state_mask"],
-            batch["target_ids"],
-            batch["targets"]
-        )
+        output = self.generator(
+            input_ids=batch['state_ids'],
+            attention_mask=batch['state_mask'],
+            labels=batch['target_ids'])
+
+        filtered_logits = self.logits_processor(batch['state_ids'], output.logits)
+
+        provable_logit = filtered_logits[:, 0, self.provable_id]
+        unprovable_logit = filtered_logits[:, 0, self.unprovable_id]
+
+        logits = torch.stack([unprovable_logit, provable_logit], dim=1)
+
+        inds, preds = torch.max(logits, dim=1)
+
+        # consider accuracy wrt rounded labels
+        targets = (batch['targets'] >= 0.5).long().to(self.device)
+        confusion = self.bcm(preds, targets.long())
+
+        acc = torch.sum((preds == targets) / (preds == targets).shape[0])
 
         self.log(
-            "loss_val",
-            loss,
-            on_step=False,
+            "val_acc",
+            acc,
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
             prog_bar=True
         )
 
-        return loss
+        self.log(
+            "false_negs",
+            confusion[1][0],
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
+        )
+
+        self.log(
+            "true_negs",
+            confusion[0][0],
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
+        )
+
+        self.log(
+            "false_pos",
+            confusion[0][1],
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
+        )
+
+        self.log(
+            "true_pos",
+            confusion[1][1],
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
+        )
+
+        return
 
     ##############
     # Prediction #
