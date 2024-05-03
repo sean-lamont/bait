@@ -190,6 +190,10 @@ class LeanDojoEnv:
             result_node = ErrorNode(response)
             result = [result_node]
 
+        # sort result so that nodes are in the order they appear in the response state
+        if len(result) > 1:
+            result = sorted(result, key=lambda x: self.node_map[x.goal][0])
+
         # Build an edge connecting these nodes.
         edge = Edge(tactic=tactic, src=node, dst=result, tac_logprob=tac_logprob, goal_logprob=goal_logprob,
                     time=elapsed)
