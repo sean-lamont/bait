@@ -1,4 +1,3 @@
-
 import os
 
 import time
@@ -112,8 +111,9 @@ class LeanDojoEnv:
             assert isinstance(response, TacticState)
             response_goals = [g for g in response.pp.split("\n\n")]
             prev_goals = [g for g in state.pp.split("\n\n")]
+
             # for some reason, multiple copies of the same goal might be present
-            new_goals = list(set([g for g in response_goals if g not in prev_goals]))
+            new_goals = set([g for g in response_goals if g not in prev_goals])
 
             # Ensure that the selected goal was actually worked on
             # i.e. no additional rotates etc. in sampled tactic, no self cycles
@@ -145,8 +145,11 @@ class LeanDojoEnv:
                 result = [result_node]
             # new goals are present, replacing old goal
             else:
+                # need the indices of the goals in the response so they can be matched to the correct nodes
+                response_inds = {g: i for i, g in enumerate(response_goals)}
+
                 result = []
-                for i, goal in enumerate(new_goals):
+                for goal in new_goals:
                     # Treat cycles as error nodes
                     if goal in node.ancestors:
                         response = TreeError('Tactic Creates cycle')
@@ -162,7 +165,7 @@ class LeanDojoEnv:
                             depth=node.depth + 1
                         )
 
-                        self.node_map[goal] = (i, response, result_node)
+                        self.node_map[goal] = (response_inds[goal], response, result_node)
 
                     # todo add below to search processing?
                     # This will add the parent context (any goals required to prove the parent)
@@ -188,7 +191,6 @@ class LeanDojoEnv:
             result = [result_node]
 
         # Build an edge connecting these nodes.
-        # Will be added to the source node externally.
         edge = Edge(tactic=tactic, src=node, dst=result, tac_logprob=tac_logprob, goal_logprob=goal_logprob,
                     time=elapsed)
 
