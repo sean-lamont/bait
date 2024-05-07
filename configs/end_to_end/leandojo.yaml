@@ -4,16 +4,15 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: bestfs_2
+  name: levin_search_2
   experiment: end_to_end
-  resume: true
-  directory: runs/end_to_end/bestfs_2/2024_05_03/17_58_54
-  
+#  resume: true
+#  directory: runs/end_to_end/original/2024_02_08/09_55_29
 
 logging_config:
   project: end_to_end
   offline: false
-  id: f3t72k6j
+#  id: aohfsen9
 
 num_theorems: 2000 #94000
 
@@ -49,24 +48,24 @@ log_level: 'INFO'
 
 # Resource configuration
 # number of physical GPUs
-num_gpus: 1
+num_gpus: 2
 # how many 'logical' GPUs available, should be a multiple of num_gpus.
 # Will control the number of separate tactic/search model processes
-logical_gpus: 1
-num_cpus: 16
+logical_gpus: 4
+num_cpus: 8 #16
 # How much GPU memory to allocate per prover (should be low, since the model is using most of the GPU)
 gpu_per_prover: 0.01
 # CPU resources to allocate per prover.
 cpu_per_prover: 1
 # How many provers to assign per logical GPU. Each of these provers will share one tactic/search process.
-provers_per_gpu: 2
+provers_per_gpu: 1
 
 
 tac_model:
   model: reprover
   ckpt_path: null #runs/end_to_end/seq2seq_iteration1_best.ckpt #null
-
   num_sampled_tactics: 64
+
   distributed: true
   gpu_per_process: 0.45
   cpu_per_process: 1
@@ -95,8 +94,7 @@ tac_model:
       eval_num_theorems: 200
       shuffle: false
       timeout: 600
-
-# configuration for LoRA models
+    # configuration for LoRA models
 #    lora_config:
 #      target_modules: ['q', 'k', 'v', 'o', 'wo', 'lm_head']
 #      task_type: "SEQ_2_SEQ_LM"
@@ -106,9 +104,10 @@ tac_model:
 
 
 search_model:
-  search: bestfs
+  search: levin
 #    search: htps
-#    ckpt_path: runs/goal_model/binary_model/2024_03_08/17_18_00/checkpoints/last.ckpt
+#    ckpt_path: runs/train_goal_model/epoch=1-step=836919-val_acc=0.79.ckpt
+##  epoch=0-step=355000-val_acc=0.79.ckpt
 #    distributed: true
 #    gpu_per_process: 0.45
 #    cpu_per_process: 0.5
@@ -123,11 +122,11 @@ search_model:
 #  gpu_per_process: 0.45 #0.225
 #  cpu_per_process: 1 # 0.5
 
-
 # Commands to run for retraining the model(s) after every evaluation
-train_after_eval: null
-#  - python3 -m experiments.lightning_runner --config-name=end_to_end/train/goal_model/run data_module.trace_files=${exp_config.directory}/traces
+train_after_eval:
+  - python3 -m experiments.lightning_runner --config-name=end_to_end/train/goal_model/run data_module.trace_files=${exp_config.directory}/traces
 #  - python3 -m experiments.lightning_runner --config-name=end_to_end/train/gen_seq2seq/run data_module.trace_files=${exp_config.directory}/traces
+#  - python3 -m experiments.lightning_runner --config-name=end_to_end/train/goal_model/run data_module.trace_files=${exp_config.directory}/traces
 
 # The model and its checkpoint attribute to update.
 # Must be same length as train_after_eval, with each index corresponding to the associated command

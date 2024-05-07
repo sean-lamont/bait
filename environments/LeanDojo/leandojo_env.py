@@ -5,7 +5,7 @@ from typing import Tuple
 
 from loguru import logger
 
-from lean_dojo.constants import LEAN3_DEPS_DIR, LEAN4_DEPS_DIR
+from lean_dojo.constants import LEAN4_PACKAGES_DIR
 
 from experiments.end_to_end.common import remove_marks
 from experiments.end_to_end.proof_node import *
@@ -13,8 +13,8 @@ from experiments.end_to_end.proof_node import *
 from lean_dojo import (
     Dojo,
     ProofFinished,
-    TacticError,
-    # LeanError,
+    # TacticError,
+    LeanError,
     TimeoutError,
     TacticState,
     ProofGivenUp
@@ -61,13 +61,9 @@ class LeanDojoEnv:
     def retrieve_premises(self):
         path = str(self.thm.file_path)
 
+        print (path, self.thm, self.repo, self.pos)
         if self.thm.repo != self.repo:
-            if self.thm.repo.uses_lean3:
-                path = os.path.join(LEAN3_DEPS_DIR, self.thm.repo.name, path)
-            elif self.thm.repo.is_lean:
-                raise NotImplementedError
-            else:
-                path = os.path.join(LEAN4_DEPS_DIR, self.thm.repo.name, path)
+            path = os.path.join(LEAN4_PACKAGES_DIR, self.thm.repo.name, path)
 
         return path, self.thm, self.pos
 
@@ -95,8 +91,8 @@ class LeanDojoEnv:
         result_node = []
 
         if type(response) in (
-                TacticError,
-                # LeanError,
+                # TacticError,
+                LeanError,
                 TimeoutError,
                 ProofGivenUp,
         ):

@@ -1,6 +1,5 @@
 import json
 import argparse
-import sys
 from glob import glob
 from loguru import logger
 from lean_dojo import LeanGitRepo, trace, is_available_in_cache
@@ -21,10 +20,8 @@ def main() -> None:
     repos = set()
     for url, commit in url_commits:
         repo = LeanGitRepo(url, commit)
-        if not is_available_in_cache(repo):
+        if not is_available_in_cache(repo) and not repo.is_lean4:
             repos.add(repo)
-        else:
-            logger.info(f'{repo} already traced')
 
     logger.info(f"Repos to trace: {repos}")
 
@@ -33,6 +30,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    logger.remove()
-    logger.add(sys.stderr, level="DEBUG")
     main()

@@ -61,6 +61,9 @@ class ReplayProver:
         root = self.root
         nodes = self.nodes
 
+        if not root:
+            return
+
         if root.status == Status.PROVED:
             proof = [e.tactic for e in root.extract_proof()]
         else:
@@ -86,8 +89,9 @@ class ReplayProver:
             data=data
         )
 
-        with open(os.path.join(self.dir, get_thm_name(self.env_name, theorem)), "wb") as f:
-            pickle.dump(result, f)
+        if proof:
+            with open(os.path.join(self.dir, get_thm_name(self.env_name, theorem)), "wb") as f:
+                pickle.dump(result, f)
 
         return
 
@@ -175,46 +179,50 @@ class ReplayProver:
             self.nodes = {}
 
             with env as (env, root):
-                time_start = time.monotonic()
-                logger.info(f'Replaying proof of {root}')
+                try:
+                    time_start = time.monotonic()
+                    logger.info(f'Replaying proof of {root}')
 
-                ordered_states = [root]
-                all_states = [root]
+                    ordered_states = [root]
+                    all_states = [root]
 
-                self.root = root
+                    self.root = root
 
-                if not root:
-                    raise Exception('Invalid root')
+                    if not root:
+                        raise Exception('Invalid root')
 
-                print('Proof:', proof)
+                    print('Proof:', proof)
 
-                for tactic in proof:
-                    state = ordered_states.pop()
-                    response = env.run_tactic((state, 1.0), (tactic, 1.0))
+                    for tactic in proof:
+                        state = ordered_states.pop()
+                        response = env.run_tactic((state, 1.0), (tactic, 1.0))
 
-                    # logger.info(f"Running {tactic} on {state}, got {response}")
+                        # logger.info(f"Running {tactic} on {state}, got {response}")
 
-                    if isinstance(response.dst[0], InternalNode):
-                        ordered_states.extend(reversed(response.dst))
-                    elif isinstance(response.dst[0], ErrorNode):
-                        logger.info(f'Error in proof: {response.dst[0]}')
+                        if isinstance(response.dst[0], InternalNode):
+                            ordered_states.extend(reversed(response.dst))
+                        elif isinstance(response.dst[0], ErrorNode):
+                            logger.info(f'Error in proof: {response.dst[0]}')
+                            break
 
-                    all_states.extend(response.dst)
-                    self.trace.append(response)
-                    self.num_expansions += 1
+                        all_states.extend(response.dst)
+                        self.trace.append(response)
+                        self.num_expansions += 1
 
-                self.nodes = {n.goal: n for n in all_states if isinstance(n, InternalNode)}
+                    self.nodes = {n.goal: n for n in all_states if isinstance(n, InternalNode)}
 
-                if not root.status == Status.PROVED:
-                    logger.info("Proof not replicated.")
-                    self.total_time = time.monotonic() - time_start
-                    return False
-                else:
-                    logger.info("Generating additional data from proof nodes")
-                    all_states = [n for n in all_states if isinstance(n, InternalNode)]
-                    self.proof_path = all_states
-                    self._step(env)
-                    return True
+                    if not root.status == Status.PROVED:
+                        logger.info("Proof not replicated.")
+                        self.total_time = time.monotonic() - time_start
+                        return False
+                    else:
+                        logger.info("Generating additional data from proof nodes")
+                        all_states = [n for n in all_states if isinstance(n, InternalNode)]
+                        self.proof_path = all_states
+                        self._step(env)
+                        return True
+                except Exception as e:
+                    raise Exception(e)
 
         except Exception as e:
             if root:

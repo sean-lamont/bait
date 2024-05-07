@@ -20,7 +20,7 @@ from environments.LeanDojo.leandojo_env import LeanDojoEnv
 from experiments.end_to_end.common import zip_strict
 
 # todo hack for now, just load theorem database globally for hol4 get_thm_name
-hol4_thm_db = json.load(open('/home/sean/Documents/phd/bait/data/HOL4/data/adjusted_db.json'))
+# hol4_thm_db = json.load(open('/home/sean/Documents/phd/bait/data/HOL4/data/adjusted_db.json'))
 
 
 def get_thm_name(env, thm):

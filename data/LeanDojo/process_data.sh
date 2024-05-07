@@ -1,2 +1,2 @@
 cd "$(dirname "${BASH_SOURCE[0]}")"
-python scripts/download_data.py && python scripts/trace_repos.py
+python scripts/download_data.py && python scripts/trace_repos.py && cd ../../ && python -m data.LeanDojo.scripts.data_stats
