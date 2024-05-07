@@ -9,12 +9,12 @@ from loguru import logger
 from lean_dojo import Pos
 from collections import defaultdict
 
-from experiments.end_to_end.common import Corpus
+from experiments.end_to_end.common import LeanDojoCorpus as Corpus
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-path", type=Path, default="data/leandojo_benchmark_4/")
+    parser.add_argument("--data-path", type=Path, default="data/LeanDojo/data/leandojo_benchmark_4/")
     args = parser.parse_args()
     logger.info(args)
 

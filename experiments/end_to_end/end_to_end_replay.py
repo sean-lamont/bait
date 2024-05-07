@@ -159,6 +159,7 @@ class ReplayProver:
                 ret = self._search(env, proof)
             except Exception as e:
                 logger.warning(f'Environment error {e}')
+                traceback.print_exc()
                 # will only be raised if there is no valid root from search (e.g. error loading environment)
                 self.log_error(str(e), get_thm_name(self.env_name, env.thm))
                 ret = False
@@ -331,7 +332,15 @@ def main(config) -> None:
     # todo only for LeanDojo
     proofs = _load_data(config.proof_path, True)
 
-    theorems = [thm for thm in theorems if proofs[get_thm_name('leandojo', thm[1])]]
+    for thm in tqdm(theorems):
+        if get_thm_name('leandojo', thm[1]) not in proofs:
+            logger.warning(f'No proof found for {thm[1]}')
+            theorems.remove(thm)
+        elif not proofs[get_thm_name('leandojo', thm[1])]:
+            logger.warning(f'Empty proof for {thm[1]}')
+            theorems.remove(thm)
+
+    # theorems = [thm for thm in theorems if proofs[get_thm_name('leandojo', thm[1])]]
 
     prover = DistributedReplay(config, 0)
 
