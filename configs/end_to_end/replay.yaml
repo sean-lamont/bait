@@ -12,7 +12,7 @@ logging_config:
   offline: true
 
 
-num_theorems: 94000
+num_theorems: 2000
 proof_path: data/LeanDojo/data/leandojo_benchmark_4/random/train.json
 
 # environment to use (leandojo, holist)

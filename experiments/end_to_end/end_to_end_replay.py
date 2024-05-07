@@ -332,15 +332,13 @@ def main(config) -> None:
     # todo only for LeanDojo
     proofs = _load_data(config.proof_path, True)
 
+    valid_thms = []
     for thm in tqdm(theorems):
         if get_thm_name('leandojo', thm[1]) not in proofs:
             logger.warning(f'No proof found for {thm[1]}')
-            theorems.remove(thm)
-        elif not proofs[get_thm_name('leandojo', thm[1])]:
-            logger.warning(f'Empty proof for {thm[1]}')
-            theorems.remove(thm)
+        elif proofs[get_thm_name('leandojo', thm[1])]:
+            valid_thms.append(thm)
 
-    # theorems = [thm for thm in theorems if proofs[get_thm_name('leandojo', thm[1])]]
 
     prover = DistributedReplay(config, 0)
 
