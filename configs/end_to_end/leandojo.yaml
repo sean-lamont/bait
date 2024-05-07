@@ -4,15 +4,16 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: htps_no_critic
+  name: bestfs_2
   experiment: end_to_end
   resume: true
-  directory: runs/end_to_end/htps_no_critic/2024_04_21/16_34_02
+  directory: runs/end_to_end/bestfs_2/2024_05_03/17_58_54
+  
 
 logging_config:
   project: end_to_end
   offline: false
-  id: d96i3o8b
+  id: f3t72k6j
 
 num_theorems: 2000 #94000
 
@@ -60,12 +61,12 @@ cpu_per_prover: 1
 # How many provers to assign per logical GPU. Each of these provers will share one tactic/search process.
 provers_per_gpu: 2
 
-num_sampled_tactics: 64
 
 tac_model:
   model: reprover
   ckpt_path: null #runs/end_to_end/seq2seq_iteration1_best.ckpt #null
 
+  num_sampled_tactics: 64
   distributed: true
   gpu_per_process: 0.45
   cpu_per_process: 1
@@ -105,12 +106,13 @@ tac_model:
 
 
 search_model:
-    search: htps
-    ckpt_path: runs/goal_model/binary_model/2024_03_08/17_18_00/checkpoints/last.ckpt
-    distributed: true
-    gpu_per_process: 0.45
-    cpu_per_process: 0.5
-    exploration_constant: 1
+  search: bestfs
+#    search: htps
+#    ckpt_path: runs/goal_model/binary_model/2024_03_08/17_18_00/checkpoints/last.ckpt
+#    distributed: true
+#    gpu_per_process: 0.45
+#    cpu_per_process: 0.5
+#    exploration_constant: 1
 
 #  search: bfs
 #  search: bestfs

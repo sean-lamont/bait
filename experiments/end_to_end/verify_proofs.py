@@ -1,6 +1,7 @@
 import glob
 import pickle
 import sys
+from multiprocessing import Pool
 
 from lean_dojo.interaction.dojo import Dojo
 from lean_dojo.interaction.dojo import TacticState, ProofFinished
@@ -46,27 +47,52 @@ def check_file(trace):
         return True
 
 
+def process_file(file):
+    trace = pickle.load(open(file, 'rb'))
+    verified_proof = 0
+    if not trace.proof:
+        logger.info(f'No proof for {trace.theorem.full_name}')
+        found_proof = 0
+    else:
+        found_proof = 1
+        try:
+            res = check_file(trace)
+            if res:
+                verified_proof = 1
+        except Exception as e:
+            logger.warning(f'Error verifying proof of {file}: {e}')
+
+    return found_proof, verified_proof
+
+
 if __name__ == '__main__':
     # get trace_dir from system arguments
     trace_dir = sys.argv[1]
 
     files = list(glob.glob(trace_dir + '/*'))
 
-    total_proofs = 0
-    verified_proofs = 0
-    
-    for file in tqdm(files):
-        trace = pickle.load(open(file, 'rb'))
-        if not trace.proof:
-            logger.info(f'No proof for {trace.theorem.full_name}')
-        else:
-            total_proofs += 1
-            try:
-                res = check_file(trace)
-                if res:
-                    verified_proofs += 1
-            except Exception as e:
-                logger.warning(f'Error verifying proof of {file}: {e}')
-                continue
+    # total_proofs = 0
+    # verified_proofs = 0
+    #
+    # for file in tqdm(files):
+    #     trace = pickle.load(open(file, 'rb'))
+    #     if not trace.proof:
+    #         logger.info(f'No proof for {trace.theorem.full_name}')
+    #     else:
+    #         total_proofs += 1
+    #         try:
+    #             res = check_file(trace)
+    #             if res:
+    #                 verified_proofs += 1
+    #         except Exception as e:
+    #             logger.warning(f'Error verifying proof of {file}: {e}')
+    #             continue
+
+    # multithread the above instead:
+
+    with Pool(14) as p:
+        results = list(tqdm(p.imap(process_file, files), total=len(files)))
+        total_proofs = sum([r[0] for r in results])
+        verified_proofs = sum([r[1] for r in results])
 
     logger.info(f'Valid proofs: {verified_proofs}/{total_proofs}')

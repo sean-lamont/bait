@@ -25,6 +25,12 @@ from experiments.end_to_end.search_result import SearchResult
 from models.end_to_end.tactic_models.tac_models import get_tac_model
 
 
+"""
+
+Replay human proofs, and generate additional data for each node in the proof path. 
+Useful to get some 'negative' data to compare with the positive data from the human proofs.
+
+"""
 class ReplayProver:
     def __init__(self, timeout, tac_model, directory, env_name='leandojo', iteration=0):
         self.timeout = timeout
@@ -190,8 +196,8 @@ class ReplayProver:
 
                     if isinstance(response.dst[0], InternalNode):
                         ordered_states.extend(reversed(response.dst))
-                    else:
-                        logger.info(f'Error in proof: {response}')
+                    elif isinstance(response.dst[0], ErrorNode):
+                        logger.info(f'Error in proof: {response.dst[0]}')
 
                     all_states.extend(response.dst)
                     self.trace.append(response)
