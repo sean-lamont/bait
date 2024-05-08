@@ -32,7 +32,6 @@ Environment Wrapper over LeanDojo. Adds premise retrieval and processing of proo
 '''
 
 
-# todo option to not split subgoals
 class LeanDojoEnv:
     def __init__(self, thm, timeout):
         self.timeout = timeout
@@ -61,7 +60,6 @@ class LeanDojoEnv:
     def retrieve_premises(self):
         path = str(self.thm.file_path)
 
-        print (path, self.thm, self.repo, self.pos)
         if self.thm.repo != self.repo:
             path = os.path.join(LEAN4_PACKAGES_DIR, self.thm.repo.name, path)
 
@@ -78,7 +76,7 @@ class LeanDojoEnv:
 
         if goal_num != 0:
             # ensure the tactic is applied to the correct goal in the surrogate state
-            tactic_ = f'tactic.rotate_left {goal_num}, ' + remove_marks(tactic)
+            tactic_ = f'(rotate_left {goal_num}; {remove_marks(tactic)})'
         else:
             tactic_ = remove_marks(tactic)
 
