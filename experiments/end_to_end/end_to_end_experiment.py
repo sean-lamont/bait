@@ -9,6 +9,7 @@ import random
 import re
 import sys
 import time
+import traceback
 from subprocess import CalledProcessError
 
 import hydra
@@ -158,13 +159,19 @@ class EndToEndProver:
                 self._search(env)
             except Exception as e:
                 logger.warning(f'Environment error {e}')
+                logger.info(f'current dir: {os.getcwd()}')
+                traceback.print_exc()
                 # will only be raised if there is no valid root from search (e.g. error loading environment)
-                self.log_error(str(e), get_thm_name(self.env_name, env.thm))
+                # self.log_error(str(e), get_thm_name(self.env_name, env.thm))
 
                 root = ErrorNode(EnvironmentError(str(e)))
                 self.search_model.reset(root)
 
-        self._process_trace(env.thm)
+        try:
+            self._process_trace(env.thm)
+        except:
+            logger.warning(f"Error processing trace for {env.thm}")
+            pass
 
         return self.search_model.root.status == Status.PROVED
 
@@ -188,8 +195,11 @@ class EndToEndProver:
                     except Exception as e:
                         if not (self.env_time >= self.timeout):
                             logger.warning(f"Exception not timeout: {e}")
+                            traceback.print_exc()
                             root.status = Status.FAILED
-                            self.log_error(str(e), get_thm_name(self.env_name, env.thm))
+                            env.__exit__()
+                            logger.warning(f'current working directory: {os.getcwd()}')
+                            # self.log_error(str(e), get_thm_name(self.env_name, env.thm))
 
                     self.total_time = time.monotonic() - time_start
 
@@ -332,6 +342,8 @@ def main(config) -> None:
         random.shuffle(theorems)
 
     theorems = theorems[:config.num_theorems]
+
+    # theorems = [t for t in theorems if t[1].full_name == 'Module.preReflection_preReflection']
 
     num_iterations = config.num_iterations if hasattr(config, 'num_iterations') else 1
 

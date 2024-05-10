@@ -151,7 +151,15 @@ class LeanDojoEnv:
                         result = [result_node]
                         break
                     if goal in self.node_map:
-                        goal_num, _, result_node = self.node_map[goal]
+                        goal_num, state, result_node = self.node_map[goal]
+                        # unless the new state and response are the same, conservatively say this is an error
+                        # as in lean 4 we can have subgoals hidden in the response
+                        if state.pp != response.pp:
+                            response = TreeError('Different tactic states for same goal')
+                            result_node = ErrorNode(response)
+                            result = [result_node]
+                            break
+
                     else:
                         result_node = InternalNode(
                             goal=goal,
