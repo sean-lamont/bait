@@ -5,7 +5,7 @@ from typing import Tuple
 
 from loguru import logger
 
-from lean_dojo.constants import LEAN3_PACKAGES_DIR
+from lean_dojo.constants import LEAN4_PACKAGES_DIR
 
 from experiments.end_to_end.common import remove_marks
 from experiments.end_to_end.proof_node import *
@@ -13,6 +13,7 @@ from experiments.end_to_end.proof_node import *
 from lean_dojo import (
     Dojo,
     ProofFinished,
+    # TacticError,
     LeanError,
     TimeoutError,
     TacticState,
@@ -31,7 +32,6 @@ Environment Wrapper over LeanDojo. Adds premise retrieval and processing of proo
 '''
 
 
-# todo option to not split subgoals
 class LeanDojoEnv:
     def __init__(self, thm, timeout):
         self.timeout = timeout
@@ -61,7 +61,8 @@ class LeanDojoEnv:
         path = str(self.thm.file_path)
 
         if self.thm.repo != self.repo:
-            path = os.path.join(LEAN3_PACKAGES_DIR, self.thm.repo.name, path)
+            path = os.path.join(LEAN4_PACKAGES_DIR, self.thm.repo.name, path)
+
         return path, self.thm, self.pos
 
     def run_tactic(self, node: Tuple[InternalNode, float], tactic: Tuple[str, float]):  # -> Tuple[Edge, List]:
@@ -75,7 +76,7 @@ class LeanDojoEnv:
 
         if goal_num != 0:
             # ensure the tactic is applied to the correct goal in the surrogate state
-            tactic_ = f'tactic.rotate_left {goal_num}, ' + remove_marks(tactic)
+            tactic_ = f'(rotate_left {goal_num}; {remove_marks(tactic)})'
         else:
             tactic_ = remove_marks(tactic)
 
@@ -88,6 +89,7 @@ class LeanDojoEnv:
         result_node = []
 
         if type(response) in (
+                # TacticError,
                 LeanError,
                 TimeoutError,
                 ProofGivenUp,
@@ -149,7 +151,15 @@ class LeanDojoEnv:
                         result = [result_node]
                         break
                     if goal in self.node_map:
-                        goal_num, _, result_node = self.node_map[goal]
+                        goal_num, state, result_node = self.node_map[goal]
+                        # unless the new state and response are the same, conservatively say this is an error
+                        # as in lean 4 we can have subgoals hidden in the response
+                        if state.pp != response.pp:
+                            response = TreeError('Different tactic states for same goal')
+                            result_node = ErrorNode(response)
+                            result = [result_node]
+                            break
+
                     else:
                         result_node = InternalNode(
                             goal=goal,

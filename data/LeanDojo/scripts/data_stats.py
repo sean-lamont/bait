@@ -14,7 +14,7 @@ from experiments.end_to_end.common import LeanDojoCorpus as Corpus
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-path", type=Path, default="data/LeanDojo/data/leandojo_benchmark_4/")
+    parser.add_argument("--data-path", type=Path, default="data/LeanDojo/data/leandojo_benchmark/")
     args = parser.parse_args()
     logger.info(args)
 

@@ -7,7 +7,7 @@ from lean_dojo import LeanGitRepo, trace, is_available_in_cache
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-path", type=str, default="data")
+    parser.add_argument("--data-path", type=str, default="data/leandojo_benchmark")
     args = parser.parse_args()
     logger.info(args)
 

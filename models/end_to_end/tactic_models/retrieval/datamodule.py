@@ -1,20 +1,20 @@
 """Datamodule for the premise retrieval."""
-import os
-import json
-import torch
-import random
 import itertools
-from tqdm import tqdm
-from loguru import logger
+import json
+import os
+import random
 from copy import deepcopy
-from lean_dojo import Pos
-import lightning.pytorch as pl
-from lean_dojo import LeanGitRepo
 from typing import Optional, List
-from transformers import AutoTokenizer
-from torch.utils.data import Dataset, DataLoader
-from lean_dojo.constants import LEAN3_DEPS_DIR, LEAN4_DEPS_DIR
 
+import lightning.pytorch as pl
+import torch
+from lean_dojo import LeanGitRepo
+from lean_dojo import Pos
+from lean_dojo.constants import LEAN3_PACKAGES_DIR, LEAN4_PACKAGES_DIR
+from loguru import logger
+from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
+from transformers import AutoTokenizer
 
 from experiments.end_to_end.common import Context, LeanDojoCorpus, Batch, Example, format_state, get_all_pos_premises
 
@@ -57,7 +57,7 @@ class LeanDojoRetrievalDataset(Dataset):
             else:
                 # The theorem is from a dependency.
                 _, repo_name = os.path.split(thm["url"])
-                deps_dir = LEAN4_DEPS_DIR if uses_lean4 else LEAN3_DEPS_DIR
+                deps_dir = LEAN4_PACKAGES_DIR if uses_lean4 else LEAN3_PACKAGES_DIR
                 file_path = os.path.join(deps_dir, repo_name, thm["file_path"])
 
             for i, tac in enumerate(thm["traced_tactics"]):

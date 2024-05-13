@@ -4,14 +4,14 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: levin_search_2
+  name: bestfs
   experiment: end_to_end
 #  resume: true
 #  directory: runs/end_to_end/original/2024_02_08/09_55_29
 
 logging_config:
   project: end_to_end
-  offline: false
+  offline: true
 #  id: aohfsen9
 
 num_theorems: 2000 #94000
@@ -48,17 +48,17 @@ log_level: 'INFO'
 
 # Resource configuration
 # number of physical GPUs
-num_gpus: 2
+num_gpus: 1
 # how many 'logical' GPUs available, should be a multiple of num_gpus.
 # Will control the number of separate tactic/search model processes
-logical_gpus: 4
-num_cpus: 8 #16
+logical_gpus: 1
+num_cpus: 16 #16
 # How much GPU memory to allocate per prover (should be low, since the model is using most of the GPU)
 gpu_per_prover: 0.01
 # CPU resources to allocate per prover.
 cpu_per_prover: 1
 # How many provers to assign per logical GPU. Each of these provers will share one tactic/search process.
-provers_per_gpu: 1
+provers_per_gpu: 4
 
 
 tac_model:
@@ -104,7 +104,7 @@ tac_model:
 
 
 search_model:
-  search: levin
+  search: bestfs
 #    search: htps
 #    ckpt_path: runs/train_goal_model/epoch=1-step=836919-val_acc=0.79.ckpt
 ##  epoch=0-step=355000-val_acc=0.79.ckpt
@@ -123,8 +123,8 @@ search_model:
 #  cpu_per_process: 1 # 0.5
 
 # Commands to run for retraining the model(s) after every evaluation
-train_after_eval:
-  - python3 -m experiments.lightning_runner --config-name=end_to_end/train/goal_model/run data_module.trace_files=${exp_config.directory}/traces
+train_after_eval: null
+#  - python3 -m experiments.lightning_runner --config-name=end_to_end/train/goal_model/run data_module.trace_files=${exp_config.directory}/traces
 #  - python3 -m experiments.lightning_runner --config-name=end_to_end/train/gen_seq2seq/run data_module.trace_files=${exp_config.directory}/traces
 #  - python3 -m experiments.lightning_runner --config-name=end_to_end/train/goal_model/run data_module.trace_files=${exp_config.directory}/traces
 

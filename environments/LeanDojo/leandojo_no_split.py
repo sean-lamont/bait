@@ -1,23 +1,19 @@
 import os
-
 import time
 from typing import Tuple
-
-from loguru import logger
-
-from lean_dojo.constants import LEAN3_DEPS_DIR, LEAN4_DEPS_DIR
-
-from experiments.end_to_end.common import remove_marks
-from experiments.end_to_end.proof_node import *
 
 from lean_dojo import (
     Dojo,
     ProofFinished,
-    LeanError,
     TimeoutError,
     TacticState,
-    ProofGivenUp
+    ProofGivenUp,
+    LeanError
 )
+from lean_dojo.constants import LEAN3_PACKAGES_DIR
+
+from experiments.end_to_end.common import remove_marks
+from experiments.end_to_end.proof_node import *
 
 
 class EnvInitError(Exception):
@@ -60,12 +56,7 @@ class LeanDojoNoSplitEnv:
         path = str(self.thm.file_path)
 
         if self.thm.repo != self.repo:
-            if self.thm.repo.uses_lean3:
-                path = os.path.join(LEAN3_DEPS_DIR, self.thm.repo.name, path)
-            elif self.thm.repo.is_lean:
-                raise NotImplementedError
-            else:
-                path = os.path.join(LEAN4_DEPS_DIR, self.thm.repo.name, path)
+            path = os.path.join(LEAN3_PACKAGES_DIR)
 
         return path, self.thm, self.pos
 
@@ -87,8 +78,7 @@ class LeanDojoNoSplitEnv:
         self.environment_time += elapsed
 
         if type(response) in (
-                TacticError,
-                # LeanError,
+                LeanError,
                 TimeoutError,
                 ProofGivenUp,
         ):
