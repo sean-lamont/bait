@@ -1,22 +1,21 @@
 """Datamodule for the premise retrieval."""
-import os
-import json
-import torch
-import random
 import itertools
-from tqdm import tqdm
-from loguru import logger
+import json
+import os
+import random
 from copy import deepcopy
-from lean_dojo import Pos
-import pytorch_lightning as pl
-from lean_dojo import LeanGitRepo
 from typing import Optional, List
-from transformers import AutoTokenizer
-from torch.utils.data import Dataset, DataLoader
-from lean_dojo.constants import LEAN3_DEPS_DIR, LEAN4_DEPS_DIR
 
-
+import pytorch_lightning as pl
+import torch
 from common import Context, Corpus, Batch, Example, format_state, get_all_pos_premises
+from lean_dojo import LeanGitRepo
+from lean_dojo import Pos
+from lean_dojo.constants import LEAN3_DEPS_DIR, LEAN4_DEPS_DIR
+from loguru import logger
+from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
+from transformers import AutoTokenizer
 
 
 class RetrievalDataset(Dataset):
