@@ -11,7 +11,7 @@ exp_config:
 
 logging_config:
   project: end_to_end
-  offline: true
+  offline: false
 #  id: aohfsen9
 
 num_theorems: 2000 #94000
@@ -70,7 +70,7 @@ tac_model:
   gpu_per_process: 0.45
   cpu_per_process: 1
   config:
-    model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
+    model_name: sean-lamont/leandojo-lean3-generator-random
 
 
 ##   retriever args
