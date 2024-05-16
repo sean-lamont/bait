@@ -11,8 +11,7 @@ from tqdm import tqdm
 from experiments.end_to_end.common import remove_marks
 
 
-# todo check trace for environment, and handle separately
-# todo multiprocessing
+# todo check trace for environment, and handle separately, currently only LeanDojo supported
 
 def verify_proof(trace):
     proof = trace.proof

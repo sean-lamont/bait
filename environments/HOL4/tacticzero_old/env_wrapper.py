@@ -12,7 +12,12 @@ import os
 from copy import deepcopy
 import re
 
-# todo move to config
+"""
+
+HOL4 environment for use with original TacticZero experiments.
+
+"""
+
 MORE_TACTICS = True
 if not MORE_TACTICS:
     thms_tactic = ["simp", "fs", "metis_tac"]
@@ -613,7 +618,7 @@ def construct_map(history):
         # dependency_table[(revert_assumptions(parent_goal), parent_fringe_id, parent_goal_id)] = (tactic, [(p, current_fringe_id, content.index(p)) for p in content if p not in parent_fringe["content"]])
         new_content = content[len(parent_fringe["content"]) - 1:]
         dependency_table[(revert_assumptions(parent_goal), parent_goal["origin_fringe"])] = (
-        remove_duplicates(tactic), new_content)
+            remove_duplicates(tactic), new_content)
 
         if parent_fringe_id == 0:
             break

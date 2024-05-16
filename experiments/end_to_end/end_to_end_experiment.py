@@ -12,6 +12,10 @@ import time
 import traceback
 from subprocess import CalledProcessError
 
+
+# for Lean 3
+os.environ['CONTAINER'] = 'docker'
+
 import hydra
 import ray
 import torch
@@ -197,7 +201,7 @@ class EndToEndProver:
                             logger.warning(f"Exception not timeout: {e}")
                             traceback.print_exc()
                             root.status = Status.FAILED
-                            env.__exit__()
+                            env._cleanup()
                             logger.warning(f'current working directory: {os.getcwd()}')
                             # self.log_error(str(e), get_thm_name(self.env_name, env.thm))
 

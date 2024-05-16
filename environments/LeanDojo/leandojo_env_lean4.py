@@ -1,24 +1,20 @@
 import os
-
 import time
 from typing import Tuple
-
-from loguru import logger
-
-from lean_dojo.constants import LEAN4_PACKAGES_DIR
-
-from experiments.end_to_end.common import remove_marks
-from experiments.end_to_end.proof_node import *
 
 from lean_dojo import (
     Dojo,
     ProofFinished,
-    # TacticError,
     LeanError,
     TimeoutError,
     TacticState,
     ProofGivenUp
 )
+from lean_dojo.constants import LEAN4_PACKAGES_DIR
+from loguru import logger
+
+from experiments.end_to_end.common import remove_marks
+from experiments.end_to_end.proof_node import *
 
 
 class EnvInitError(Exception):
@@ -30,6 +26,10 @@ class EnvInitError(Exception):
 Environment Wrapper over LeanDojo. Adds premise retrieval and processing of proof tree
 
 '''
+
+
+# todo rotate tactic doesn't seem to work as it does in Lean 3.
+#  Some states with the same subgoal text, but a tactic which proves one doesn't prove the other
 
 
 class LeanDojoEnv:
@@ -89,7 +89,6 @@ class LeanDojoEnv:
         result_node = []
 
         if type(response) in (
-                # TacticError,
                 LeanError,
                 TimeoutError,
                 ProofGivenUp,

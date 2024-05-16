@@ -31,7 +31,6 @@ Environment Wrapper over LeanDojo. Adds premise retrieval and processing of proo
 '''
 
 
-# todo option to not split subgoals
 class LeanDojoEnv:
     def __init__(self, thm, timeout):
         self.timeout = timeout
@@ -56,6 +55,10 @@ class LeanDojoEnv:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.dojo.__exit__(exc_type, exc_val, exc_tb)
+
+    def _cleanup(self):
+        self.dojo._cancel_timer()
+        self.dojo._cleanup()
 
     def retrieve_premises(self):
         path = str(self.thm.file_path)

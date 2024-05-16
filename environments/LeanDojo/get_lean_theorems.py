@@ -10,7 +10,6 @@ from lean_dojo import (
 )
 from lean_dojo import is_available_in_cache
 from loguru import logger
-from tqdm import tqdm
 
 
 def _get_theorems(args) -> Tuple[LeanGitRepo, List[Theorem], List[Pos]]:

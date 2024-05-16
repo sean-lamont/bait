@@ -17,7 +17,7 @@ from experiments.end_to_end.proof_node import ErrorNode, Status
 from experiments.end_to_end.stream_dataset import GoalStreamDataset, worker_init_fn
 
 
-class GoalProvableDataModule(pl.LightningDataModule):
+class HardGoalDataModule(pl.LightningDataModule):
     def __init__(
             self,
             model_name: str,
@@ -98,20 +98,12 @@ class GoalProvableDataModule(pl.LightningDataModule):
             nodes = trace.nodes
             nodes[trace.tree.goal] = trace.tree
 
-            visits = {node: nodes[node].visit_count for node in nodes.keys()}
-
-            for goal, node in nodes.items():
-                for a in node.ancestors:
-                    visits[a] += node.visit_count
-
             for node in trace.nodes.values():
                 node_data = {'goal': node.goal}
                 proof_len = node.distance_to_proof
                 if proof_len < math.inf:
                     node_data['target'] = 1
                 elif node.status == Status.FAILED:
-                    node_data['target'] = 0
-                elif visits[node.goal] >= self.visit_threshold:
                     node_data['target'] = 0
                 else:
                     continue

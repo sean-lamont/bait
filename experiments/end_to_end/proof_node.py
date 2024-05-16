@@ -289,10 +289,7 @@ class InternalNode(Node):
         if self.status != Status.PROVED:
             return None
 
-        proving_edge = min(
-            self.out_edges,
-            key=Edge.distance_to_proof,
-        )
+        proving_edge = min(self.out_edges, key=Edge.distance_to_proof)
 
         if all(child.is_terminal for child in proving_edge.dst):
             # Base case: this edge is all that's required to finish the proof
@@ -305,9 +302,7 @@ class InternalNode(Node):
             assert all(child.status == Status.PROVED for child in proving_edge.dst)
 
             proof = []
-            # add child proofs, expected to be in the correct order
-            # for child in sorted(proving_edge.dst, key=lambda x: x.goal_num):
-            # (should be sorted already) todo check
+            # add child proofs (expected to be in the correct order from environment)
             for child in proving_edge.dst:
                 assert isinstance(child, InternalNode)
                 child_proof = child.extract_proof()
@@ -315,53 +310,6 @@ class InternalNode(Node):
                 proof.extend(child_proof)
 
             return [proving_edge, *proof]
-
-    #########
-    # Debug #
-    #########
-
-    # todo
-    def check_invariants(self):
-        """
-        Perform some sanity checks.
-        """
-        return
-        # if not self.is_explored:
-        #     assert self.status == Status.OPEN
-        #     return  # Nothing more can be said about unexplored nodes
-        # #
-        # for edge in self.in_edges:
-        #     assert self in edge.dst  # edge.dst is self
-        # #
-        # if self.out_edges == []:
-        #     assert self.status == Status.FAILED
-        # else:
-        #     for edge in self.out_edges:  # type: is_explored
-        #         assert edge.src is self
-        # #
-        # if self.status == Status.PROVED:
-        #     assert self.out_edges
-        #     # assert all(edge.dst.status == Status.PROVED for edge in self.out_edges)
-        #     assert any([all(child.status == Status.PROVED for child in edge.dst) for edge in self.out_edges])
-        #     # assert all(edge.dst.status == Status.PROVED for edge in self.in_edges)
-        #
-        #     proof_by_steps = self.extract_proof()
-        #     assert proof_by_steps is not None
-        #     assert self.distance_to_proof == len(proof_by_steps)
-        # #
-        # # elif self.status == Status.FAILED:
-        # #     assert self.out_edges is not None
-        # #     assert all(edge.dst.status == Status.FAILED for edge in self.out_edges)
-        # #     assert self.distance_to_proof == math.inf
-        # #     assert self.extract_proof() == None
-        # #
-        # elif self.status == Status.OPEN:
-        #     assert self.out_edges
-        #     # assert not any(edge.dst.status == Status.PROVED for edge in self.out_edges)
-        #     assert not any([all(child.status == Status.PROVED for child in edge.dst) for edge in self.out_edges])
-        #     # assert not all(edge.dst.status == Status.FAILED for edge in self.out_edges)
-        #     assert self.distance_to_proof == math.inf
-        #     assert self.extract_proof() == None
 
 
 @dataclass

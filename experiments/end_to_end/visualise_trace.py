@@ -7,9 +7,18 @@ import dash_cytoscape as cyto
 from dash import Dash, html, dcc
 from dash import Input, Output, callback
 
-from experiments.end_to_end.end_to_end_experiment import get_thm_name
-from experiments.end_to_end.process_traces import get_traces
 from experiments.end_to_end.proof_node import InternalNode, ProofFinishedNode, Status
+
+
+
+"""
+
+Proof visualisation utility (work in progress). Requires separate implementation for each search method, as the desired 
+information to be displayed will differ, as well as the search trace structure.
+
+Modify this script to add new search methods, or change existing ones.
+
+"""
 
 styles = {
     'pre': {
@@ -542,31 +551,3 @@ if __name__ == '__main__':
 
 
     app.run(debug=True)
-
-    # traces = get_traces(
-    #     "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/set.definable.compl")
-
-    # good example of updown not exploring, only one edge from the root node is explored,
-    # as the others are initially estimated very low:
-    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/tsub_lt_tsub_iff_left_of_le")
-
-    # as above
-    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/X_in_terms_of_W_vars_subset")
-
-    # nodes 6,7,9 are all semantically identical, varying only with renaming of a variable, yet all have
-    # very different scores. Indicates the goal model doesn't have a good understanding (it should learn
-    # that renamed variables don't impact the provability)
-    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/upper_set.coe_Inf")
-
-    # another example of same hypotheses (although scored similarly here)
-    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/subgroup.subset_closure")
-
-    # Failing after expanding all valid nodes, note that path is terminated once member of context is found to fail
-    # Think HTPS wouldn't pick up on this? (node 6,7,8,9)
-    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/simple_graph.nonempty_of_pos_dist")
-
-    # very large graph, with timeout. Again, lot's of variable renaming with same goal
-    # "../experiments/runs/leandojo/sample_bestfs_2023_11_29/20_30_17/traces/set.definable.compl")
-
-    # holist test:
-    # traces = get_traces('../runs/end_to_end_holist/test_2024_01_08/15_46_13/traces/*')

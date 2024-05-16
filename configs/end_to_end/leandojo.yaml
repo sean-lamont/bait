@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: bestfs
+  name: reprover-v1-novel
   experiment: end_to_end
 #  resume: true
 #  directory: runs/end_to_end/original/2024_02_08/09_55_29
@@ -19,7 +19,7 @@ num_theorems: 2000 #94000
 # environment to use (leandojo, holist)
 env_config:
   env: leandojo
-  data_path: data/LeanDojo/data/leandojo_benchmark/random/
+  data_path: data/LeanDojo/data/leandojo_benchmark/novel_premises/
   #split: train
   split: test
   file_path: null
@@ -34,7 +34,7 @@ env_config:
 shuffle: false
 
 # Number of End-to-End Eval -> Train -> Eval loops
-num_iterations: 5 #2
+num_iterations: 1 #2
 resume_iteration: 0
 
 # Total time allowed for a single proof attempt
@@ -48,17 +48,17 @@ log_level: 'INFO'
 
 # Resource configuration
 # number of physical GPUs
-num_gpus: 1
+num_gpus: 2
 # how many 'logical' GPUs available, should be a multiple of num_gpus.
 # Will control the number of separate tactic/search model processes
-logical_gpus: 1
-num_cpus: 16 #16
+logical_gpus: 4
+num_cpus: 8 #16
 # How much GPU memory to allocate per prover (should be low, since the model is using most of the GPU)
 gpu_per_prover: 0.01
 # CPU resources to allocate per prover.
 cpu_per_prover: 1
 # How many provers to assign per logical GPU. Each of these provers will share one tactic/search process.
-provers_per_gpu: 4
+provers_per_gpu: 1
 
 
 tac_model:
@@ -70,16 +70,14 @@ tac_model:
   gpu_per_process: 0.45
   cpu_per_process: 1
   config:
-    model_name: sean-lamont/leandojo-lean3-generator-random
+    model_name: sean-lamont/leandojo-lean3-generator-novel-premises
 
 
-##   retriever args
-#    ret_ckpt_path: runs/retrieval/retriever_test/2024_02_02/17_56_51/checkpoints/initial.ckpt
-#    indexed_corpus_path: runs/retrieval/retriever_test/2024_02_02/17_56_51/indexed_corpus.pk
-#    eval_num_retrieved: 100
+#   retriever args
 
-    ret_ckpt_path: null
-
+    ret_ckpt_path: runs/retriever_novel_premises.ckpt
+    indexed_corpus_path: runs/indexed_corpus
+    eval_num_retrieved: 100
 
     lr: 5e-6
     warmup_steps: 200

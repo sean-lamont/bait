@@ -18,10 +18,7 @@ torch.set_float32_matmul_precision("medium")
 from torchmetrics.classification import BinaryConfusionMatrix
 
 
-# todo live evaluation as with tactic models?
-
-# todo allow loading of pre-trained goal model
-class SimpleGoalModel(pl.LightningModule):
+class HardGoalModel(pl.LightningModule):
     def __init__(
             self,
             model_name: str,
@@ -65,7 +62,7 @@ class SimpleGoalModel(pl.LightningModule):
     @classmethod
     def load(
             cls, ckpt_path: str, device, freeze: bool
-    ) -> "SimpleGoalModel":
+    ) -> "HardGoalModel":
         return load_checkpoint(cls, ckpt_path, device, freeze)
 
     def forward(

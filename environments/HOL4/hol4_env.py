@@ -9,6 +9,12 @@ from loguru import logger
 from experiments.end_to_end.proof_node import *
 
 
+"""
+
+HOL4 environment for use with End-to-End experiments
+
+"""
+
 class EnvInitError(Exception):
     pass
 
