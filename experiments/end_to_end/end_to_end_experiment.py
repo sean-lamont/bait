@@ -30,7 +30,7 @@ from experiments.end_to_end.common import set_logger
 from experiments.end_to_end.env_helper import get_thm_name, get_env, get_theorems
 from experiments.end_to_end.proof_node import *
 from experiments.end_to_end.search_result import SearchResult
-from models.end_to_end.search_models.search_models import get_search_model
+from models.end_to_end.search_models.get_search_model import get_search_model
 from models.end_to_end.tactic_models.tac_models import get_tac_model
 from utils.utils import config_to_dict
 

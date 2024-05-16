@@ -41,7 +41,6 @@ class TopkAccuracy(Metric):
         return self.correct.float() / self.total
 
 
-# todo retriever
 class RetrievalAugmentedGenerator(GenTacModel):
     def __init__(self, config) -> None:
         super().__init__(config)
@@ -72,8 +71,7 @@ class RetrievalAugmentedGenerator(GenTacModel):
         ).loss
 
     ############
-    # Training
-    #
+    # Training #
     ############
 
     def training_step(self, batch, batch_idx: int):

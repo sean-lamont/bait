@@ -70,7 +70,7 @@ tac_model:
   gpu_per_process: 0.45
   cpu_per_process: 1
   config:
-    model_name: sean-lamont/leandojo-lean3-generator-novel-premises
+    model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
 
 
 #   retriever args
