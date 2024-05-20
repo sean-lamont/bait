@@ -64,6 +64,9 @@ class GenTacModel(pl.LightningModule):
         else:
             self.generator = generator
 
+        # map the goal state to the state with retrieved premises for further fine-tuning
+        self.tac_trace = {}
+
     @classmethod
     def load(cls, ckpt_path: str, device, freeze: bool):
         return load_checkpoint(cls, ckpt_path, device, freeze)
@@ -132,10 +135,15 @@ class GenTacModel(pl.LightningModule):
                 retriever_args,
                 self.eval_num_retrieved,
             )
-            state = [
+            new_state = [
                 format_augmented_state(s, premises, self.max_seq_len, p_drop=0.0)
                 for s, premises in zip_strict(state, retrieved_premises)
             ]
+
+            for i, s in enumerate(state):
+                self.tac_trace[s] = new_state[i]
+
+            state = new_state
 
         tokenized_state = self.tokenizer(
             state,

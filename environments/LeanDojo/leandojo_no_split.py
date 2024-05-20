@@ -93,7 +93,7 @@ class LeanDojoNoSplitEnv:
             assert isinstance(response, TacticState)
             goal = response.pp
             # Treat cycles as error nodes
-            if goal in node.ancestors:
+            if goal in node.ancestors or goal == node.goal:
                 response = TreeError('Tactic Creates cycle')
                 result_node = ErrorNode(response)
                 result = [result_node]

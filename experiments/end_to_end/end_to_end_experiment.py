@@ -72,6 +72,9 @@ class EndToEndProver:
         if hasattr(self.search_model, 'search_trace'):
             data['search_trace'] = self.search_model.search_trace
 
+        if hasattr(self.tac_model, 'tac_trace'):
+            data['tac_trace'] = self.tac_model.tac_trace
+
         data['env'] = self.env_name
 
         result = SearchResult(

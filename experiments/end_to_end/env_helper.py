@@ -17,6 +17,7 @@ from environments.HOList.holist_env import HOListEnv
 from environments.HOList.proof_assistant import proof_assistant_pb2
 from environments.LeanDojo.get_lean_theorems import _get_theorems
 from environments.LeanDojo.leandojo_env import LeanDojoEnv
+from environments.LeanDojo.leandojo_no_split import LeanDojoNoSplitEnv
 from experiments.end_to_end.common import zip_strict
 
 # todo hack for now, just load theorem database globally for hol4 get_thm_name
@@ -26,7 +27,7 @@ from experiments.end_to_end.common import zip_strict
 def get_thm_name(env, thm):
     if env == 'holist':
         return str(thm.fingerprint)
-    elif env == 'leandojo':
+    elif env == 'leandojo' or env == 'leandojo_no_split':
         return str(thm.full_name)
     elif env == 'hol4':
         # theoryName.LemmaName
@@ -38,6 +39,8 @@ def get_thm_name(env, thm):
 def get_env(cfg):
     if cfg == 'leandojo':
         return LeanDojoEnv
+    elif cfg == 'leandojo_no_split':
+        return LeanDojoNoSplitEnv
     elif cfg == 'holist':
         return HOListEnv
     elif cfg == 'hol4':
@@ -109,7 +112,7 @@ def get_lean_thms(config, prev_theorems):
 
 
 def get_theorems(cfg, prev_theorems):
-    if cfg.env == 'leandojo':
+    if cfg.env == 'leandojo' or cfg.env == 'leandojo_no_split':
         return get_lean_thms(cfg, prev_theorems)
     elif cfg.env == 'holist':
         return get_holist_theorems(cfg.path_theorem_database, prev_theorems)

@@ -4,13 +4,13 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: reprover-v1-novel
+  name: reprover-v1-novel-no-split
   experiment: end_to_end
 #  resume: true
 #  directory: runs/end_to_end/original/2024_02_08/09_55_29
 
 logging_config:
-  project: end_to_end
+  project: search
   offline: false
 #  id: aohfsen9
 
@@ -18,7 +18,7 @@ num_theorems: 2000 #94000
 
 # environment to use (leandojo, holist)
 env_config:
-  env: leandojo
+  env: leandojo_no_split
   data_path: data/LeanDojo/data/leandojo_benchmark/novel_premises/
   #split: train
   split: test
@@ -48,17 +48,17 @@ log_level: 'INFO'
 
 # Resource configuration
 # number of physical GPUs
-num_gpus: 2
+num_gpus: 1
 # how many 'logical' GPUs available, should be a multiple of num_gpus.
 # Will control the number of separate tactic/search model processes
-logical_gpus: 4
-num_cpus: 8 #16
+logical_gpus: 1
+num_cpus: 16 #16
 # How much GPU memory to allocate per prover (should be low, since the model is using most of the GPU)
 gpu_per_prover: 0.01
 # CPU resources to allocate per prover.
 cpu_per_prover: 1
 # How many provers to assign per logical GPU. Each of these provers will share one tactic/search process.
-provers_per_gpu: 1
+provers_per_gpu: 4
 
 
 tac_model:
