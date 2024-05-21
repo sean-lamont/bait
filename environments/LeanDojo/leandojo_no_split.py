@@ -52,12 +52,15 @@ class LeanDojoNoSplitEnv:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.dojo.__exit__(exc_type, exc_val, exc_tb)
 
+    def _cleanup(self):
+        self.dojo._cancel_timer()
+        self.dojo._cleanup()
+
     def retrieve_premises(self):
         path = str(self.thm.file_path)
 
         if self.thm.repo != self.repo:
-            path = os.path.join(LEAN3_PACKAGES_DIR)
-
+            path = os.path.join(LEAN3_PACKAGES_DIR, self.thm.repo.name, path)
         return path, self.thm, self.pos
 
     def run_tactic(self, node: Tuple[InternalNode, float], tactic: Tuple[str, float]):  # -> Tuple[Edge, List]:
