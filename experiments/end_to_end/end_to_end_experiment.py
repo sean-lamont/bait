@@ -69,11 +69,9 @@ class EndToEndProver:
             proof = None
 
         data = {}
+
         if hasattr(self.search_model, 'search_trace'):
             data['search_trace'] = self.search_model.search_trace
-
-        if hasattr(self.tac_model, 'tac_trace'):
-            data['tac_trace'] = self.tac_model.tac_trace
 
         data['env'] = self.env_name
 
@@ -106,7 +104,8 @@ class EndToEndProver:
 
             # Get full set of suggestions for goal if it hasn't been computed already
             if ts not in self.remaining_tacs:
-                tacs = ray.get(self.tac_model.get_tactics.remote(ts, premises))
+                # tacs = ray.get(self.tac_model.get_tactics.remote(search_node, premises))
+                tacs = self.tac_model.get_tactics(search_node, premises)
                 tacs.reverse()
                 self.remaining_tacs[ts] = tacs
 
@@ -166,11 +165,9 @@ class EndToEndProver:
                 self._search(env)
             except Exception as e:
                 logger.warning(f'Environment error {e}')
-                logger.info(f'current dir: {os.getcwd()}')
                 traceback.print_exc()
                 # will only be raised if there is no valid root from search (e.g. error loading environment)
                 # self.log_error(str(e), get_thm_name(self.env_name, env.thm))
-
                 root = ErrorNode(EnvironmentError(str(e)))
                 self.search_model.reset(root)
 
@@ -349,8 +346,6 @@ def main(config) -> None:
         random.shuffle(theorems)
 
     theorems = theorems[:config.num_theorems]
-
-    # theorems = [t for t in theorems if t[1].full_name == 'Module.preReflection_preReflection']
 
     num_iterations = config.num_iterations if hasattr(config, 'num_iterations') else 1
 

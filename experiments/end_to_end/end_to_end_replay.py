@@ -10,6 +10,8 @@ import sys
 import time
 import traceback
 
+# for Lean 3
+os.environ['CONTAINER'] = 'docker'
 
 import hydra
 import ray
@@ -25,13 +27,14 @@ from experiments.end_to_end.proof_node import *
 from experiments.end_to_end.search_result import SearchResult
 from models.end_to_end.tactic_models.tac_models import get_tac_model
 
-
 """
 
 Replay human proofs, and generate additional data for each node in the proof path. 
 Useful to get some 'negative' data to compare with the positive data from the human proofs.
 
 """
+
+
 class ReplayProver:
     def __init__(self, timeout, tac_model, directory, env_name='leandojo', iteration=0):
         self.timeout = timeout
@@ -70,9 +73,7 @@ class ReplayProver:
         else:
             proof = None
 
-        data = {}
-
-        data['env'] = self.env_name
+        data = {'env': self.env_name}
 
         result = SearchResult(
             theorem=theorem,
@@ -103,7 +104,8 @@ class ReplayProver:
 
             # Get full set of suggestions for goal if it hasn't been computed already
             if ts not in self.remaining_tacs:
-                tacs = ray.get(self.tac_model.get_tactics.remote(ts, premises))
+                # tacs = ray.get(self.tac_model.get_tactics.remote(search_node, premises))
+                tacs = self.tac_model.get_tactics(search_node, premises)
                 tacs.reverse()
                 self.remaining_tacs[ts] = tacs
 
@@ -149,6 +151,28 @@ class ReplayProver:
                 if isinstance(result_node, InternalNode):
                     if result_node.goal not in self.nodes:
                         self.nodes[result_node.goal] = result_node
+
+        # run again for new nodes to get retrieved states, and to verify they aren't proven
+        new_goals = []
+        for node in self.nodes.values():
+            if not node.is_explored:
+                new_goals.append(node)
+
+        suggestions = self.get_tactics(goals, premises)
+
+        if not suggestions:
+            return
+
+        self.tac_time += time.monotonic() - t0
+
+        for goal, tactic in suggestions:
+            t0 = time.monotonic()
+            logger.debug(f'Running {tactic}, goal: {goal}')
+            response = env.run_tactic(goal, tactic)
+            self.env_time += time.monotonic() - t0
+
+            self.trace.append(response)
+            self.num_expansions += 1
 
     def log_error(self, msg, theorem):
         with open(os.path.join(self.error_dir, theorem), "a") as f:
@@ -340,12 +364,11 @@ def main(config) -> None:
         elif proofs[get_thm_name('leandojo', thm[1])]:
             valid_thms.append(thm)
 
-
     prover = DistributedReplay(config, 0)
 
     logger.info(f'Attempting {len(theorems)} proofs..')
 
-    num_proven = prover.search_unordered(theorems, env=config.env_config.env, proofs=proofs)
+    num_proven = prover.search_unordered(valid_thms, env=config.env_config.env, proofs=proofs)
 
     ray.shutdown()
 

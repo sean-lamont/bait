@@ -20,7 +20,7 @@ import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, List, Union, Set
+from typing import Optional, List, Union, Set, Dict
 
 
 class Status(Enum):
@@ -161,6 +161,9 @@ class InternalNode(Node):
     depth: int = field(default=0, compare=False, repr=False)
 
     max_expansions: int = field(default=64, compare=False, repr=False)
+
+    # data field to store any additional attributes needed by search/tactic models
+    data: Optional[Dict] = field(compare=False, default_factory=dict, repr=False)
 
     # Number of tactic applications from this node
     @property

@@ -3,9 +3,9 @@ from __future__ import division
 from __future__ import print_function
 
 import warnings
-import torch
 
 import ray
+import torch
 from loguru import logger
 
 from experiments.TacticZero.tactic_zero_data_module import *
@@ -18,14 +18,11 @@ warnings.filterwarnings('ignore')
 
 from data.HOList.utils import io_util
 from experiments.end_to_end.common import Context
-from models.end_to_end.tactic_models.dpo.model import DPOTrainModule
 from models.end_to_end.tactic_models.generator.model import RetrievalAugmentedGenerator
 from models.end_to_end.tactic_models.holist_model import holparam_predictor
 from models.end_to_end.tactic_models.holist_model import embedding_store
 from models.end_to_end.tactic_models.holist_model import action_generator
 from experiments.end_to_end.proof_node import *
-
-from models.end_to_end.tactic_models.ilql.ilql_model import PerTokenIQL
 
 
 # todo tidy
@@ -35,25 +32,51 @@ class TacModel:
         return
 
 
-# todo make more system agnostic
+class TacWrapper(TacModel):
+    def __init__(self, tac_model):
+        super().__init__()
+        self.tac_model = tac_model
+
+    def get_tactics(self, goal, premises):
+        tactics = ray.get(self.tac_model.get_tactics.remote(goal, premises))
+
+        return tactics
+
+
+class ReProverWrapper(TacModel):
+    def __init__(self, tac_model, retriever=False):
+        super().__init__()
+        self.tac_model = tac_model
+        self.retriever = retriever
+
+    def get_tactics(self, goal, premises):
+        tactics, new_state = ray.get(self.tac_model.get_tactics.remote(goal, premises))
+
+        # save retrieved data to node for retrieval models
+        if self.retriever:
+            goal.data = {'augmented_state': new_state}
+
+        return tactics
+
+
+# todo make system agnostic
 class ReProverTacGen(TacModel):
     def __init__(self, tac_model, num_sampled_tactics=64):
         super().__init__()
         self.tac_model = tac_model
         self.num_sampled_tactics = num_sampled_tactics
 
-    def get_tactics(self, goals, premises):
+    def get_tactics(self, goal, premises):
         path, theorem, position = premises
 
-        tactics = self.tac_model.generate(
-            state=goals,
+        tactics, new_state = self.tac_model.generate(
+            state=goal.goal,
             num_samples=self.num_sampled_tactics,
-            retriever_args=Context(path=path, theorem_full_name=theorem.full_name, theorem_pos=position, state=goals),
-            # {'file_path': path,
-            #                 'theorem_full_name': theorem.full_name,
-            #                 'theorem_pos': position}
+            retriever_args=Context(path=path, theorem_full_name=theorem.full_name, theorem_pos=position,
+                                   state=goal.goal)
         )
-        return tactics
+
+        return tactics, new_state
 
 
 class HOListTacGen(TacModel):
@@ -62,7 +85,7 @@ class HOListTacGen(TacModel):
         self.tac_model = tac_model
 
     def get_tactics(self, goals, premises):
-        tactics = self.tac_model.get_tactics(goals, premises)
+        tactics = self.tac_model.get_tactics([g.goal for g in goals], premises)
         return tactics
 
 
@@ -72,7 +95,7 @@ class HOL4TacGen(TacModel):
         self.tac_model = tac_model
 
     def get_tactics(self, goals, premises):
-        tactics = self.tac_model.get_tactics(goals, premises)
+        tactics = self.tac_model.get_tactics([g.goal for g in goals], premises)
         return tactics
 
 
@@ -111,48 +134,16 @@ def get_tac_model(config, device):
                 tac_gen.retriever.reindex_corpus(batch_size=2)
 
         if config.distributed:
-            return ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(ReProverTacGen).remote(
+            # return ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(ReProverTacGen).remote(
+            #     tac_model=tac_gen, num_sampled_tactics=config.num_sampled_tactics)
+            tac_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(
+                ReProverTacGen).remote(
                 tac_model=tac_gen, num_sampled_tactics=config.num_sampled_tactics)
+            return ReProverWrapper(tac_model, retriever=tac_gen.retriever is not None)
+
         else:
             return ReProverTacGen(tac_model=tac_gen, num_sampled_tactics=config.num_sampled_tactics)
 
-    elif config.model == 'ilql':
-
-        if hasattr(config, 'ckpt_path') and config.ckpt_path:
-            tac_gen = PerTokenIQL.load(
-                config.ckpt_path, device=device, freeze=True
-            )
-
-        else:
-            raise NotImplementedError
-
-        if tac_gen.retriever is not None:
-            raise NotImplementedError
-
-        if config.distributed:
-            return ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(ReProverTacGen).remote(
-                tac_model=tac_gen)
-        else:
-            return ReProverTacGen(tac_model=tac_gen)
-
-
-    elif config.model == 'dpo':
-        logger.info('Using DPO model..')
-        tac_gen = DPOTrainModule.load(
-            config.ckpt_path, device=device, freeze=True
-        )
-
-        if tac_gen.retriever is not None:
-            assert config.indexed_corpus_path is not None
-            tac_gen.retriever.load_corpus(config.indexed_corpus_path)
-
-        tac_gen.freeze()
-
-        if config.distributed:
-            return ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(ReProverTacGen).remote(
-                tac_model=tac_gen)
-        else:
-            return ReProverTacGen(tac_model=tac_gen)
 
     elif config.model == 'tacticzero':
         pretrain = config.pretrain
@@ -186,8 +177,9 @@ def get_tac_model(config, device):
                                        )
 
         if config.distributed:
-            return ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(HOL4TacGen).remote(
+            tac_gen = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(HOL4TacGen).remote(
                 tac_model=tac_model)
+            return TacWrapper(tac_gen)
         else:
             return HOL4TacGen(tac_model=tac_model)
 
@@ -240,7 +232,9 @@ def get_tac_model(config, device):
                 config.model_architecture, emb_store)
 
         if config.distributed:
-            return ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(HOListTacGen).remote(
+            tac_gen = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(HOListTacGen).remote(
                 tac_model=action_gen)
+            return TacWrapper(tac_gen)
+
         else:
             return HOListTacGen(tac_model=action_gen)

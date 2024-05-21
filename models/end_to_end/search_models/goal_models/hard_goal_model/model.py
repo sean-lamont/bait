@@ -187,10 +187,10 @@ class HardGoalModel(pl.LightningModule):
     # Prediction #
     ##############
 
-    def generate(self, state: str) -> float:
+    def generate(self, state) -> float:
         return self.batch_generate([state])[0]
 
-    def batch_generate(self, state: List[str]) -> List[float]:
+    def batch_generate(self, state) -> List[float]:
         # concat the token indicating this is a goal task
         state = [self.critic_tok + s for s in state]
 

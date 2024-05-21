@@ -17,7 +17,9 @@ from models.end_to_end.tactic_models.retrieval.model import PremiseRetriever
 torch.set_float32_matmul_precision("medium")
 
 '''
+
 Generic class for Retrieval and Generative Tactic Models. 
+
 '''
 
 
@@ -64,9 +66,6 @@ class GenTacModel(pl.LightningModule):
         else:
             self.generator = generator
 
-        # map the goal state to the state with retrieved premises for further fine-tuning
-        self.tac_trace = {}
-
     @classmethod
     def load(cls, ckpt_path: str, device, freeze: bool):
         return load_checkpoint(cls, ckpt_path, device, freeze)
@@ -87,8 +86,9 @@ class GenTacModel(pl.LightningModule):
     ###############################
 
     def on_validation_epoch_end(self) -> None:
-        if self.live_eval and (self.trainer.current_epoch + 1) % self.eval_config.frequency == 0 and self.global_step > 1:
-        # if self.live_eval and (self.trainer.current_epoch + 1) % self.eval_config.frequency == 0:
+        if self.live_eval and (
+                self.trainer.current_epoch + 1) % self.eval_config.frequency == 0 and self.global_step > 1:
+            # if self.live_eval and (self.trainer.current_epoch + 1) % self.eval_config.frequency == 0:
             torch.cuda.empty_cache()
             self.run_eval()
         else:
@@ -125,8 +125,9 @@ class GenTacModel(pl.LightningModule):
     # Prediction #
     ##############
 
-    def generate(self, state: str, retriever_args: dict, num_samples: int):
-        return self.batch_generate([state], [retriever_args], num_samples)[0]
+    def generate(self, state, retriever_args: dict, num_samples: int):
+        tacs, new_states = self.batch_generate([state], [retriever_args], num_samples)
+        return tacs[0], new_states[0]
 
     def batch_generate(self, state, retriever_args, num_samples):
         if self.retriever is not None:
@@ -135,15 +136,10 @@ class GenTacModel(pl.LightningModule):
                 retriever_args,
                 self.eval_num_retrieved,
             )
-            new_state = [
+            state = [
                 format_augmented_state(s, premises, self.max_seq_len, p_drop=0.0)
                 for s, premises in zip_strict(state, retrieved_premises)
             ]
-
-            for i, s in enumerate(state):
-                self.tac_trace[s] = new_state[i]
-
-            state = new_state
 
         tokenized_state = self.tokenizer(
             state,
@@ -156,10 +152,13 @@ class GenTacModel(pl.LightningModule):
         state_ids = tokenized_state.input_ids.to(self.device)
         state_mask = tokenized_state.attention_mask.to(self.device)
 
+        # return state as well to store retrieved state
         if self.gen_config.strategy == 'sample':
-            return self.sample_gen(state, state_ids, state_mask, num_samples)
+            return self.sample_gen(state, state_ids, state_mask, num_samples), state
         elif self.gen_config.strategy == 'beam':
-            return self.beamsearch_gen(state, state_ids, state_mask, num_samples)
+            return self.beamsearch_gen(state, state_ids, state_mask, num_samples), state
+        else:
+            raise NotImplementedError
 
     def sample_gen(self, state, state_ids, state_mask, num_samples):
         # score for nucleus sampling
