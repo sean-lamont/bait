@@ -50,7 +50,7 @@ class ReProverWrapper(TacModel):
         self.retriever = retriever
 
     def get_tactics(self, goal, premises):
-        tactics, new_state = ray.get(self.tac_model.get_tactics.remote(goal, premises))
+        tactics, new_state = ray.get(self.tac_model.get_tactics.remote(goal.goal, premises))
 
         # save retrieved data to node for retrieval models
         if self.retriever:
@@ -70,10 +70,10 @@ class ReProverTacGen(TacModel):
         path, theorem, position = premises
 
         tactics, new_state = self.tac_model.generate(
-            state=goal.goal,
+            state=goal,
             num_samples=self.num_sampled_tactics,
             retriever_args=Context(path=path, theorem_full_name=theorem.full_name, theorem_pos=position,
-                                   state=goal.goal)
+                                   state=goal)
         )
 
         return tactics, new_state
