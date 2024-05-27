@@ -175,6 +175,12 @@ class EndToEndProver:
             self._process_trace(env.thm)
         except:
             logger.warning(f"Error processing trace for {env.thm}")
+            try:
+                err_file = os.path.join(self.error_dir, get_thm_name(self.env_name, env.thm))
+                traceback.print_exc(file=open(err_file, 'a'))
+            except:
+                logger.warning(f"Couldn't log error:")
+                traceback.print_exc()
             pass
 
         return self.search_model.root.status == Status.PROVED
@@ -199,7 +205,14 @@ class EndToEndProver:
                     except Exception as e:
                         if not (self.env_time >= self.timeout):
                             logger.warning(f"Exception not timeout: {e}")
-                            traceback.print_exc()
+
+                            try:
+                                err_file = os.path.join(self.error_dir, get_thm_name(self.env_name, env.thm))
+                                traceback.print_exc(file=open(err_file, 'a'))
+                            except:
+                                logger.warning(f"Couldn't log error:")
+                                traceback.print_exc()
+
                             root.status = Status.FAILED
                             env._cleanup()
                             logger.warning(f'current working directory: {os.getcwd()}')
@@ -321,7 +334,10 @@ def main(config) -> None:
 
         for file in tqdm(trace_dir):
             with open(file, "rb") as f:
-                trace = pickle.load(f)
+                try:
+                    trace = pickle.load(f)
+                except:
+                    continue
             if trace.proof:
                 prev_proven += 1
             prev_theorems.append(get_thm_name(config.env_config.env, trace.theorem))

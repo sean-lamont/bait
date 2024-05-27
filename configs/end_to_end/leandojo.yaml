@@ -4,21 +4,21 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: reprover-v1-novel-no-split
+  name: reprover-v1-novel-2
   experiment: end_to_end
-#  resume: true
-#  directory: runs/end_to_end/original/2024_02_08/09_55_29
+  resume: true
+  directory: runs/end_to_end/reprover-v1-novel-2/2024_05_24/00_31_12
 
 logging_config:
   project: search
-  offline: true
-#  id: aohfsen9
+  offline: false
+  id: az8iaveb
 
 num_theorems: 2000 #94000
 
 # environment to use (leandojo, holist)
 env_config:
-  env: leandojo_no_split
+  env: leandojo
   data_path: data/LeanDojo/data/leandojo_benchmark/novel_premises/
   #split: train
   split: test
