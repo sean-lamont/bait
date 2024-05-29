@@ -12,7 +12,6 @@ import time
 import traceback
 from subprocess import CalledProcessError
 
-
 # for Lean 3
 os.environ['CONTAINER'] = 'docker'
 
@@ -164,10 +163,17 @@ class EndToEndProver:
             try:
                 self._search(env)
             except Exception as e:
-                logger.warning(f'Environment error {e}')
-                traceback.print_exc()
-                # will only be raised if there is no valid root from search (e.g. error loading environment)
-                # self.log_error(str(e), get_thm_name(self.env_name, env.thm))
+                # will only be raised from _search if there is no valid root from search, e.g. error loading environment
+                logger.warning(f'Environment initialisation error {e}')
+                try:
+                    err_name = get_thm_name(self.env_name, env.thm)
+                    err_file = os.path.join(self.error_dir, err_name)
+                    traceback.print_exc(file=open(err_file, 'a'))
+                except:
+                    logger.warning(f"Couldn't log error for {err_name}:")
+                    traceback.print_exc()
+
+                # log the trace for this attempt as a single error node
                 root = ErrorNode(EnvironmentError(str(e)))
                 self.search_model.reset(root)
 
@@ -175,13 +181,13 @@ class EndToEndProver:
             self._process_trace(env.thm)
         except:
             logger.warning(f"Error processing trace for {env.thm}")
+            err_name = get_thm_name(self.env_name, env.thm)
             try:
-                err_file = os.path.join(self.error_dir, get_thm_name(self.env_name, env.thm))
+                err_file = os.path.join(self.error_dir, err_name)
                 traceback.print_exc(file=open(err_file, 'a'))
             except:
-                logger.warning(f"Couldn't log error:")
+                logger.warning(f"Couldn't log error for {err_name}:")
                 traceback.print_exc()
-            pass
 
         return self.search_model.root.status == Status.PROVED
 
@@ -204,19 +210,10 @@ class EndToEndProver:
                         self._step(env)
                     except Exception as e:
                         if not (self.env_time >= self.timeout):
-                            logger.warning(f"Exception not timeout: {e}")
-
-                            try:
-                                err_file = os.path.join(self.error_dir, get_thm_name(self.env_name, env.thm))
-                                traceback.print_exc(file=open(err_file, 'a'))
-                            except:
-                                logger.warning(f"Couldn't log error:")
-                                traceback.print_exc()
-
+                            logger.warning(f"Exception not timeout for {get_thm_name(self.env_name, env.thm)}: {e}")
                             root.status = Status.FAILED
                             env._cleanup()
-                            logger.warning(f'current working directory: {os.getcwd()}')
-                            # self.log_error(str(e), get_thm_name(self.env_name, env.thm))
+                            raise Exception(e)
 
                     self.total_time = time.monotonic() - time_start
 
@@ -235,13 +232,13 @@ class EndToEndProver:
                     if root.status == Status.PROVED:
                         logger.info("Found a proof!")
                         break
+
         except Exception as e:
             if root:
                 logger.warning(f"Error in search {e}")
                 root.status = Status.FAILED
-                self.log_error(str(e), get_thm_name(self.env_name, env.thm))
             else:
-                raise Exception(e)
+                raise Exception(f"Could not initialise root: {e}")
 
 
 class DistributedProver:

@@ -6,13 +6,13 @@ defaults:
 exp_config:
   name: reprover-v1-novel-2
   experiment: end_to_end
-  resume: true
-  directory: runs/end_to_end/reprover-v1-novel-2/2024_05_24/00_31_12
+#  resume: true
+#  directory: runs/end_to_end/reprover-v1-novel-2/2024_05_24/00_31_12
 
 logging_config:
   project: search
-  offline: false
-  id: az8iaveb
+  offline: true
+#  id: az8iaveb
 
 num_theorems: 2000 #94000
 
@@ -41,7 +41,7 @@ resume_iteration: 0
 total_timeout: 6000
 
 # Maximum time allowed in environment before timing out
-env_timeout: 600
+env_timeout: 10
 
 with_gpus: true
 log_level: 'INFO'

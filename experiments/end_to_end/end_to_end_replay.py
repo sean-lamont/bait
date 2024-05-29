@@ -158,7 +158,7 @@ class ReplayProver:
             if not node.is_explored:
                 new_goals.append(node)
 
-        suggestions = self.get_tactics(goals, premises)
+        suggestions = self.get_tactics(new_goals, premises)
 
         if not suggestions:
             return
