@@ -14,6 +14,7 @@ from experiments.end_to_end.common import (
 
 torch.set_float32_matmul_precision("medium")
 
+
 class PairGoalModel(pl.LightningModule):
     def __init__(
             self,
@@ -46,52 +47,66 @@ class PairGoalModel(pl.LightningModule):
 
         self.logits_processor = NoBadWordsLogitsProcessor(bad_words_ids=self.bad_ids, eos_token_id=None)
 
-        # self.mseloss = torch.nn.MSELoss()
-
-        self.ce_loss = CrossEntropyLoss()
-
     @classmethod
     def load(
             cls, ckpt_path: str, device, freeze: bool
-    ) -> "SoftGoalModel":
+    ) -> "PairGoalModel":
         return load_checkpoint(cls, ckpt_path, device, freeze)
 
     def forward(
             self,
-            state_ids: torch.Tensor,
-            state_mask: torch.Tensor,
-            target_ids: torch.Tensor,
-            soft_targets: torch.Tensor
-    ) -> torch.Tensor:
-        output = self.generator(
-            input_ids=state_ids,
-            attention_mask=state_mask,
-            labels=target_ids)
+            pos_ids,
+            pos_mask,
+            neg_ids,
+            neg_mask,
+            target
+    ):
+        pos_output = self.generator(
+            input_ids=pos_ids,
+            attention_mask=pos_mask,
+            labels=target)
 
-        filtered_logits = self.logits_processor(state_ids, output.logits)
+        filtered_logits = self.logits_processor(pos_ids, pos_output.logits)
 
-        provable_logit = filtered_logits[:, 0, self.provable_id]
-        unprovable_logit = filtered_logits[:, 0, self.unprovable_id]
+        pos_provable_logit = filtered_logits[:, 0, self.provable_id]
+        pos_unprovable_logit = filtered_logits[:, 0, self.unprovable_id]
 
-        logits = torch.stack([provable_logit, unprovable_logit], dim=1)
+        neg_output = self.generator(
+            input_ids=neg_ids,
+            attention_mask=neg_mask,
+            labels=target)
 
-        soft_targets = torch.stack([soft_targets, 1 - soft_targets], dim=1)
+        filtered_logits = self.logits_processor(neg_ids, neg_output.logits)
 
-        loss = self.ce_loss(logits, soft_targets)
+        neg_provable_logit = filtered_logits[:, 0, self.provable_id]
+        neg_unprovable_logit = filtered_logits[:, 0, self.unprovable_id]
 
-        return loss
+        return pos_provable_logit, neg_provable_logit, pos_unprovable_logit, neg_unprovable_logit
+
+    def pair_loss(self,
+                  pos_provable_logit,
+                  neg_provable_logit,
+                  pos_unprovable_logit,
+                  neg_unprovable_logit) -> torch.Tensor:
+        loss = (torch.log(1 + torch.exp(-1 * (pos_provable_logit - neg_provable_logit))) +
+                torch.log(1 + torch.exp(-1 * (neg_unprovable_logit - pos_unprovable_logit))))
+
+        return torch.sum(loss)
 
     ############
     # Training #
     ############
 
     def training_step(self, batch, batch_idx: int):
-        loss = self(
-            batch["state_ids"],
-            batch["state_mask"],
-            batch["target_ids"],
-            batch["targets"]
-        )
+        pos_provable, neg_provable, pos_unprovable, neg_unprovable = self(
+            batch["pos_ids"],
+            batch["pos_mask"],
+            batch["neg_ids"],
+            batch["neg_mask"],
+            batch["target"])
+
+
+        loss = self.pair_loss(pos_provable, neg_provable, pos_unprovable, neg_unprovable)
 
         self.log(
             "loss_train",
@@ -119,11 +134,38 @@ class PairGoalModel(pl.LightningModule):
     # Validation #
     ##############
     def validation_step(self, batch, batch_idx: int):
-        loss = self(
-            batch["state_ids"],
-            batch["state_mask"],
-            batch["target_ids"],
-            batch["targets"]
+        pos_provable, neg_provable, pos_unprovable, neg_unprovable = self(
+            batch["pos_ids"],
+            batch["pos_mask"],
+            batch["neg_ids"],
+            batch["neg_mask"],
+            batch["target"])
+
+        loss = self.pair_loss(pos_provable, neg_provable, pos_unprovable, neg_unprovable)
+
+        # frequency of times positive is ranked higher than negative
+
+        pos_acc = torch.sum(pos_provable > neg_provable) / len(pos_provable)
+        neg_acc = torch.sum(neg_unprovable > pos_unprovable) / len(pos_provable)
+
+        self.log(
+            "pos_acc",
+            pos_acc,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
+        )
+
+        self.log(
+            "neg_acc",
+            neg_acc,
+            on_step=False,
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
         )
 
         self.log(

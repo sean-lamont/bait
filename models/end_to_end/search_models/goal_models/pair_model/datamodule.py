@@ -140,7 +140,7 @@ class PairGoalDataModule(pl.LightningDataModule):
                 # just take one parent for now
                 parent = node.in_edges[0].src
                 negative = get_most_visited_sibling(parent, node,
-                                                    lambda x: x.status != Status.PROVED)
+                                                    lambda x: x.status != Status.PROVED and x.visit_count > 0)
 
                 if negative:
                     node_data = {'positive_goal': node.data['augmented_state'],
@@ -155,7 +155,7 @@ class PairGoalDataModule(pl.LightningDataModule):
                 # just take one parent for now
                 parent = node.in_edges[0].src
                 positive = get_most_visited_sibling(parent, node,
-                                                    lambda x: x.status != Status.FAILED)
+                                                    lambda x: x.status != Status.FAILED and x.visit_count > 0)
 
                 if positive:
                     node_data = {'negative_goal': node.data['augmented_state'],
@@ -235,7 +235,7 @@ class PairGoalDataModule(pl.LightningDataModule):
 
     def collate_fn(self, examples) -> Batch:
         pos = [self.critic_tok + g['positive_goal'] for g in examples]
-        neg = [self.critic_tok + g['negative_gboal'] for g in examples]
+        neg = [self.critic_tok + g['negative_goal'] for g in examples]
 
         tokenized_pos = self.tokenizer(
             pos,
@@ -253,10 +253,26 @@ class PairGoalDataModule(pl.LightningDataModule):
             return_tensors="pt",
         )
 
+        targets = [self.provable_tok for _ in examples]
+
+        tokenized_target = self.tokenizer(
+            targets,
+            padding="longest",
+            max_length=self.max_seq_len,
+            truncation=True,
+            return_tensors="pt",
+        )
+
+        # values set to -100 ignored in HuggingFace loss
+        target_ids = tokenized_target.input_ids
+        target_ids[target_ids == self.tokenizer.pad_token_id] = -100
+
         batch = {"pos_ids": tokenized_pos.input_ids,
                  "pos_mask": tokenized_pos.attention_mask,
-                 "target_ids": tokenized_neg.input_ids,
-                 "target_attention_mask": tokenized_neg.attention_mask
+                 "neg_ids": tokenized_neg.input_ids,
+                 "neg_mask": tokenized_neg.attention_mask,
+                 # dummy value
+                 "target": target_ids
                  }
 
         return batch
