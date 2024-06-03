@@ -88,8 +88,8 @@ class PairGoalModel(pl.LightningModule):
                   neg_provable_logit,
                   pos_unprovable_logit,
                   neg_unprovable_logit) -> torch.Tensor:
-        loss = (torch.log(1 + torch.exp(-1 * (pos_provable_logit - neg_provable_logit))) +
-                torch.log(1 + torch.exp(-1 * (neg_unprovable_logit - pos_unprovable_logit))))
+        loss = (torch.log(1 + torch.exp(-1 * (pos_provable_logit - neg_provable_logit)))
+                + torch.log(1 + torch.exp(-1 * (neg_unprovable_logit - pos_unprovable_logit))))
 
         return torch.sum(loss)
 
@@ -104,7 +104,6 @@ class PairGoalModel(pl.LightningModule):
             batch["neg_ids"],
             batch["neg_mask"],
             batch["target"])
-
 
         loss = self.pair_loss(pos_provable, neg_provable, pos_unprovable, neg_unprovable)
 
@@ -133,6 +132,7 @@ class PairGoalModel(pl.LightningModule):
     ##############
     # Validation #
     ##############
+
     def validation_step(self, batch, batch_idx: int):
         pos_provable, neg_provable, pos_unprovable, neg_unprovable = self(
             batch["pos_ids"],

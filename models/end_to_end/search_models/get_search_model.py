@@ -4,6 +4,7 @@ import ray
 
 from models.end_to_end.search_models.bestfs import BestFS
 from models.end_to_end.search_models.bfs import BFS
+from models.end_to_end.search_models.goal_models.pair_model.model import PairGoalModel
 from models.end_to_end.search_models.htps import HTPS
 from models.end_to_end.search_models.levin_search import LevinSearch
 from models.end_to_end.search_models.search_models import GoalModel
@@ -34,7 +35,7 @@ def get_search_model(config, device):
             goal_model = GoalModel(goal_model)
         return UpDown(goal_model)
     elif config.search == 'htps':
-        goal_model = HardGoalModel.load(config.ckpt_path, device=device, freeze=True)
+        goal_model = PairGoalModel.load(config.ckpt_path, device=device, freeze=True)
 
         if config.distributed:
             goal_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(GoalModel).remote(

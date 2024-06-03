@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: test
+  name: no_retrieval_proven_only
   experiment: pair_model
 
 logging_config:
@@ -13,7 +13,7 @@ logging_config:
 
 model:
   _target_: models.end_to_end.search_models.goal_models.pair_model.model.PairGoalModel
-  model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
+  model_name: sean-lamont/leandojo-lean3-generator-novel-premises
   lr: 5e-5
   warmup_steps: 200
   provable_tok: '<extra_id_1>'
@@ -22,7 +22,7 @@ model:
 
 data_module:
   _target_: models.end_to_end.search_models.goal_models.pair_model.datamodule.PairGoalDataModule
-  model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
+  model_name: sean-lamont/leandojo-lean3-generator-novel-premises
   batch_size: 1 # effective_batch_size == batch_size * accumulate_grad_batches * devices
   eval_batch_size: 1
   max_seq_len: 2300

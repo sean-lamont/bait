@@ -1,3 +1,4 @@
+import math
 import pickle
 from pathlib import Path
 from typing import Optional
@@ -31,7 +32,7 @@ class PairGoalDataModule(pl.LightningDataModule):
             num_workers=0,
             trace_files=None,
             database='lean_search',
-            collection='pair_goal_data',
+            collection='pair_data_proven_only',
             replace='keep',  # keep, add or drop to collection if it exists
     ) -> None:
 
@@ -68,7 +69,7 @@ class PairGoalDataModule(pl.LightningDataModule):
         self.current_train_batch_index = state_dict["current_train_batch_index"]
         self.setup()
 
-    def prepare_data(self):
+    def prepare_data(self, max_proven=10, max_open=10, open_visit_threshold=256):
         db = MongoClient()[self.database]
 
         if self.collection in db.list_collection_names():
@@ -118,11 +119,43 @@ class PairGoalDataModule(pl.LightningDataModule):
             proven = [node for node in trace.nodes.values() if node.status == Status.PROVED and node.in_edges]
             failed = [node for node in trace.nodes.values() if node.status == Status.FAILED and node.in_edges]
 
+            proven = sorted(proven, key=lambda node: visits[node.goal], reverse=True)
+
+            def get_least_visited_sibling(node, positive_node, condition):
+                dst_nodes = [(d, visits[d.goal])
+                             for x in node.out_edges
+                             for d in x.dst
+                             if isinstance(d, InternalNode)
+                             and d.goal != positive_node.goal
+                             and d.goal in visits
+                             and condition(d)
+                             # ensure the chosen pair isn't a direct sibling
+                             and positive_node.goal not in x.dst]
+
+                if dst_nodes:
+                    cur_min = math.inf
+                    cur_node = dst_nodes[0][0]
+
+                    for d in dst_nodes:
+                        if cur_min > d[1]:
+                            cur_min = d[1]
+                            cur_node = d[0]
+
+                    return cur_node
+                else:
+                    return None
+
             def get_most_visited_sibling(node, positive_node, condition):
-                dst_nodes = [(d, visits[d.goal]) for x in node.out_edges for d in x.dst if
-                             isinstance(d,
-                                        InternalNode) and
-                             d.goal != positive_node.goal and condition(d) and d.goal in visits]
+                dst_nodes = [(d, visits[d.goal])
+                             for x in node.out_edges
+                             for d in x.dst
+                             if isinstance(d, InternalNode)
+                             and d.goal != positive_node.goal
+                             and d.goal in visits
+                             and condition(d)
+                             # ensure the chosen pair isn't a direct sibling
+                             and positive_node.goal not in x.dst]
+
                 if dst_nodes:
                     cur_max = 0
                     cur_node = dst_nodes[0][0]
@@ -136,20 +169,33 @@ class PairGoalDataModule(pl.LightningDataModule):
                 else:
                     return None
 
+            added_proven = 0
             for node in proven:
+                # only limit proof pairs if the tree wasn't proven
+                if added_proven > max_proven and not trace.proof:
+                    break
                 # just take one parent for now
                 parent = node.in_edges[0].src
+
                 negative = get_most_visited_sibling(parent, node,
-                                                    lambda x: x.status != Status.PROVED and x.visit_count > 0)
+                                                    lambda x: x.status != Status.PROVED and visits[x.goal] > visits[
+                                                        node.goal])
 
                 if negative:
-                    node_data = {'positive_goal': node.data['augmented_state'],
-                                 'negative_goal': negative.data['augmented_state'], 'split': split,
+                    # node_data = {'positive_goal': node.data['augmented_state'],
+                    #              'negative_goal': negative.data['augmented_state'], 'split': split,
+                    #              'n_visits': visits[negative.goal],
+                    #              'p_visits': visits[node.goal],
+                    #              'type': 'proven_pair'}
+
+                    node_data = {'positive_goal': node.goal,
+                                 'negative_goal': negative.goal, 'split': split,
                                  'n_visits': visits[negative.goal],
                                  'p_visits': visits[node.goal],
                                  'type': 'proven_pair'}
 
                     collection.insert_one(node_data)
+                    added_proven += 1
 
             for node in failed:
                 # just take one parent for now
@@ -158,13 +204,56 @@ class PairGoalDataModule(pl.LightningDataModule):
                                                     lambda x: x.status != Status.FAILED and x.visit_count > 0)
 
                 if positive:
-                    node_data = {'negative_goal': node.data['augmented_state'],
+                    # node_data = {'negative_goal': node.data['augmented_state'],
+                    #              'n_visits': visits[node.goal],
+                    #              'positive_goal': positive.data['augmented_state'], 'split': split,
+                    #              'p_visits': visits[positive.goal],
+                    #              'type': 'error_pair'}
+
+                    #
+                    node_data = {'negative_goal': node.goal,
                                  'n_visits': visits[node.goal],
-                                 'positive_goal': positive.data['augmented_state'], 'split': split,
+                                 'positive_goal': positive.goal, 'split': split,
                                  'p_visits': visits[positive.goal],
                                  'type': 'error_pair'}
-
                     collection.insert_one(node_data)
+
+            # for failed proof attempts, also add open nodes with high visit count as negative
+            # if not trace.proof:
+            #     added_open = 0
+            #     open_nodes = [node for node in trace.nodes.values() if node.status == Status.OPEN]
+            #     open_nodes = sorted(open_nodes, key=lambda node: visits[node.goal], reverse=True)
+            #
+            #     for node in open_nodes:
+            #         if added_open > max_open:
+            #             break
+            #         if visits[node.goal] > open_visit_threshold and node.in_edges:
+            #
+            #             parent = node.in_edges[0].src
+            #             positive = get_least_visited_sibling(parent, node,
+            #                                                  lambda
+            #                                                      x: x.status != Status.FAILED and visits[x.goal] < visits[
+            #                                                      node.goal] and x.visit_count > 0)
+            #
+            #
+            #
+            #
+            #             if positive:
+            #
+            #                 # node_data = {'negative_goal': node.goal,
+            #                 #              'n_visits': visits[node.goal],
+            #                 #              'positive_goal': positive.goal, 'split': split,
+            #                 #              'p_visits': visits[positive.goal],
+            #                 #              'type': 'open_pair'}
+            #
+            #                 node_data = {'negative_goal': node.data['augmented_state'],
+            #                              'n_visits': visits[node.goal],
+            #                              'positive_goal': positive.data['augmented_state'], 'split': split,
+            #                              'p_visits': visits[positive.goal],
+            #                              'type': 'open_pair'}
+            #
+            #                 collection.insert_one(node_data)
+            #                 added_open += 1
 
         logger.info('Processing traces for training goal model...')
         for file in tqdm(trace_files[:int(0.9 * len(trace_files))]):

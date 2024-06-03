@@ -4,14 +4,14 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: reprover-v1-novel-2
+  name: htps_4090_pair
   experiment: end_to_end
 #  resume: true
 #  directory: runs/end_to_end/reprover-v1-novel-2/2024_05_24/00_31_12
 
 logging_config:
   project: search
-  offline: true
+  offline: false
 #  id: az8iaveb
 
 num_theorems: 2000 #94000
@@ -41,7 +41,7 @@ resume_iteration: 0
 total_timeout: 6000
 
 # Maximum time allowed in environment before timing out
-env_timeout: 10
+env_timeout: 600
 
 with_gpus: true
 log_level: 'INFO'
@@ -102,14 +102,13 @@ tac_model:
 
 
 search_model:
-  search: bestfs
-#    search: htps
-#    ckpt_path: runs/train_goal_model/epoch=1-step=836919-val_acc=0.79.ckpt
-##  epoch=0-step=355000-val_acc=0.79.ckpt
-#    distributed: true
-#    gpu_per_process: 0.45
-#    cpu_per_process: 0.5
-#    exploration_constant: 1
+#  search: bestfs
+    search: htps
+    ckpt_path: runs/pair_full_no_retrieval
+    distributed: true
+    gpu_per_process: 0.45
+    cpu_per_process: 1
+    exploration_constant: 1
 
 #  search: bfs
 #  search: bestfs
