@@ -185,6 +185,7 @@ class SimpleTS(Search):
             valid_edges = [e for e in filtered_responses if e.src == s]
             logprobs = torch.tensor([e.tac_logprob / self.temperature for e in valid_edges])
             probs = F.softmax(logprobs, dim=0)
+
             for i, edge in enumerate(valid_edges):
                 a = max(eps, probs[i].item())
                 b = max(eps, 1 - a)

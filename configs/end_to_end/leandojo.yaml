@@ -56,7 +56,7 @@ num_cpus: 16 #16
 # How much GPU memory to allocate per prover (should be low, since the model is using most of the GPU)
 gpu_per_prover: 0.01
 # CPU resources to allocate per prover.
-cpu_per_prover: 1
+cpu_per_prover: 2
 # How many provers to assign per logical GPU. Each of these provers will share one tactic/search process.
 provers_per_gpu: 4
 

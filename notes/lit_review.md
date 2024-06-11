@@ -1,0 +1,15 @@
+
+- DeepSeekProver
+  - NLP -> Formal synthetic dataset
+- LegoProver
+  - Intermediate results saved to database
+- DSP
+  - NLP proof sketch, add formalisation
+- LLemma 
+  - Fine tuned LLM on math data
+- Curriculum Learning
+- HTPS
+- HOList
+- ReProver
+- COPRA
+  - Proof state saved with errors, given as context to LLM
