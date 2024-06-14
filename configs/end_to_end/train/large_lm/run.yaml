@@ -1,0 +1,126 @@
+# @package _global_
+defaults:
+  - /base/logging_config@_here_
+  - /base/exp_config@_here_
+
+exp_config:
+  name: large_lm
+  experiment: seq2seq
+
+#  resume: true
+#  directory: runs/seq2seq/seq2seq_train/2024_03_03/11_01_25
+
+logging_config:
+  project: seq2seq
+  offline: true
+
+#  id: xi59l6aq
+
+model:
+  _target_: models.end_to_end.tactic_models.generator.model.RetrievalAugmentedGenerator
+  config:
+    model_name: deepseek-ai/deepseek-math-7b-base
+    #    lr: 1e-6
+    # learning rate used in HTPS is 3e-5
+    lr: 1e-5
+    warmup_steps: 150
+    beta: 0.99
+    max_seq_len: 2300
+
+
+    # model type config
+    model_class: CausalLM
+    quant: true
+
+    num_val_samples: 64
+
+    # retriever path
+    ret_ckpt_path: runs/retriever_novel_premises.ckpt
+    indexed_corpus_path: runs/indexed_corpus
+    eval_num_retrieved: 100
+
+    # should always be beam search
+    gen_config:
+      strategy: beam
+      length_penalty: 0.0
+
+
+    # config for live evaluation
+    live_eval: false
+    eval_config:
+      eval_num_theorems: 200
+      shuffle: false
+      timeout: 600
+      # frequency of live evaluation in epochs
+      frequency: 1
+
+    lora_config:
+      target_modules: [ 'q', 'k', 'v', 'o', 'wo', 'lm_head' ]
+      task_type: "SEQ_2_SEQ_LM"
+      r: 16
+      lora_alpha: 16
+      lora_dropout: 0.01
+
+data_module:
+  # original LeanDojo training dataset
+  _target_: models.end_to_end.tactic_models.generator.leandojo_pretrain_datamodule.GeneratorDataModule
+  data_path: data/LeanDojo/data/leandojo_benchmark/novel-premises/
+  preds_path: runs/indexed_corpus
+  corpus_path: data/LeanDojo/data/leandojo_benchmark/corpus.jsonl
+  keep_marks: true
+  p_drop: 0.5
+  normalize_tactics: true
+  model_name: deepseek-ai/deepseek-math-7b-base
+  batch_size: 2  # effective_batch_size == batch_size * accumulate_grad_batches * devices
+  eval_batch_size: 2
+  max_seq_len: 2300
+  num_workers: 0
+
+##  From live synthetic data
+#  _target_: models.end_to_end.tactic_models.generator.datamodule.GeneratorDataModule
+#  model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
+#  batch_size: 2  # effective_batch_size == batch_size * accumulate_grad_batches * devices
+#  eval_batch_size: 2
+#  max_seq_len: 2300
+#  num_workers: 0
+#
+#  trace_files: runs/seq2seq/seq2seq_eval_iteration_1/2024_03_01/21_46_35/traces # null
+#
+#  collection: seq2seq_0
+
+#  trace_files: null
+#  collection: null
+#  database: null
+trainer:
+  accelerator: gpu
+  devices: 1
+  precision: bf16-mixed
+  strategy:
+    _target_: lightning.pytorch.strategies.DeepSpeedStrategy
+    stage: 2
+    offload_optimizer: false
+    cpu_checkpointing: false
+    logging_batch_size_per_gpu: 2
+  gradient_clip_val: 1.0
+  max_steps: 5000000
+  #  val_check_interval: 10
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.LearningRateMonitor
+      logging_interval: step
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      verbose: true
+      save_top_k: 1
+      save_last: false
+      monitor: Pass@1_val
+#      monitor: top64_acc_val
+      mode: max
+      dirpath: ${exp_config.directory}/checkpoints
+      auto_insert_metric_name: true
+      filename: "last"
+#      filename: "{epoch}-{step}-{Pass@1_val:.2f}"
+#      filename: "{epoch}-{step}-{top64_acc:.2f}"
+    - _target_: lightning.pytorch.callbacks.EarlyStopping
+      monitor: Pass@1_val
+      patience: 1
+      mode: max
+      verbose: true

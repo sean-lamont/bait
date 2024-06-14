@@ -17,7 +17,7 @@ from experiments.end_to_end.common import (
     format_state,
     remove_marks,
     format_tactic,
-    format_augmented_state,
+    format_augmented_state, LeanDojoCorpus,
 )
 
 
@@ -31,7 +31,7 @@ class GeneratorDataset(Dataset):
         max_seq_len: int,
         p_drop: float,
         normalize_tactics: bool,
-        tokenizer: ByT5Tokenizer,
+        tokenizer: Any,
         is_train: bool,
     ) -> None:
         super().__init__()
@@ -149,7 +149,7 @@ class GeneratorDataModule(pl.LightningDataModule):
         super().__init__()
         self.data_path = data_path
         if corpus_path is not None:
-            self.corpus = Corpus(corpus_path)
+            self.corpus = LeanDojoCorpus(corpus_path)
         else:
             self.corpus = None
         self.keep_marks = keep_marks
@@ -170,6 +170,7 @@ class GeneratorDataModule(pl.LightningDataModule):
             for pred in pickle.load(open(preds_path, "rb")):
                 ctx = pred["context"]
                 self.preds[ctx.path, ctx.theorem_full_name, ctx.state] = pred
+
 
     def prepare_data(self) -> None:
         pass

@@ -9,7 +9,7 @@ import torch
 from lean_dojo.utils import execute
 from loguru import logger
 from peft import LoraConfig, get_peft_model
-from transformers import T5ForConditionalGeneration, AutoTokenizer
+from transformers import T5ForConditionalGeneration, AutoTokenizer, BitsAndBytesConfig, AutoModelForCausalLM
 
 from experiments.end_to_end.common import format_augmented_state, zip_strict, get_optimizers, load_checkpoint
 from models.end_to_end.tactic_models.retrieval.model import PremiseRetriever
@@ -23,6 +23,37 @@ Generic class for Retrieval and Generative Tactic Models.
 '''
 
 
+def load_gen_model(config):
+    # todo different quant settings
+    if hasattr(config, 'quant') and config.quant:
+        quant_config = BitsAndBytesConfig(
+            load_in_8bit=True,
+            llm_int8_threshold=6.0
+        )
+    else:
+        quant_config = None
+
+    if hasattr(config, 'model_class'):
+        if config.model_class == 'T5':
+            tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+            generator = T5ForConditionalGeneration.from_pretrained(config.model_name,
+                                                                   quantization_config=quant_config if quant_config else None)
+
+        elif config.model_class == 'CausalLM':
+            tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+            generator = AutoModelForCausalLM.from_pretrained(config.model_name,
+                                                             quantization_config=quant_config if quant_config else None)
+
+        else:
+            raise NotImplementedError(config.model_class)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+        generator = T5ForConditionalGeneration.from_pretrained(config.model_name,
+                                                               quantization_config=quant_config if quant_config else None)
+
+    return tokenizer, generator
+
+
 class GenTacModel(pl.LightningModule):
     def __init__(self, config) -> None:
         super().__init__()
@@ -34,10 +65,10 @@ class GenTacModel(pl.LightningModule):
         self.max_seq_len = config.max_seq_len
         self.eval_num_retrieved = config.eval_num_retrieved if hasattr(config, 'eval_num_retrieved') else None
 
-        # todo broader generation models (i.e. other than T5)
-        self.tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+        self.tokenizer, generator = load_gen_model(config)
 
-        generator = T5ForConditionalGeneration.from_pretrained(config.model_name)
+        # self.tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+        # generator = T5ForConditionalGeneration.from_pretrained(config.model_name)
 
         ret_ckpt_path = config.ret_ckpt_path if hasattr(config, 'ret_ckpt_path') else None
 

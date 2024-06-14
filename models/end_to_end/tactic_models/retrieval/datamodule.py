@@ -20,7 +20,6 @@ from experiments.end_to_end.common import Context, LeanDojoCorpus, Batch, Exampl
 
 
 # Dataset is LeanDojo specific, but can reuse DataModule for other environments
-# todo datasets for other environments
 
 class LeanDojoRetrievalDataset(Dataset):
     def __init__(
