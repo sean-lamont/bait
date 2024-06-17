@@ -4,15 +4,15 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: large_lm
-  experiment: seq2seq
+  name: deepseek-base-novel
+  experiment: large_lm
 
 #  resume: true
 #  directory: runs/seq2seq/seq2seq_train/2024_03_03/11_01_25
 
 logging_config:
-  project: seq2seq
-  offline: true
+  project: large_lm
+  offline: false
 
 #  id: xi59l6aq
 
@@ -22,17 +22,17 @@ model:
     model_name: deepseek-ai/deepseek-math-7b-base
     #    lr: 1e-6
     # learning rate used in HTPS is 3e-5
-    lr: 1e-5
+    lr: 3e-5
     warmup_steps: 150
     beta: 0.99
-    max_seq_len: 2300
+    max_seq_len: 1000 #2300
 
 
     # model type config
     model_class: CausalLM
     quant: true
 
-    num_val_samples: 64
+    num_val_samples: 2
 
     # retriever path
     ret_ckpt_path: null
@@ -56,11 +56,13 @@ model:
       frequency: 1
 
     lora_config:
-      target_modules: [ 'q', 'k', 'v', 'o', 'wo', 'lm_head' ]
+      # https://www.anyscale.com/blog/fine-tuning-llms-lora-or-full-parameter-an-in-depth-analysis-with-llama-2
+#      target_modules: [ 'q', 'k', 'v', 'o', 'wo', 'lm_head' ]
+      target_modules: [ 'q_proj', 'v_proj', 'k_proj', 'o_proj', 'gate_proj', 'up_proj', 'down_proj', 'embed_tokens', 'lm_head' ]
       task_type: "CAUSAL_LM"
-      r: 16
+      r: 8
       lora_alpha: 16
-      lora_dropout: 0.01
+      lora_dropout: 0.05
 
 data_module:
   # original LeanDojo training dataset
@@ -74,7 +76,7 @@ data_module:
   model_name: deepseek-ai/deepseek-math-7b-base
   batch_size: 1  # effective_batch_size == batch_size * accumulate_grad_batches * devices
   eval_batch_size: 1
-  max_seq_len: 2300
+  max_seq_len: 1000
   num_workers: 0
 
 ##  From live synthetic data
@@ -100,10 +102,18 @@ trainer:
     _target_: lightning.pytorch.strategies.DeepSpeedStrategy
     stage: 2
     offload_optimizer: false
-    cpu_checkpointing: false
-    logging_batch_size_per_gpu: 2
+#      device: cpu
+    offload_parameters: false
+#      device: cpu
+#    contiguous_gradients: true
+#    cpu_checkpointing: false
+#    overlap_comm: true
+#    allgather_bucket_size: 2e6
+#    reduce_bucket_size: 2e6
+    logging_batch_size_per_gpu: 1
   gradient_clip_val: 1.0
   max_steps: 5000000
+  num_sanity_val_steps: 0
   #  val_check_interval: 10
   callbacks:
     - _target_: lightning.pytorch.callbacks.LearningRateMonitor

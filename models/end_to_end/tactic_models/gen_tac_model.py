@@ -24,12 +24,19 @@ Generic class for Retrieval and Generative Tactic Models.
 
 
 def load_gen_model(config):
-    # todo different quant settings
+    # todo different quantization settings
     if hasattr(config, 'quant') and config.quant:
+        # quant_config = BitsAndBytesConfig(
+        #     load_in_8bit=True,
+        #     llm_int8_threshold=6.0
+        # )
         quant_config = BitsAndBytesConfig(
-            load_in_8bit=True,
-            llm_int8_threshold=6.0
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype=torch.bfloat16
         )
+
     else:
         quant_config = None
 
@@ -41,12 +48,11 @@ def load_gen_model(config):
 
         elif config.model_class == 'CausalLM':
             tokenizer = AutoTokenizer.from_pretrained(config.model_name)
-            # generator = AutoModelForCausalLM.from_pretrained(config.model_name,
-            #                                                  quantization_config=quant_config if quant_config else None)
             generator = AutoModelForCausalLM.from_pretrained(config.model_name,
                                                              quantization_config=quant_config if quant_config else None)
 
             tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+
             generator.pad_token_id = tokenizer.pad_token_id
             generator.generation_config.pad_token_id = tokenizer.pad_token_id
 
@@ -72,9 +78,6 @@ class GenTacModel(pl.LightningModule):
         self.eval_num_retrieved = config.eval_num_retrieved if hasattr(config, 'eval_num_retrieved') else None
 
         self.tokenizer, generator = load_gen_model(config)
-
-        # self.tokenizer = AutoTokenizer.from_pretrained(config.model_name)
-        # generator = T5ForConditionalGeneration.from_pretrained(config.model_name)
 
         ret_ckpt_path = config.ret_ckpt_path if hasattr(config, 'ret_ckpt_path') else None
 
@@ -251,7 +254,8 @@ class GenTacModel(pl.LightningModule):
             length_penalty=self.gen_config.length_penalty,
             do_sample=False,
             num_return_sequences=num_samples,
-            early_stopping=False,
+            # early_stopping=False,
+            early_stopping=True,
             output_scores=True,
             return_dict_in_generate=True,
         )

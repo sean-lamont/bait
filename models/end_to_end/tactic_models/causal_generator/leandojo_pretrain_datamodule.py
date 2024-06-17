@@ -105,6 +105,8 @@ class GeneratorDataset(Dataset):
 
         return ex
 
+    # todo add prompt to this?
+    #  e.g. better results from  https://www.anyscale.com/blog/fine-tuning-llms-lora-or-full-parameter-an-in-depth-analysis-with-llama-2
     # need to have same input/output shape for labels with causal LM
     def collate(self, examples: List[Example]) -> Batch:
         state = [ex["state"] + '[ANSWER]' + ex["tactic"] for ex in examples]
@@ -118,11 +120,9 @@ class GeneratorDataset(Dataset):
         )
 
         collated = self.collator(list(tokenized_state.input_ids))
-        print (collated)
-
         state_ids = collated['input_ids']
-        tactic_ids = collated['labels']
 
+        tactic_ids = collated['labels']
         tactic_ids[tactic_ids == self.tokenizer.pad_token_id] = -100
 
         batch = {}
@@ -132,6 +132,7 @@ class GeneratorDataset(Dataset):
         batch["tactic_ids"] = tactic_ids
         # batch["tactic_mask"] = tokenized_tactic.attention_mask
 
+        # print (batch)
         # Copy other fields.
         for k in examples[0].keys():
             if k not in batch:

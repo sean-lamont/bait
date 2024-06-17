@@ -87,6 +87,7 @@ class RetrievalAugmentedGenerator(GenTacModel):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
+            prog_bar=True
         )
 
         return loss
@@ -102,8 +103,6 @@ class RetrievalAugmentedGenerator(GenTacModel):
         tactic_ids = batch["tactic_ids"]
 
         retriever_args = batch["retriever_args"] if "retriever_args" in batch else None
-
-        print (state_ids.shape, state_mask.shape, tactic_ids.shape)
 
         loss = self(state_ids, state_mask, tactic_ids)
         self.log(f"loss_val", loss, on_step=False, on_epoch=True, sync_dist=True)
@@ -130,6 +129,8 @@ class RetrievalAugmentedGenerator(GenTacModel):
             output_text[i * self.num_val_samples: (i + 1) * self.num_val_samples]
             for i in range(batch_size)
         ]
+
+        # print (tactics_pred)
 
         # Log the topk accuracies.
         for k in range(1, self.num_val_samples + 1):
