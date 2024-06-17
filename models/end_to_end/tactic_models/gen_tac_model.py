@@ -9,7 +9,7 @@ import torch
 from lean_dojo.utils import execute
 from loguru import logger
 from peft import LoraConfig, get_peft_model
-from transformers import T5ForConditionalGeneration, AutoTokenizer, BitsAndBytesConfig, AutoModelForCausalLM
+from transformers import T5ForConditionalGeneration, AutoTokenizer, BitsAndBytesConfig, AutoModelForCausalLM, AutoModelForSeq2SeqLM
 
 from experiments.end_to_end.common import format_augmented_state, zip_strict, get_optimizers, load_checkpoint
 from models.end_to_end.tactic_models.retrieval.model import PremiseRetriever
@@ -41,8 +41,14 @@ def load_gen_model(config):
 
         elif config.model_class == 'CausalLM':
             tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+            # generator = AutoModelForCausalLM.from_pretrained(config.model_name,
+            #                                                  quantization_config=quant_config if quant_config else None)
             generator = AutoModelForCausalLM.from_pretrained(config.model_name,
                                                              quantization_config=quant_config if quant_config else None)
+
+            tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+            generator.pad_token_id = tokenizer.pad_token_id
+            generator.generation_config.pad_token_id = tokenizer.pad_token_id
 
         else:
             raise NotImplementedError(config.model_class)

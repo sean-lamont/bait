@@ -17,7 +17,7 @@ logging_config:
 #  id: xi59l6aq
 
 model:
-  _target_: models.end_to_end.tactic_models.generator.model.RetrievalAugmentedGenerator
+  _target_: models.end_to_end.tactic_models.causal_generator.model.RetrievalAugmentedGenerator
   config:
     model_name: deepseek-ai/deepseek-math-7b-base
     #    lr: 1e-6
@@ -35,9 +35,10 @@ model:
     num_val_samples: 64
 
     # retriever path
-    ret_ckpt_path: runs/retriever_novel_premises.ckpt
-    indexed_corpus_path: runs/indexed_corpus
-    eval_num_retrieved: 100
+    ret_ckpt_path: null
+#    ret_ckpt_path: runs/retriever_novel_premises.ckpt
+#    indexed_corpus_path: runs/indexed_corpus
+#    eval_num_retrieved: 100
 
     # should always be beam search
     gen_config:
@@ -56,23 +57,23 @@ model:
 
     lora_config:
       target_modules: [ 'q', 'k', 'v', 'o', 'wo', 'lm_head' ]
-      task_type: "SEQ_2_SEQ_LM"
+      task_type: "CAUSAL_LM"
       r: 16
       lora_alpha: 16
       lora_dropout: 0.01
 
 data_module:
   # original LeanDojo training dataset
-  _target_: models.end_to_end.tactic_models.generator.leandojo_pretrain_datamodule.GeneratorDataModule
-  data_path: data/LeanDojo/data/leandojo_benchmark/novel-premises/
-  preds_path: runs/indexed_corpus
+  _target_: models.end_to_end.tactic_models.causal_generator.leandojo_pretrain_datamodule.GeneratorDataModule
+  data_path: data/LeanDojo/data/leandojo_benchmark/novel_premises/
+  preds_path: null #runs/indexed_corpus
   corpus_path: data/LeanDojo/data/leandojo_benchmark/corpus.jsonl
   keep_marks: true
   p_drop: 0.5
   normalize_tactics: true
   model_name: deepseek-ai/deepseek-math-7b-base
-  batch_size: 2  # effective_batch_size == batch_size * accumulate_grad_batches * devices
-  eval_batch_size: 2
+  batch_size: 1  # effective_batch_size == batch_size * accumulate_grad_batches * devices
+  eval_batch_size: 1
   max_seq_len: 2300
   num_workers: 0
 

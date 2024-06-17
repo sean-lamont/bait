@@ -9,6 +9,7 @@ from typing import Optional, List, Dict, Any
 from lean_dojo.constants import LEAN3_PACKAGES_DIR
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoTokenizer, ByT5Tokenizer
+from trl import DataCollatorForCompletionOnlyLM
 
 from experiments.end_to_end.common import (
     Batch,
@@ -23,16 +24,16 @@ from experiments.end_to_end.common import (
 
 class GeneratorDataset(Dataset):
     def __init__(
-        self,
-        data_path: str,
-        corpus: Corpus,
-        keep_marks: bool,
-        preds: List[Dict[str, Any]],
-        max_seq_len: int,
-        p_drop: float,
-        normalize_tactics: bool,
-        tokenizer: Any,
-        is_train: bool,
+            self,
+            data_path: str,
+            corpus: Corpus,
+            keep_marks: bool,
+            preds: List[Dict[str, Any]],
+            max_seq_len: int,
+            p_drop: float,
+            normalize_tactics: bool,
+            tokenizer: Any,
+            is_train: bool,
     ) -> None:
         super().__init__()
         self.corpus = corpus
@@ -43,6 +44,15 @@ class GeneratorDataset(Dataset):
         self.tokenizer = tokenizer
         self.is_train = is_train
         self.data = self._load_data(data_path, normalize_tactics)
+
+
+        ## specific to LLAMA based tokeniser, ensure that the collator response template has context
+        response_template_with_context = "\n[ANSWER]"  # We added context here: "\n". This is enough for this tokenizer
+        response_template_ids = self.tokenizer.encode(response_template_with_context, add_special_tokens=False)[
+                                2:]  # Now we have it like in the dataset texts: `[2277, 29937, 4007, 22137, 29901]`
+
+        self.collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, mlm=False,
+                                                        return_tensors="pt")
 
     def _load_data(self, data_path: str, normalize_tactics: bool) -> List[Example]:
         data = []
@@ -95,8 +105,10 @@ class GeneratorDataset(Dataset):
 
         return ex
 
+    # need to have same input/output shape for labels with causal LM
     def collate(self, examples: List[Example]) -> Batch:
-        state = [ex["state"] for ex in examples]
+        state = [ex["state"] + '[ANSWER]' + ex["tactic"] for ex in examples]
+
         tokenized_state = self.tokenizer(
             state,
             padding="longest",
@@ -104,24 +116,21 @@ class GeneratorDataset(Dataset):
             truncation=True,
             return_tensors="pt",
         )
-        tactic = [ex["tactic"] for ex in examples]
-        tokenized_tactic = self.tokenizer(
-            tactic,
-            padding="longest",
-            max_length=self.max_seq_len,
-            truncation=True,
-            return_tensors="pt",
-        )
-        tactic_ids = tokenized_tactic.input_ids
+
+        collated = self.collator(list(tokenized_state.input_ids))
+        print (collated)
+
+        state_ids = collated['input_ids']
+        tactic_ids = collated['labels']
+
         tactic_ids[tactic_ids == self.tokenizer.pad_token_id] = -100
 
         batch = {}
         batch["state"] = state
-        batch["state_ids"] = tokenized_state.input_ids
+        batch["state_ids"] = state_ids
         batch["state_mask"] = tokenized_state.attention_mask
-        batch["tactic"] = tactic
         batch["tactic_ids"] = tactic_ids
-        batch["tactic_mask"] = tokenized_tactic.attention_mask
+        # batch["tactic_mask"] = tokenized_tactic.attention_mask
 
         # Copy other fields.
         for k in examples[0].keys():
@@ -133,18 +142,18 @@ class GeneratorDataset(Dataset):
 
 class GeneratorDataModule(pl.LightningDataModule):
     def __init__(
-        self,
-        data_path: str,
-        keep_marks: bool,
-        model_name: str,
-        batch_size: int,
-        eval_batch_size: int,
-        max_seq_len: int,
-        p_drop: float,
-        normalize_tactics: bool,
-        num_workers: int,
-        corpus_path: Optional[str] = None,
-        preds_path: Optional[str] = None,
+            self,
+            data_path: str,
+            keep_marks: bool,
+            model_name: str,
+            batch_size: int,
+            eval_batch_size: int,
+            max_seq_len: int,
+            p_drop: float,
+            normalize_tactics: bool,
+            num_workers: int,
+            corpus_path: Optional[str] = None,
+            preds_path: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.data_path = data_path
@@ -162,8 +171,7 @@ class GeneratorDataModule(pl.LightningDataModule):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         if not self.tokenizer.pad_token:
-            tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-            self.tokenizer.pad_token = self.tokenizer.eos_token
+            self.tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 
         if preds_path is None:
             logger.info("Without retrieval data")
@@ -174,7 +182,6 @@ class GeneratorDataModule(pl.LightningDataModule):
             for pred in pickle.load(open(preds_path, "rb")):
                 ctx = pred["context"]
                 self.preds[ctx.path, ctx.theorem_full_name, ctx.state] = pred
-
 
     def prepare_data(self) -> None:
         pass
@@ -211,6 +218,7 @@ class GeneratorDataModule(pl.LightningDataModule):
             self.ds_train,
             self.batch_size,
             num_workers=self.num_workers,
+            # collate_fn=self.ds_train.collate,
             collate_fn=self.ds_train.collate,
             shuffle=True,
             pin_memory=True,
@@ -222,6 +230,7 @@ class GeneratorDataModule(pl.LightningDataModule):
             self.ds_val,
             self.eval_batch_size,
             num_workers=self.num_workers,
+            # collate_fn=self.ds_val.collate,
             collate_fn=self.ds_val.collate,
             shuffle=False,
             pin_memory=True,
