@@ -4,17 +4,16 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: deepseek-base-novel
+  name: deepseek-base-novel-prompt-low-lr
   experiment: large_lm
-
 #  resume: true
+#  directory: runs/large_lm/deepseek-base-novel-prompt/2024_06_17/17_30_55
 #  directory: runs/seq2seq/seq2seq_train/2024_03_03/11_01_25
 
 logging_config:
   project: large_lm
   offline: false
-
-#  id: xi59l6aq
+#  id: g6s3ug9y
 
 model:
   _target_: models.end_to_end.tactic_models.causal_generator.model.RetrievalAugmentedGenerator
@@ -22,7 +21,7 @@ model:
     model_name: deepseek-ai/deepseek-math-7b-base
     #    lr: 1e-6
     # learning rate used in HTPS is 3e-5
-    lr: 3e-5
+    lr: 1e-5
     warmup_steps: 150
     beta: 0.99
     max_seq_len: 1000 #2300
@@ -122,9 +121,10 @@ trainer:
       verbose: true
       save_top_k: 1
       save_last: false
-      monitor: Pass@1_val
+#      monitor: Pass@1_val
 #      monitor: top64_acc_val
-      mode: max
+#      mode: max
+      every_n_train_steps: 10_000
       dirpath: ${exp_config.directory}/checkpoints
       auto_insert_metric_name: true
       filename: "last"

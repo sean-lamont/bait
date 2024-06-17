@@ -16,6 +16,9 @@ from models.end_to_end.tactic_models.gen_tac_model import GenTacModel
 
 torch.set_float32_matmul_precision("medium")
 
+# todo saving model checkpoint as LoRA weights
+# https://github.com/Lightning-AI/pytorch-lightning/issues/19228
+
 
 class TopkAccuracy(Metric):
     is_differentiable: Optional[bool] = False

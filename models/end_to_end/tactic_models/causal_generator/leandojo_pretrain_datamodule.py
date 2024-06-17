@@ -109,7 +109,14 @@ class GeneratorDataset(Dataset):
     #  e.g. better results from  https://www.anyscale.com/blog/fine-tuning-llms-lora-or-full-parameter-an-in-depth-analysis-with-llama-2
     # need to have same input/output shape for labels with causal LM
     def collate(self, examples: List[Example]) -> Batch:
-        state = [ex["state"] + '[ANSWER]' + ex["tactic"] for ex in examples]
+        
+        
+        prompt = ('You are an expert in Lean 3 theorem proving.'
+                  ' Suggest a tactic to solve the following goal.'
+                  ' Any premises are to be included in the following format: <a>premise<\\a>.'
+                  'Return your answer in the following format: [ANSWER]your_tactic[DONE]\n\n')
+
+        state = [prompt + ex["state"] + '[ANSWER]' + ex["tactic"] + '[DONE]' for ex in examples]
 
         tokenized_state = self.tokenizer(
             state,
