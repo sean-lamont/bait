@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: deepseek-base-novel-prompt-low-lr
+  name: deepseek-base-novel-prompt-no-quant-preds
   experiment: large_lm
 #  resume: true
 #  directory: runs/large_lm/deepseek-base-novel-prompt/2024_06_17/17_30_55
@@ -21,7 +21,7 @@ model:
     model_name: deepseek-ai/deepseek-math-7b-base
     #    lr: 1e-6
     # learning rate used in HTPS is 3e-5
-    lr: 1e-5
+    lr: 3e-5
     warmup_steps: 150
     beta: 0.99
     max_seq_len: 1000 #2300
@@ -29,7 +29,7 @@ model:
 
     # model type config
     model_class: CausalLM
-    quant: true
+    quant: false
 
     num_val_samples: 2
 
@@ -67,7 +67,7 @@ data_module:
   # original LeanDojo training dataset
   _target_: models.end_to_end.tactic_models.causal_generator.leandojo_pretrain_datamodule.GeneratorDataModule
   data_path: data/LeanDojo/data/leandojo_benchmark/novel_premises/
-  preds_path: null #runs/indexed_corpus
+  preds_path: runs/predictions.pickle #runs/indexed_corpus
   corpus_path: data/LeanDojo/data/leandojo_benchmark/corpus.jsonl
   keep_marks: true
   p_drop: 0.5
@@ -75,7 +75,7 @@ data_module:
   model_name: deepseek-ai/deepseek-math-7b-base
   batch_size: 1  # effective_batch_size == batch_size * accumulate_grad_batches * devices
   eval_batch_size: 1
-  max_seq_len: 1000
+  max_seq_len: 1300
   num_workers: 0
 
 ##  From live synthetic data
@@ -100,16 +100,16 @@ trainer:
   strategy:
     _target_: lightning.pytorch.strategies.DeepSpeedStrategy
     stage: 2
-    offload_optimizer: false
+#    offload_optimizer: false
 #      device: cpu
-    offload_parameters: false
+#    offload_parameters: false
 #      device: cpu
 #    contiguous_gradients: true
 #    cpu_checkpointing: false
 #    overlap_comm: true
-#    allgather_bucket_size: 2e6
-#    reduce_bucket_size: 2e6
-    logging_batch_size_per_gpu: 1
+#    allgather_bucket_size: 1e7
+#    reduce_bucket_size: 1e7
+#    logging_batch_size_per_gpu: 1
   gradient_clip_val: 1.0
   max_steps: 5000000
   num_sanity_val_steps: 0
@@ -124,7 +124,7 @@ trainer:
 #      monitor: Pass@1_val
 #      monitor: top64_acc_val
 #      mode: max
-      every_n_train_steps: 10_000
+      every_n_train_steps: 50_000
       dirpath: ${exp_config.directory}/checkpoints
       auto_insert_metric_name: true
       filename: "last"

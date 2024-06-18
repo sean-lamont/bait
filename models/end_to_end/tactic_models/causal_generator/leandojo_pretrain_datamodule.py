@@ -105,18 +105,16 @@ class GeneratorDataset(Dataset):
 
         return ex
 
-    # todo add prompt to this?
-    #  e.g. better results from  https://www.anyscale.com/blog/fine-tuning-llms-lora-or-full-parameter-an-in-depth-analysis-with-llama-2
     # need to have same input/output shape for labels with causal LM
     def collate(self, examples: List[Example]) -> Batch:
         
         
         prompt = ('You are an expert in Lean 3 theorem proving.'
                   ' Suggest a tactic to solve the following goal.'
-                  ' Any premises are to be included in the following format: <a>premise<\\a>.'
-                  'Return your answer in the following format: [ANSWER]your_tactic[DONE]\n\n')
+                  ' Any premises in the tactic should be included in the following format: <a>premise<\\a>.'
+                  'Return your answer in the following format: [ANSWER]your_tactic\n\n')
 
-        state = [prompt + ex["state"] + '[ANSWER]' + ex["tactic"] + '[DONE]' for ex in examples]
+        state = [prompt + ex["state"] + '[ANSWER]' + ex["tactic"] + '[DONE]' + self.tokenizer.eos_token for ex in examples]
 
         tokenized_state = self.tokenizer(
             state,
@@ -125,6 +123,7 @@ class GeneratorDataset(Dataset):
             truncation=True,
             return_tensors="pt",
         )
+
 
         collated = self.collator(list(tokenized_state.input_ids))
         state_ids = collated['input_ids']

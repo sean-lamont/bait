@@ -161,10 +161,6 @@ class GeneratorDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-        if not self.tokenizer.pad_token:
-            tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-            self.tokenizer.pad_token = self.tokenizer.eos_token
-
         if preds_path is None:
             logger.info("Without retrieval data")
             self.preds = None
