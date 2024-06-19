@@ -20,6 +20,8 @@ torch.set_float32_matmul_precision("medium")
 # todo saving model checkpoint as LoRA weights
 # https://github.com/Lightning-AI/pytorch-lightning/issues/19228
 
+# todo parameterise prompt
+
 
 class TopkAccuracy(Metric):
     is_differentiable: Optional[bool] = False
@@ -180,10 +182,6 @@ class RetrievalAugmentedGenerator(GenTacModel):
         self.log("Pass@1_val", acc, prog_bar=True)
         logger.info(f"Pass@1: {acc}")
 
-    # todo: update generation to:
-    # - Parse out response (take text after [ANSWER] and ensure it's in the correct format)
-    # -
-
     def batch_generate(self, state, retriever_args, num_samples):
         prompt = ('You are an expert in Lean 3 theorem proving.'
                   ' Suggest a tactic to solve the following goal.'
@@ -257,6 +255,7 @@ class RetrievalAugmentedGenerator(GenTacModel):
 
             for j in range(num_samples * 2):
                 t = raw_output_text[j]
+                t = t.split('[ANSWER]')[-1]
                 if t not in output_text:
                     output_text.append(t)
                     score = torch.sum(transitions[j][transitions[j] != -torch.inf]).item()
@@ -300,6 +299,7 @@ class RetrievalAugmentedGenerator(GenTacModel):
 
             for j in range(i * num_samples, (i + 1) * num_samples):
                 t = raw_output_text[j]
+                t = t.split('[ANSWER]')[-1]
                 if t not in output_text:
                     output_text.append(t)
                     output_score.append(raw_scores[j])
