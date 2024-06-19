@@ -114,7 +114,7 @@ class RetrievalAugmentedGenerator(GenTacModel):
         output_text = []
         for s in state:
             # Generate topk tactic candidates
-            output = self.generate(s, retriever_args=retriever_args, num_samples=self.num_val_samples)
+            output, _ = self.generate(s, retriever_args=retriever_args, num_samples=self.num_val_samples)
 
             output = [o[0] for o in output]
 
