@@ -264,6 +264,7 @@ class GenTacModel(pl.LightningModule):
         raw_output_text = self.tokenizer.batch_decode(
             output.sequences, skip_special_tokens=True
         )
+
         raw_scores = output.sequences_scores.tolist()
         tactics_with_scores = []
 
