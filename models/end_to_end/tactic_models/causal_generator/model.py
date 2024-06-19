@@ -205,7 +205,7 @@ class RetrievalAugmentedGenerator(GenTacModel):
                 for s, premises in zip_strict(state, retrieved_premises)
             ]
 
-        state = prompt + state
+        state = [prompt + s for s in state]
 
         tokenized_state = self.tokenizer(
             state,
