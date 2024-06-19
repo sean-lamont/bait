@@ -7,6 +7,7 @@ from typing import Optional, List
 
 import torch
 from lean_dojo.utils import execute
+from lightning.pytorch.callbacks import ModelCheckpoint
 from loguru import logger
 from torchmetrics import Metric
 from torchmetrics.text import SacreBLEUScore
@@ -17,8 +18,13 @@ from models.end_to_end.tactic_models.gen_tac_model import GenTacModel
 torch.set_float32_matmul_precision("medium")
 
 
-# todo saving model checkpoint as LoRA weights
+# subclass of ModelCheckpoint, which saves the checkpoint using HF save_pretrained
 # https://github.com/Lightning-AI/pytorch-lightning/issues/19228
+class HFModelCheckpoint(ModelCheckpoint):
+    def _save_checkpoint(self, trainer, filepath):
+        trainer.lightning_module.generator.save_pretrained(filepath)
+        super()._save_checkpoint(trainer, filepath)
+
 
 # todo parameterise prompt
 
@@ -187,7 +193,6 @@ class RetrievalAugmentedGenerator(GenTacModel):
         prompt = ('You are an expert in Lean 3 theorem proving.'
                   'Given a set of premises, followed by a goal to prove, suggest a single tactic to solve the goal.'
                   'Any premises in the tactic should be included in the following format: <a>premise<\\a>. The goal is: \n\n')
-
 
         if self.retriever is not None:
             retrieved_premises, _ = self.retriever.retrieve(
