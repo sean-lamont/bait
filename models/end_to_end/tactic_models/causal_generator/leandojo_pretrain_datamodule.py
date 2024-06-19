@@ -110,11 +110,10 @@ class GeneratorDataset(Dataset):
         
         
         prompt = ('You are an expert in Lean 3 theorem proving.'
-                  ' Suggest a tactic to solve the following goal.'
-                  ' Any premises in the tactic should be included in the following format: <a>premise<\\a>.'
-                  'Return your answer in the following format: [ANSWER]your_tactic\n\n')
+                  'Given a set of premises, followed by a goal to prove, suggest a single tactic to solve the goal.'
+                  'Any premises in the tactic should be included in the following format: <a>premise<\\a>. The goal is: \n\n')
 
-        state = [prompt + ex["state"] + '[ANSWER]' + ex["tactic"] + '[DONE]' + self.tokenizer.eos_token for ex in examples]
+        state = [prompt + ex["state"] + '[ANSWER]' + ex["tactic"] + self.tokenizer.eos_token for ex in examples]
 
         tokenized_state = self.tokenizer(
             state,

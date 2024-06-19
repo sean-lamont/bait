@@ -146,6 +146,7 @@ class RetrievalAugmentedGenerator(GenTacModel):
 
         # for us, we only have one target (reference) so targets will be a list of lists,
         # with targets[i * num_val_samples: (i+1) * num_val_samples] being the target for the corresponding sample
+
         bleu_targets = [
             [batch['tactic'][i]]
             for i in range(batch_size)
@@ -184,9 +185,9 @@ class RetrievalAugmentedGenerator(GenTacModel):
 
     def batch_generate(self, state, retriever_args, num_samples):
         prompt = ('You are an expert in Lean 3 theorem proving.'
-                  ' Suggest a tactic to solve the following goal.'
-                  ' Any premises in the tactic should be included in the following format: <a>premise<\\a>.'
-                  'Return your answer in the following format: [ANSWER]your_tactic\n\n')
+                  'Given a set of premises, followed by a goal to prove, suggest a single tactic to solve the goal.'
+                  'Any premises in the tactic should be included in the following format: <a>premise<\\a>. The goal is: \n\n')
+
 
         if self.retriever is not None:
             retrieved_premises, _ = self.retriever.retrieve(
@@ -203,10 +204,10 @@ class RetrievalAugmentedGenerator(GenTacModel):
                 for s, premises in zip_strict(state, retrieved_premises)
             ]
 
-        state = [prompt + s for s in state]
+        state_with_prompt = [prompt + s for s in state]
 
         tokenized_state = self.tokenizer(
-            state,
+            state_with_prompt,
             padding="longest",
             max_length=self.max_seq_len,
             truncation=True,
@@ -216,11 +217,11 @@ class RetrievalAugmentedGenerator(GenTacModel):
         state_ids = tokenized_state.input_ids.to(self.device)
         state_mask = tokenized_state.attention_mask.to(self.device)
 
-        # return state as well to store retrieved state
+        # return state_with_prompt as well to store retrieved state_with_prompt
         if self.gen_config.strategy == 'sample':
-            return self.sample_gen(state, state_ids, state_mask, num_samples), state
+            return self.sample_gen(state_with_prompt, state_ids, state_mask, num_samples), state
         elif self.gen_config.strategy == 'beam':
-            return self.beamsearch_gen(state, state_ids, state_mask, num_samples), state
+            return self.beamsearch_gen(state_with_prompt, state_ids, state_mask, num_samples), state
         else:
             raise NotImplementedError
 
