@@ -1,0 +1,67 @@
+# @package _global_
+defaults:
+  - /base/logging_config@_here_
+  - /base/exp_config@_here_
+
+exp_config:
+  name: dummy_tac
+  experiment: diversity
+
+logging_config:
+  project: diversity
+  offline: false
+
+model:
+  _target_: models.end_to_end.tactic_models.diversity-vae.model.TransitionModel
+  config:
+    tac_model: sean-lamont/leandojo-lean3-reprover-novel-premises
+    goal_model: sean-lamont/leandojo-lean3-reprover-novel-premises
+    decoder: sean-lamont/leandojo-lean3-reprover-novel-premises
+    max_length: 2300
+    num_samples: 8
+    lr: 5e-5
+    warmup_steps: 200
+
+data_module:
+  _target_: models.end_to_end.tactic_models.diversity-vae.datamodule.TransitionDataModule
+  model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
+  batch_size: 1 # effective_batch_size == batch_size * accumulate_grad_batches * devices
+  eval_batch_size: 1
+  max_seq_len: 2300
+  num_workers: 0
+  trace_files: 'runs/bestfs-novel-2'
+  replace: 'keep' # add/keep/drop files wrt the existing collection
+
+
+trainer:
+  accelerator: gpu
+  devices: 1
+  precision: bf16-mixed
+  strategy:
+    _target_: lightning.pytorch.strategies.DeepSpeedStrategy
+    stage: 2
+    offload_optimizer: false
+    cpu_checkpointing: false
+    logging_batch_size_per_gpu: 1
+  gradient_clip_val: 1.0
+
+  val_check_interval: 1000
+  limit_val_batches: 50
+
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.LearningRateMonitor
+      logging_interval: step
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint
+      verbose: true
+      save_top_k: 3
+      save_last: true
+      monitor: val_bleu
+      mode: max
+      dirpath: ${exp_config.directory}/checkpoints
+      auto_insert_metric_name: true
+      filename: "{epoch}-{step}-{max:.2f}"
+#    - _target_: lightning.pytorch.callbacks.EarlyStopping
+#      monitor: val_acc
+#      patience: 10
+#      mode: max
+#      verbose: true

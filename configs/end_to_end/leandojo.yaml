@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: htps_4090_pair
+  name: deepseek-test
   experiment: end_to_end
 #  resume: true
 #  directory: runs/end_to_end/reprover-v1-novel-2/2024_05_24/00_31_12
@@ -16,7 +16,7 @@ logging_config:
 
 num_theorems: 2000 #94000
 
-# environment to use (leandojo, holist)
+# environment to use (leandojo, holist, hol4)
 env_config:
   env: leandojo
   data_path: data/LeanDojo/data/leandojo_benchmark/novel_premises/
@@ -38,7 +38,7 @@ num_iterations: 1 #2
 resume_iteration: 0
 
 # Total time allowed for a single proof attempt
-total_timeout: 6000
+total_timeout: 1000
 
 # Maximum time allowed in environment before timing out
 env_timeout: 600
@@ -58,34 +58,47 @@ gpu_per_prover: 0.01
 # CPU resources to allocate per prover.
 cpu_per_prover: 2
 # How many provers to assign per logical GPU. Each of these provers will share one tactic/search process.
-provers_per_gpu: 4
+provers_per_gpu: 2
 
 
 tac_model:
-  model: reprover
+  model: reprover_large
   ckpt_path: null #runs/end_to_end/seq2seq_iteration1_best.ckpt #null
-  num_sampled_tactics: 64
+  num_sampled_tactics: 16
 
   distributed: true
   gpu_per_process: 0.45
   cpu_per_process: 1
   config:
-    model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
+#    model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
+    model_name: runs/deepseek-base
+    tokenizer_name: deepseek-ai/deepseek-math-7b-base
 
 
-#   retriever args
-
+#    lora_config:
+#      # https://www.anyscale.com/blog/fine-tuning-llms-lora-or-full-parameter-an-in-depth-analysis-with-llama-2
+#      #      target_modules: [ 'q', 'k', 'v', 'o', 'wo', 'lm_head' ]
+#      target_modules: [ 'q_proj', 'v_proj', 'k_proj', 'o_proj', 'gate_proj', 'up_proj', 'down_proj', 'embed_tokens', 'lm_head' ]
+#      task_type: "CAUSAL_LM"
+#      r: 8
+#      lora_alpha: 16
+#      lora_dropout: 0.05
+#
+    #   retriever args
     ret_ckpt_path: runs/retriever_novel_premises.ckpt
     indexed_corpus_path: runs/indexed_corpus_novel
     eval_num_retrieved: 100
 
+    model_class: CausalLM
+    quant: true
+
     lr: 5e-6
     warmup_steps: 200
     length_penalty: 0.0
-    num_beams: 64
-    max_seq_len: 2300
+    num_beams: 16
+    max_seq_len: 1300
     gen_config:
-      strategy: beam
+      strategy: sample
       length_penalty: 0.0
     # configuration for the eval loop in training (terminates based on live proving performance)
     eval_config:
@@ -102,13 +115,13 @@ tac_model:
 
 
 search_model:
-#  search: bestfs
-    search: htps
-    ckpt_path: runs/pair_full_no_retrieval
-    distributed: true
-    gpu_per_process: 0.45
-    cpu_per_process: 1
-    exploration_constant: 1
+  search: bestfs
+#    search: htps
+#    ckpt_path: runs/pair_full_no_retrieval
+#    distributed: true
+#    gpu_per_process: 0.45
+#    cpu_per_process: 1
+#    exploration_constant: 1
 
 #  search: bfs
 #  search: bestfs

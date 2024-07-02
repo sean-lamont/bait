@@ -22,8 +22,9 @@ torch.set_float32_matmul_precision("medium")
 # https://github.com/Lightning-AI/pytorch-lightning/issues/19228
 class HFModelCheckpoint(ModelCheckpoint):
     def _save_checkpoint(self, trainer, filepath):
+        logger.info("Saving checkpoint to %s", filepath)
         trainer.lightning_module.generator.save_pretrained(filepath)
-        super()._save_checkpoint(trainer, filepath)
+        #super()._save_checkpoint(trainer, filepath)
 
 
 # todo parameterise prompt
@@ -209,7 +210,7 @@ class RetrievalAugmentedGenerator(GenTacModel):
                 for s, premises in zip_strict(state, retrieved_premises)
             ]
 
-        state_with_prompt = [prompt + s for s in state]
+        state_with_prompt = [prompt + s + '[ANSWER]' for s in state]
 
         tokenized_state = self.tokenizer(
             state_with_prompt,
@@ -247,9 +248,10 @@ class RetrievalAugmentedGenerator(GenTacModel):
                 attention_mask=state_mask,
                 max_length=self.max_seq_len,
                 do_sample=True,
-                num_return_sequences=num_samples,
+                num_return_sequences=2,
                 output_scores=True,
                 return_dict_in_generate=True,
+                top_p=0.9,
             )
 
             transitions = self.generator.compute_transition_scores(output.sequences, output.scores,
@@ -259,7 +261,7 @@ class RetrievalAugmentedGenerator(GenTacModel):
                 output.sequences, skip_special_tokens=True
             )
 
-            for j in range(num_samples * 2):
+            for j in range(len(raw_output_text)):
                 t = raw_output_text[j]
                 t = t.split('[ANSWER]')[-1]
                 if t not in output_text:

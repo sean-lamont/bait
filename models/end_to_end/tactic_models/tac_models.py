@@ -19,6 +19,7 @@ warnings.filterwarnings('ignore')
 from data.HOList.utils import io_util
 from experiments.end_to_end.common import Context
 from models.end_to_end.tactic_models.generator.model import RetrievalAugmentedGenerator
+from models.end_to_end.tactic_models.causal_generator.model import RetrievalAugmentedGenerator as RAGLarge
 from models.end_to_end.tactic_models.holist_model import holparam_predictor
 from models.end_to_end.tactic_models.holist_model import embedding_store
 from models.end_to_end.tactic_models.holist_model import action_generator
@@ -111,8 +112,6 @@ def load_pretrained_encoders(self, encoder_premise, encoder_goal):
     encoder_goal.load_state_dict(get_model_dict('embedding_model_goal', ckpt))
 
 
-# todo better/more efficient loading for LoRA models.
-
 def get_tac_model(config, device):
     if config.model == 'reprover':
 
@@ -144,6 +143,35 @@ def get_tac_model(config, device):
         else:
             return ReProverTacGen(tac_model=tac_gen, num_sampled_tactics=config.num_sampled_tactics)
 
+    if config.model == 'reprover_large':
+
+        if hasattr(config, 'ckpt_path') and config.ckpt_path:
+            tac_gen = RAGLarge.load(
+                config.ckpt_path, device=device, freeze=True
+            )
+
+        else:
+            tac_gen = RAGLarge(config.config).to(device)
+            tac_gen.freeze()
+
+        if tac_gen.retriever is not None:
+            assert config.config.indexed_corpus_path is not None
+            tac_gen.retriever.load_corpus(config.config.indexed_corpus_path)
+
+            # check if corpus is up to date, otherwise recompute
+            if tac_gen.retriever.embeddings_staled:
+                tac_gen.retriever.reindex_corpus(batch_size=2)
+
+        if config.distributed:
+            # return ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(ReProverTacGen).remote(
+            #     tac_model=tac_gen, num_sampled_tactics=config.num_sampled_tactics)
+            tac_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(
+                ReProverTacGen).remote(
+                tac_model=tac_gen, num_sampled_tactics=config.num_sampled_tactics)
+            return ReProverWrapper(tac_model, retriever=tac_gen.retriever is not None)
+
+        else:
+            return ReProverTacGen(tac_model=tac_gen, num_sampled_tactics=config.num_sampled_tactics)
 
     elif config.model == 'tacticzero':
         pretrain = config.pretrain

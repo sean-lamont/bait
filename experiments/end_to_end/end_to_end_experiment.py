@@ -217,14 +217,14 @@ class EndToEndProver:
 
                     self.total_time = time.monotonic() - time_start
 
-                    # timeout only on environment, since model calls are queued and blocking
-                    if self.env_time >= self.timeout:
+                    # two timeouts: env time, and env.timeout.
+                    # env_time is maximum time in environment, env.timeout is total time including tactics
+                    if self.env_time >= self.timeout or self.total_time >= env.timeout:
                         if root.status == Status.PROVED:
                             logger.info("Found a proof but timed out.")
                         root.status = Status.OPEN
                         logger.info("Search timed out.")
                         break
-
                     if root.status == Status.FAILED:
                         logger.info("Failed early!")
                         break

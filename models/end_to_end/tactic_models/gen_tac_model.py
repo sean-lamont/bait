@@ -40,26 +40,31 @@ def load_gen_model(config):
     else:
         quant_config = None
 
+    if hasattr(config, 'tokenizer_name'):
+        tokenizer_name = config.tokenizer_name
+    else:
+        tokenizer_name = config.model_name
+
+
     if hasattr(config, 'model_class'):
         if config.model_class == 'T5':
-            tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+            tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
             generator = T5ForConditionalGeneration.from_pretrained(config.model_name,
                                                                    quantization_config=quant_config if quant_config else None)
 
         elif config.model_class == 'CausalLM':
-            tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+            tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
             generator = AutoModelForCausalLM.from_pretrained(config.model_name,
                                                              quantization_config=quant_config if quant_config else None)
 
             tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-
             generator.pad_token_id = tokenizer.pad_token_id
             generator.generation_config.pad_token_id = tokenizer.pad_token_id
 
         else:
             raise NotImplementedError(config.model_class)
     else:
-        tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         generator = T5ForConditionalGeneration.from_pretrained(config.model_name,
                                                                quantization_config=quant_config if quant_config else None)
 

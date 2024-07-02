@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: deepseek-base-novel-prompt-no-quant-preds
+  name: quant_no_prompt
   experiment: large_lm
 #  resume: true
 #  directory: runs/large_lm/deepseek-base-novel-prompt/2024_06_17/17_30_55
@@ -24,14 +24,14 @@ model:
     lr: 3e-5
     warmup_steps: 150
     beta: 0.99
-    max_seq_len: 1000 #2300
+    max_seq_len: 1300 #2300
 
 
     # model type config
     model_class: CausalLM
-    quant: false
+    quant: true
 
-    num_val_samples: 2
+    num_val_samples: 16
 
     # retriever path
     ret_ckpt_path: null
@@ -41,7 +41,7 @@ model:
 
     # should always be beam search
     gen_config:
-      strategy: beam
+      strategy: sample
       length_penalty: 0.0
 
 
@@ -113,19 +113,18 @@ trainer:
   gradient_clip_val: 1.0
   max_steps: 5000000
   num_sanity_val_steps: 0
-  #  val_check_interval: 10
+  limit_val_batches: 100 # needs to be small, takes ages to run sampling to 16 candidates
   callbacks:
     - _target_: lightning.pytorch.callbacks.LearningRateMonitor
       logging_interval: step
-    - _target_: models.end_to_end.tactic_models.causal_generator.model.HFModelCheckpoint
-#      _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint #models.end_to_end.tactic_models.causal_generator.model.HFModelCheckpoint
       verbose: true
       save_top_k: 1
       save_last: false
 #      monitor: Pass@1_val
 #      monitor: top64_acc_val
 #      mode: max
-      every_n_train_steps: 50_000
+#      every_n_train_steps: 5
       dirpath: ${exp_config.directory}/checkpoints
       auto_insert_metric_name: true
       filename: "last"

@@ -1,4 +1,5 @@
 """Data module for the tactic generator."""
+import copy
 import os
 import json
 import pickle
@@ -82,7 +83,7 @@ class GeneratorDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx: int) -> Example:
-        ex = self.data[idx]
+        ex = copy.deepcopy(self.data[idx])
 
         if self.preds is not None:
             if ex["file_path"] in self.corpus:
@@ -224,7 +225,6 @@ class GeneratorDataModule(pl.LightningDataModule):
             self.ds_train,
             self.batch_size,
             num_workers=self.num_workers,
-            # collate_fn=self.ds_train.collate,
             collate_fn=self.ds_train.collate,
             shuffle=True,
             pin_memory=True,
@@ -236,7 +236,6 @@ class GeneratorDataModule(pl.LightningDataModule):
             self.ds_val,
             self.eval_batch_size,
             num_workers=self.num_workers,
-            # collate_fn=self.ds_val.collate,
             collate_fn=self.ds_val.collate,
             shuffle=False,
             pin_memory=True,
