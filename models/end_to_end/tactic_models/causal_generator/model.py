@@ -71,6 +71,9 @@ class RetrievalAugmentedGenerator(GenTacModel):
 
         self.bleu = SacreBLEUScore()
 
+    def on_train_start(self):
+        self.generator.hf_device_map = {'': self.device}
+
     def forward(
             self,
             state_ids: torch.Tensor,
@@ -88,6 +91,10 @@ class RetrievalAugmentedGenerator(GenTacModel):
     ############
 
     def training_step(self, batch, batch_idx: int):
+        # if self.global_rank == 0 and self.global_step % 50000 == 0:
+        #     ckpt_path = f"{self.trainer.log_dir}/checkpoints/last_eval.ckpt"
+        #     self.trainer.lightning_module.generator.save_pretrained(ckpt_path)
+
         loss = self(
             batch["state_ids"],
             batch["state_mask"],

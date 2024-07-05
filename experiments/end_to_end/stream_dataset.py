@@ -48,7 +48,8 @@ class GoalStreamDataset(torch.utils.data.IterableDataset):
                  worker_id=0,
                  num_workers=1,
                  buf_size=2048,
-                 start_idx=0):
+                 start_idx=0,
+                 host='localhost:27017'):
         super(GoalStreamDataset).__init__()
 
         self.ds = None
@@ -69,7 +70,7 @@ class GoalStreamDataset(torch.utils.data.IterableDataset):
         if '_id' not in self.fields:
             self.query[-2]['$project']['_id'] = 0
 
-        collection = MongoClient()[self.db][self.col_name]
+        collection = MongoClient(host=host)[self.db][self.col_name]
 
         # run through once to get the length of cursor
         length = list(collection.aggregate(

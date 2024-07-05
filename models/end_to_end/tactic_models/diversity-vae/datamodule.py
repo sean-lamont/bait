@@ -1,5 +1,4 @@
 """Data module for the tactic generator."""
-import math
 import pickle
 from pathlib import Path
 from typing import Optional
@@ -36,7 +35,8 @@ class TransitionDataModule(pl.LightningDataModule):
             trace_files=None,
             database='lean_vae',
             collection='transitions',
-            replace='keep'
+            replace='keep',
+            host='localhost:27017' # mongodb host
     ) -> None:
 
         super().__init__()
@@ -49,12 +49,13 @@ class TransitionDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-        self.fields = ['goal', 'tactic', 'result']
+        self.fields = ['goal', 'tactic', 'result', 'theorem']
         self.collection = collection
         self.database = database
         self.current_train_batch_index = 0
         self.trace_files = trace_files
         self.replace = replace
+        self.host = host
 
     def state_dict(self):
         self.current_train_batch_index = self.ds_train.start_idx
@@ -66,7 +67,7 @@ class TransitionDataModule(pl.LightningDataModule):
         self.setup()
 
     def prepare_data(self):
-        db = MongoClient()[self.database]
+        db = MongoClient(self.host)[self.database]
 
         if self.collection in db.list_collection_names():
             if self.replace == 'keep':
@@ -100,7 +101,9 @@ class TransitionDataModule(pl.LightningDataModule):
                     continue
 
                 data = {'goal': edge.src.data['augmented_state'], 'tactic': edge.tactic, 'logprob': edge.tac_logprob,
-                        'split': split, 'result': ''.join([d.goal if hasattr(d, 'goal') else 'Proven' for d in edge.dst])}
+                        'split': split,
+                        'theorem': trace.theorem.full_name,
+                        'result': ''.join([d.goal if hasattr(d, 'goal') else 'Proven' for d in edge.dst])}
 
                 collection.insert_one(data)
 
@@ -136,6 +139,7 @@ class TransitionDataModule(pl.LightningDataModule):
                                               filter_=train_filter,
                                               gpu_id=self.trainer.global_rank,
                                               num_gpus=self.trainer.num_devices,
+                                              host=self.host
                                               )
 
         if stage in (None, "fit", "validate"):
@@ -145,6 +149,7 @@ class TransitionDataModule(pl.LightningDataModule):
                                             filter_=val_filter,
                                             gpu_id=self.trainer.global_rank,
                                             num_gpus=self.trainer.num_devices,
+                                            host=self.host
                                             )
 
     def train_dataloader(self):
@@ -167,7 +172,7 @@ class TransitionDataModule(pl.LightningDataModule):
                           )
 
     def collate_fn(self, examples) -> Batch:
-        goal = [ex["goal"] for ex in examples]
+        goal = [ex["theorem"] + '\n\n' + ex["goal"] for ex in examples]
 
         tokenized_goal = self.tokenizer(
             goal,
@@ -196,8 +201,11 @@ class TransitionDataModule(pl.LightningDataModule):
             truncation=True,
             return_tensors="pt",
         )
+
         tactic_ids = tokenized_tactic.input_ids
-        tactic_ids[tactic_ids == self.tokenizer.pad_token_id] = -100
+
+        result_ids = tokenized_result.input_ids
+        result_ids[result_ids == self.tokenizer.pad_token_id] = -100
 
         batch = {}
         batch["goal"] = goal

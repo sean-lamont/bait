@@ -43,6 +43,9 @@ def get_logger(config):
 
 @hydra.main(config_path="../configs")
 def lightning_runner(config):
+
+    pl.seed_everything(13231)
+
     torch.set_float32_matmul_precision('medium')
 
     OmegaConf.resolve(config)

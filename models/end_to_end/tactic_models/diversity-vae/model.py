@@ -44,11 +44,11 @@ class TransitionModel(pl.LightningModule):
             self.parameters(), self.trainer, self.lr, self.warmup_steps
         )
 
-    def on_fit_start(self) -> None:
-        if self.logger is not None and self.global_rank == 0:
-            self.logger.log_hyperparams(self.hparams)
-            assert self.trainer is not None
-            logger.info(f"Logging to {self.trainer.log_dir}")
+    # def on_fit_start(self) -> None:
+    #     if self.logger is not None and self.global_rank == 0:
+    #         self.logger.log_hyperparams(self.hparams)
+    #         assert self.trainer is not None
+    #         logger.info(f"Logging to {self.trainer.log_dir}")
 
     def _encode(
             self, encoder, input_ids: torch.LongTensor, attention_mask: torch.LongTensor
@@ -81,14 +81,14 @@ class TransitionModel(pl.LightningModule):
                           tactic_mask: torch.Tensor,
                           ):
 
-        # tac_enc = self._encode(self.tac_encoder, tactic_ids, tactic_mask).unsqueeze(1)
-        # goal_enc = self.goal_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
-        # full_enc = torch.cat([goal_enc, tac_enc], dim=1)
+        tac_enc = self._encode(self.tac_encoder, tactic_ids, tactic_mask).unsqueeze(1)
+        goal_enc = self.goal_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
+        full_enc = torch.cat([goal_enc, tac_enc], dim=1)
 
         # omit tactic encoding to test
         # tac_enc = self._encode(self.tac_encoder, tactic_ids, tactic_mask).unsqueeze(1)
-        goal_enc = self.goal_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
-        full_enc = goal_enc
+        # goal_enc = self.goal_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
+        # full_enc = goal_enc
         # full_enc = torch.cat([goal_enc, tac_enc], dim=1)
 
         # print(tac_enc, goal_enc, full_enc, tac_enc.shape, goal_enc.shape, full_enc.shape)
@@ -187,8 +187,8 @@ class TransitionModel(pl.LightningModule):
             for _ in range(self.num_samples)
         ]
 
-        nl= '\n'
-        logger.info(f'Goal Before:\n {batch["goal"][0]}\n\n Goal After:\n  {batch["result"][0]} \n\n Predicted: \n{nl.join([o for o in output_text])}\n\n\n,')
+        # nl= '\n'
+        # logger.info(f'Goal Before:\n {batch["goal"][0]}\n\n Goal After:\n  {batch["result"][0]} \n\n Predicted: \n{nl.join([o for o in output_text])}\n\n\n,')
 
         self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 
