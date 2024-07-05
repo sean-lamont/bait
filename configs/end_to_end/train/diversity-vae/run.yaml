@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: tac
+  name: test_table
   experiment: diversity
   directory: runs/${.experiment}/${.name}/${now:%Y_%m_%d}/${now:%H_%M}
 
@@ -37,6 +37,7 @@ data_module:
 trainer:
   accelerator: gpu
   devices: 2
+  num_nodes: 2
   precision: bf16-mixed
   strategy:
     _target_: lightning.pytorch.strategies.DeepSpeedStrategy

@@ -141,7 +141,16 @@ class TransitionModel(pl.LightningModule):
     # Validation #
     ##############
 
+    def on_validation_epoch_start(self) -> None:
+        # using columns and data
+        self.log_table = []
+
+    def on_validation_epoch_end(self) -> None:
+        self.logger.log_table(key=f'val_predictions_{self.global_step}', columns=["goal", "tactic", "outcome", "prediction"],
+                              data=self.log_table)
+
     def validation_step(self, batch: Dict[str, Any], _) -> None:
+
         goal_ids = batch["goal_ids"]
         goal_mask = batch["goal_mask"]
         tactic_ids = batch["tactic_ids"]
@@ -187,10 +196,17 @@ class TransitionModel(pl.LightningModule):
             for _ in range(self.num_samples)
         ]
 
-        # nl= '\n'
+        nl = '\n'
         # logger.info(f'Goal Before:\n {batch["goal"][0]}\n\n Goal After:\n  {batch["result"][0]} \n\n Predicted: \n{nl.join([o for o in output_text])}\n\n\n,')
 
         self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 
         self.log('avg_seq_len', sum([len(o) for o in output_text]) / len(output_text), on_step=False, on_epoch=True,
                  prog_bar=False)
+
+        data = [[batch['goal'][i], batch['tactic'][i], batch['result'][i],
+                 nl.join(output_text[i * self.num_samples: (i + 1) * self.num_samples])]
+                for i in range(batch_size)]
+
+
+        self.log_table.extend(data)
