@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: with_tac
+  name: large
   experiment: diversity
   directory: runs/${.experiment}/${.name}/${now:%Y_%m_%d}/${now:%H_%M}
 
@@ -13,10 +13,9 @@ logging_config:
   offline: false
 
 model:
-  _target_: models.end_to_end.tactic_models.diversity-vae.model.TransitionModel
+  _target_: models.end_to_end.tactic_models.tac_embed_large.model.TransitionModelLarge
   config:
-    tac_model: sean-lamont/leandojo-lean3-reprover-novel-premises
-    goal_model: sean-lamont/leandojo-lean3-reprover-novel-premises
+    encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
     decoder: sean-lamont/leandojo-lean3-reprover-novel-premises
     max_length: 2300
     num_samples: 8
@@ -24,10 +23,10 @@ model:
     warmup_steps: 200
 
 data_module:
-  _target_: models.end_to_end.tactic_models.diversity-vae.datamodule.TransitionDataModule
+  _target_: models.end_to_end.tactic_models.tac_embed_large.datamodule.TransitionDataModule
   model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
-  batch_size: 3 # effective_batch_size == batch_size * accumulate_grad_batches * devices
-  eval_batch_size: 3
+  batch_size: 2 # effective_batch_size == batch_size * accumulate_grad_batches * devices
+  eval_batch_size: 2
   max_seq_len: 2300
   num_workers: 0
   trace_files: 'runs/bestfs-novel-2'
@@ -44,7 +43,7 @@ trainer:
     stage: 2
     offload_optimizer: false
     cpu_checkpointing: false
-    logging_batch_size_per_gpu: 3
+    logging_batch_size_per_gpu: 2
 
   gradient_clip_val: 1.0
 
@@ -56,13 +55,13 @@ trainer:
       logging_interval: step
     - _target_: lightning.pytorch.callbacks.ModelCheckpoint
       verbose: true
-#      save_top_k: 3
-#      save_last: true
+      save_top_k: 3
+      save_last: true
       monitor: val_bleu
       mode: max
       dirpath: ${exp_config.directory}/checkpoints
       auto_insert_metric_name: true
-      filename: "{epoch}-{step}-{max:.2f}"
+      filename: "{epoch}-{step}-{val_bleu:.2f}"
       enable_version_counter: false
 #    - _target_: lightning.pytorch.callbacks.EarlyStopping
 #      monitor: val_acc

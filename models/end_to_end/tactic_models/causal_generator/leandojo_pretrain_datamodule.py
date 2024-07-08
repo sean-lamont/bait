@@ -50,7 +50,7 @@ class GeneratorDataset(Dataset):
         ## specific to LLAMA based tokeniser, ensure that the collator response template has context
         response_template_with_context = "\n[ANSWER]"  # We added context here: "\n". This is enough for this tokenizer
         response_template_ids = self.tokenizer.encode(response_template_with_context, add_special_tokens=False)[
-                                2:]  # Now we have it like in the dataset texts: `[2277, 29937, 4007, 22137, 29901]`
+                                2:]
 
         self.collator = DataCollatorForCompletionOnlyLM(response_template_ids, tokenizer=tokenizer, mlm=False,
                                                         return_tensors="pt")
