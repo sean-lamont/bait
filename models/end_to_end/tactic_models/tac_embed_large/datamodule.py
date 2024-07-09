@@ -177,7 +177,7 @@ class TransitionDataModule(pl.LightningDataModule):
         tokenized_goal = self.tokenizer(
             goal,
             padding="longest",
-            max_length=self.max_seq_len * 2,
+            max_length=int(self.max_seq_len * 1.5),
             truncation=True,
             return_tensors="pt",
         )

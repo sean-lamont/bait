@@ -51,11 +51,14 @@ class TransitionModelLarge(pl.LightningModule):
 
         # get the tactic embeddings and mean pool them using the provided lengths
         tac_enc = []
+
         for i in range(goal_enc.shape[0]):
             enc = goal_enc[i, :tactic_lens[i]]
-            enc = enc.sum(dim=0)
+            enc = enc.sum(dim=0) / tactic_lens[i]
             enc = F.normalize(enc, dim=0)
             tac_enc.append(enc)
+            # todo better way than zeroing out original tactic tokens?
+            goal_enc[i, :tactic_lens[i]] = 0
 
         tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
 
