@@ -22,7 +22,10 @@ class TransitionModelLarge(pl.LightningModule):
         self.bleu = SacreBLEUScore()
 
         # self.goal_tokenizer = AutoTokenizer.from_pretrained(config.encoder)
-        self.encoder = T5EncoderModel.from_pretrained(config.encoder)
+        self.tac_encoder = T5EncoderModel.from_pretrained(config.tac_encoder)
+
+        # self.goal_tokenizer = AutoTokenizer.from_pretrained(config.goal_model)
+        self.goal_encoder = T5EncoderModel.from_pretrained(config.goal_encoder)
 
         # self.decoder_tokenizer = AutoTokenizer.from_pretrained(config.decoder)
         self.decoder = T5ForConditionalGeneration.from_pretrained(config.decoder)
@@ -40,6 +43,8 @@ class TransitionModelLarge(pl.LightningModule):
         return get_optimizers(
             self.parameters(), self.trainer, self.lr, self.warmup_steps
         )
+
+    # bottleneck information to single tactic vec
     def get_full_encoding(self,
                           goal_ids: torch.Tensor,
                           goal_mask: torch.Tensor,
@@ -47,24 +52,57 @@ class TransitionModelLarge(pl.LightningModule):
                           ):
 
         # encode all tokens with tactic included
-        goal_enc = self.encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
+        combined_enc = self.tac_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
 
         # get the tactic embeddings and mean pool them using the provided lengths
         tac_enc = []
 
-        for i in range(goal_enc.shape[0]):
-            enc = goal_enc[i, :tactic_lens[i]]
+        for i in range(combined_enc.shape[0]):
+            enc = combined_enc[i, :tactic_lens[i]]
             enc = enc.sum(dim=0) / tactic_lens[i]
             enc = F.normalize(enc, dim=0)
             tac_enc.append(enc)
-            # todo better way than zeroing out original tactic tokens?
-            goal_enc[i, :tactic_lens[i]] = 0
+            # zero out ids for tactics in combined (tac, goal) from goal_ids, so there is no information for the
+            # goal encoder
+            goal_ids[i, :tactic_lens[i]] = 0
 
         tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
 
+
+        goal_enc = self.goal_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
         full_enc = torch.cat([goal_enc, tac_enc], dim=1)
 
         return full_enc
+
+
+    # encoding which allows goal token embeddings to have attended to tactic
+    # (more accurate, but less information forced into tactic)
+
+    # def get_full_encoding(self,
+    #                       goal_ids: torch.Tensor,
+    #                       goal_mask: torch.Tensor,
+    #                       tactic_lens: torch.Tensor,
+    #                       ):
+    #
+    #     # encode all tokens with tactic included
+    #     goal_enc = self.encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
+    #
+    #     # get the tactic embeddings and mean pool them using the provided lengths
+    #     tac_enc = []
+    #
+    #     for i in range(goal_enc.shape[0]):
+    #         enc = goal_enc[i, :tactic_lens[i]]
+    #         enc = enc.sum(dim=0) / tactic_lens[i]
+    #         enc = F.normalize(enc, dim=0)
+    #         tac_enc.append(enc)
+    #         # todo better way than zeroing out original tactic tokens?
+    #         goal_enc[i, :tactic_lens[i]] = 0
+    #
+    #     tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
+    #
+    #     full_enc = torch.cat([goal_enc, tac_enc], dim=1)
+    #
+    #     return full_enc
 
     def forward(
             self,
