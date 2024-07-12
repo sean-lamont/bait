@@ -44,6 +44,22 @@ class TransitionModelLarge(pl.LightningModule):
             self.parameters(), self.trainer, self.lr, self.warmup_steps
         )
 
+    def get_tac_encoding(self, goal_ids, goal_mask, tactic_lens):
+        # encode all tokens with tactic included
+        combined_enc = self.tac_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
+
+        # get the tactic embeddings and mean pool them using the provided lengths
+        tac_enc = []
+
+        for i in range(combined_enc.shape[0]):
+            enc = combined_enc[i, :tactic_lens[i]]
+            enc = enc.sum(dim=0) / tactic_lens[i]
+            enc = F.normalize(enc, dim=0)
+            tac_enc.append(enc)
+
+        tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
+        return tac_enc
+
     # bottleneck information to single tactic vec
     def get_full_encoding(self,
                           goal_ids: torch.Tensor,
@@ -68,12 +84,10 @@ class TransitionModelLarge(pl.LightningModule):
 
         tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
 
-
         goal_enc = self.goal_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
         full_enc = torch.cat([goal_enc, tac_enc], dim=1)
 
         return full_enc
-
 
     # encoding which allows goal token embeddings to have attended to tactic
     # (more accurate, but less information forced into tactic)
@@ -153,7 +167,8 @@ class TransitionModelLarge(pl.LightningModule):
         self.log_table = []
 
     def on_validation_epoch_end(self) -> None:
-        self.logger.log_table(key=f'large_val_predictions_{self.global_step}', columns=["goal", "tactic", "outcome", "prediction"],
+        self.logger.log_table(key=f'large_val_predictions_{self.global_step}',
+                              columns=["goal", "tactic", "outcome", "prediction"],
                               data=self.log_table)
 
     def validation_step(self, batch: Dict[str, Any], _) -> None:
@@ -213,6 +228,5 @@ class TransitionModelLarge(pl.LightningModule):
         data = [[batch['goal'][i], batch['tactic'][i], batch['result'][i],
                  nl.join(output_text[i * self.num_samples: (i + 1) * self.num_samples])]
                 for i in range(batch_size)]
-
 
         self.log_table.extend(data)

@@ -38,7 +38,7 @@ num_iterations: 1 #2
 resume_iteration: 0
 
 # Total time allowed for a single proof attempt
-total_timeout: 1000
+total_timeout: 2000
 
 # Maximum time allowed in environment before timing out
 env_timeout: 600

@@ -44,6 +44,27 @@ class TacWrapper(TacModel):
         return tactics
 
 
+class DiversityTacGenerator(TacModel):
+    def __init__(self, tac_model: TacModel, filter_model, num_filtered):
+        super().__init__()
+        self.tac_model = tac_model
+        self.filter_model = filter_model
+        self.num_filtered = num_filtered
+
+    def get_tactics(self, goal, premises):
+        _, theorem, _ = premises
+        tactics = self.tac_model.get_tactics(goal, premises)
+
+        goal.data = {'original_tacs': tactics}
+
+        # filter with filter_model
+        new_tacs = self.filter_model.filter_tacs(tactics, self.num_filtered,
+                                                 goal=goal, theorem=theorem.full_name)
+
+        return new_tacs
+
+
+# wrapper to add the retrieval augmented state to the goal node
 class ReProverWrapper(TacModel):
     def __init__(self, tac_model, retriever=False):
         super().__init__()
