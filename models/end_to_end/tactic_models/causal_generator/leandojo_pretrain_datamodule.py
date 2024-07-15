@@ -13,14 +13,13 @@ from transformers import AutoTokenizer, ByT5Tokenizer
 from trl import DataCollatorForCompletionOnlyLM
 
 from experiments.end_to_end.common import (
-    Batch,
     Corpus,
-    Example,
     format_state,
     remove_marks,
     format_tactic,
     format_augmented_state, LeanDojoCorpus,
 )
+from experiments.end_to_end.lightning_common import Example, Batch
 
 
 class GeneratorDataset(Dataset):

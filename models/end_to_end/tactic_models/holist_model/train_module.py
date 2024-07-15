@@ -9,7 +9,7 @@ import traceback
 import warnings
 import einops
 
-from experiments.end_to_end.common import load_checkpoint
+from experiments.end_to_end.lightning_common import load_checkpoint
 
 warnings.filterwarnings('ignore')
 import lightning.pytorch as pl

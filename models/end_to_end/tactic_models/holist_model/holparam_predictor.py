@@ -19,7 +19,7 @@ from deepspeed.utils.zero_to_fp32 import convert_zero_checkpoint_to_fp32_state_d
 from pymongo import MongoClient
 
 from data.utils.graph_data_utils import transform_expr, transform_batch
-from experiments.end_to_end.common import _is_deepspeed_checkpoint
+from experiments.end_to_end.lightning_common import _is_deepspeed_checkpoint
 from models.end_to_end.tactic_models.holist_model import predictions
 from data.HOList.utils import process_sexp
 from data.HOList.utils.sexpression_to_graph import sexpression_to_graph

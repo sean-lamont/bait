@@ -12,9 +12,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoTokenizer
 
-from experiments.end_to_end.common import (
-    Batch,
-)
+from experiments.end_to_end.lightning_common import Batch
 from experiments.end_to_end.process_traces import add_rand_idx, filter_traces
 from experiments.end_to_end.proof_node import ErrorNode
 from experiments.end_to_end.stream_dataset import GoalStreamDataset, worker_init_fn

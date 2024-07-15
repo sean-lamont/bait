@@ -10,7 +10,7 @@ from torchmetrics.text import SacreBLEUScore
 from loguru import logger
 from transformers.utils import ModelOutput
 
-from experiments.end_to_end.common import cpu_checkpointing_enabled, load_checkpoint, get_optimizers
+from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint, cpu_checkpointing_enabled
 
 torch.set_float32_matmul_precision("medium")
 

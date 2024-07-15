@@ -10,12 +10,13 @@ exp_config:
 
 logging_config:
   project: diversity
-  offline: false
+  offline: true
 
 model:
   _target_: models.end_to_end.tactic_models.tac_embed_large.model.TransitionModelLarge
   config:
-    encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
+    tac_encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
+    goal_encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
     decoder: sean-lamont/leandojo-lean3-reprover-novel-premises
     max_length: 2300
     num_samples: 8

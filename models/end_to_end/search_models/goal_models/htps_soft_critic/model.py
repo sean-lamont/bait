@@ -8,10 +8,7 @@ from loguru import logger
 from torchmetrics.classification import BinaryConfusionMatrix
 from transformers import T5ForConditionalGeneration, AutoTokenizer, NoBadWordsLogitsProcessor
 
-from experiments.end_to_end.common import (
-    get_optimizers,
-    load_checkpoint,
-)
+from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint
 
 torch.set_float32_matmul_precision("medium")
 

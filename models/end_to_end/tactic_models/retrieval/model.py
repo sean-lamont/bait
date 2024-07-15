@@ -13,11 +13,10 @@ from transformers import T5EncoderModel, AutoTokenizer
 
 from experiments.end_to_end.common import (
     LeanDojoCorpus,
-    get_optimizers,
-    load_checkpoint,
     zip_strict,
-    cpu_checkpointing_enabled, IndexedCorpus,
+    IndexedCorpus,
 )
+from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint, cpu_checkpointing_enabled
 
 torch.set_float32_matmul_precision("medium")
 

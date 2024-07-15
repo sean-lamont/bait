@@ -16,7 +16,8 @@ from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from transformers import AutoTokenizer
 
-from experiments.end_to_end.common import Context, LeanDojoCorpus, Batch, Example, format_state, get_all_pos_premises
+from experiments.end_to_end.common import Context, LeanDojoCorpus, format_state, get_all_pos_premises
+from experiments.end_to_end.lightning_common import Example, Batch
 
 
 # Dataset is LeanDojo specific, but can reuse DataModule for other environments

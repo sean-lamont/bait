@@ -10,7 +10,7 @@ from torchmetrics.text import SacreBLEUScore
 from loguru import logger
 from transformers.utils import ModelOutput
 
-from experiments.end_to_end.common import cpu_checkpointing_enabled, load_checkpoint, get_optimizers
+from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint
 
 torch.set_float32_matmul_precision("medium")
 
@@ -66,12 +66,12 @@ class TransitionModelLarge(pl.LightningModule):
                           goal_mask: torch.Tensor,
                           tactic_lens: torch.Tensor,
                           ):
-
         # encode all tokens with tactic included
         combined_enc = self.tac_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
 
         # get the tactic embeddings and mean pool them using the provided lengths
         tac_enc = []
+        new_ids = goal_ids.clone()
 
         for i in range(combined_enc.shape[0]):
             enc = combined_enc[i, :tactic_lens[i]]
@@ -80,14 +80,22 @@ class TransitionModelLarge(pl.LightningModule):
             tac_enc.append(enc)
             # zero out ids for tactics in combined (tac, goal) from goal_ids, so there is no information for the
             # goal encoder
-            goal_ids[i, :tactic_lens[i]] = 0
+            new_ids[i, :tactic_lens[i]] = 0
 
         tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
 
-        goal_enc = self.goal_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
-        full_enc = torch.cat([goal_enc, tac_enc], dim=1)
+        goal_embeds = self.goal_encoder.encoder.embed_tokens(new_ids)
+
+        # set first embedding to be the tactic encoding
+        goal_embeds_with_tac = torch.cat([tac_enc, goal_embeds], dim=1)
+
+        new_mask = torch.cat([torch.ones(goal_mask.shape[0], 1).to(self.device), goal_mask], dim=1)
+
+        full_enc = self.goal_encoder(inputs_embeds=goal_embeds_with_tac, attention_mask=new_mask,
+                                     return_dict=True).last_hidden_state
 
         return full_enc
+
 
     # encoding which allows goal token embeddings to have attended to tactic
     # (more accurate, but less information forced into tactic)
@@ -126,7 +134,6 @@ class TransitionModelLarge(pl.LightningModule):
             result_ids: torch.Tensor,
             result_mask: torch.Tensor,
     ) -> torch.Tensor:
-
         full_enc = self.get_full_encoding(goal_ids, goal_mask, tactic_lens)
 
         return self.decoder(

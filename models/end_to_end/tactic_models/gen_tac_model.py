@@ -11,7 +11,8 @@ from loguru import logger
 from peft import LoraConfig, get_peft_model
 from transformers import T5ForConditionalGeneration, AutoTokenizer, BitsAndBytesConfig, AutoModelForCausalLM, AutoModelForSeq2SeqLM
 
-from experiments.end_to_end.common import format_augmented_state, zip_strict, get_optimizers, load_checkpoint
+from experiments.end_to_end.common import format_augmented_state, zip_strict
+from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint
 from models.end_to_end.tactic_models.retrieval.model import PremiseRetriever
 
 torch.set_float32_matmul_precision("medium")
