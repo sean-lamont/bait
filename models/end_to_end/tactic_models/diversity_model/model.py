@@ -1,19 +1,13 @@
 """Lightning module for the tactic generator."""
 
-import re
-from subprocess import CalledProcessError
-from typing import Dict, Any
-from typing import Optional, List
+from typing import List
+from typing import Tuple
+import numpy as np
+from dppy.finite_dpps import FiniteDPP
 
 import torch
-from lean_dojo.utils import execute
-from loguru import logger
-from torchmetrics import Metric
-from torchmetrics.text import SacreBLEUScore
-from transformers import T5ForConditionalGeneration, T5EncoderModel, AutoTokenizer
-
-from experiments.end_to_end.common import remove_marks
-from models.end_to_end.tactic_models.gen_tac_model import GenTacModel
+from torchmetrics.functional import pairwise_cosine_similarity
+from transformers import T5EncoderModel, AutoTokenizer
 
 torch.set_float32_matmul_precision("medium")
 
@@ -37,40 +31,49 @@ class DiversityModel(torch.nn.Module):
 
         return tac_encoder, tokenizer
 
-    def filter_tacs(self, tactics: List[str], num_filtered: int, goal, theorem) -> List[str]:
+    def filter_tacs(self, tactics: List[Tuple[str, float]], num_filtered: int, goal, theorem) -> List[str]:
         state = goal.data['augmented_state'] if hasattr(goal, 'data') and 'augmented_state' in goal.data else goal.goal
-        state = [t + theorem + '\n\n' + state for t in tactics]
 
-        # todo chunk into batches for speedup
+        encs = []
 
-        tokenized_goals = (self.tokenizer(
+        logprobs = [t[1] for t in tactics]
+
+        # get softmax over logprobs
+        probs = torch.softmax(torch.tensor(logprobs), dim=0)
+
+        # todo chunk into batches enc speedup
+        for t in tactics:
+            goal = [t[0] + theorem + '\n\n' + state]
+
+            tokenized_goals = self.tokenizer(
                 goal,
-                padding=None,
+                padding="longest",
                 max_length=int(self.max_seq_len * 1.5),
                 truncation=True,
-                return_tensors="pt",))
+                return_tensors="pt", )
 
-        tokenized_tactics = []
-        for goal in state:
-            tokenized_goals.append(self.tokenizer(
-                goal,
-                padding=None,
-                max_length=int(self.max_seq_len * 1.5),
+            tokenized_tactics = self.tokenizer(
+                tactics,
+                padding="longest",
+                max_length=self.max_seq_len,
                 truncation=True,
-                return_tensors="pt",))
+                return_tensors="pt",
+            )
 
+            lens = tokenized_tactics.attention_mask.sum(dim=1)
 
+            enc = self.encoder.get_tac_encodings(tokenized_goals.input_ids, tokenized_goals.attention_mask, lens)
 
-        tokenized_tactics = self.tokenizer(
-            tactics,
-            padding="longest",
-            max_length=self.max_seq_len,
-            truncation=True,
-            return_tensors="pt",
-        )
+            # scale enc by normalised tactic logprob
+            enc = enc * probs[tactics.index(t)]
+            encs.append(enc)
 
+        vec_matrix = torch.stack(encs).numpy()
 
-        lens = tokenized_tactics.attention_mask.sum(dim=1)
+        rng = np.random.RandomState(1)
 
+        DPP = FiniteDPP('likelihood', **{'L': vec_matrix})
 
-        encs = self.encoder.get_tac_encodings(tokenized_goals, mask, lens)
+        DPP.sample_exact_k_dpp(size=num_filtered, random_state=rng)
+
+        return [t[0] for t in tactics][DPP.list_of_samples[0]]
