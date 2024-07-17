@@ -224,7 +224,8 @@ class TransitionModelLarge(pl.LightningModule):
             for _ in range(self.num_samples)
         ]
 
-        nl = '\n'
+        nl = '\n\n'
+
         # logger.info(f'Goal Before:\n {batch["goal"][0]}\n\n Goal After:\n  {batch["result"][0]} \n\n Predicted: \n{nl.join([o for o in output_text])}\n\n\n,')
 
         self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)

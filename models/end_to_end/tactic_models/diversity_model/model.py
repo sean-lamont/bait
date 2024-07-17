@@ -31,6 +31,40 @@ class DiversityModel(torch.nn.Module):
 
         return tac_encoder, tokenizer
 
+    def get_vecs(self, tactics: str, goal, theorem):
+        state = goal.data['augmented_state'] if hasattr(goal, 'data') and 'augmented_state' in goal.data else goal.goal
+
+        encs = []
+
+        # todo chunk into batches enc speedup
+        for t in tactics:
+            goal = [t + theorem + '\n\n' + state]
+
+            tokenized_goals = self.tokenizer(
+                goal,
+                padding="longest",
+                max_length=int(self.max_seq_len * 1.5),
+                truncation=True,
+                return_tensors="pt", )
+
+            tokenized_tactics = self.tokenizer(
+                tactics,
+                padding="longest",
+                max_length=self.max_seq_len,
+                truncation=True,
+                return_tensors="pt",
+            )
+
+            lens = tokenized_tactics.attention_mask.sum(dim=1)
+
+            enc = self.encoder.get_tac_encodings(tokenized_goals.input_ids, tokenized_goals.attention_mask, lens)
+
+            # scale enc by normalised tactic logprob
+            # enc = enc * probs[tactics.index(t)]
+            encs.append(enc)
+
+        return torch.stack(encs).numpy()
+
     def filter_tacs(self, tactics: List[Tuple[str, float]], num_filtered: int, goal, theorem) -> List[str]:
         state = goal.data['augmented_state'] if hasattr(goal, 'data') and 'augmented_state' in goal.data else goal.goal
 
