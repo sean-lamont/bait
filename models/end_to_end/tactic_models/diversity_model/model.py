@@ -50,7 +50,7 @@ class DiversityModel(torch.nn.Module):
         tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
         return tac_enc
 
-    def filter_tacs(self, tactics: List[Tuple[str, float]], num_filtered: int, state, theorem, temperature=1.) -> List[str]:
+    def filter_tacs(self, tactics: List[Tuple[str, float]], num_filtered: int, state, theorem, temperature=1.):
         with torch.no_grad():
             # state = goal.data['augmented_state'] if hasattr(goal, 'data') and 'augmented_state' in goal.data else goal.goal
 
@@ -107,6 +107,6 @@ class DiversityModel(torch.nn.Module):
                 DPP.sample_exact_k_dpp(size=num_filtered)#, rng
             except Exception as e:
                 logger.error(f"Error sampling from DPP: {e}, returning top {str(num_filtered)} tactics, out of {str(len(tactics))}")
-                return [t[0] for t in tactics[:num_filtered]]
+                return [i for i in range(num_filtered)]
 
         return DPP.list_of_samples
