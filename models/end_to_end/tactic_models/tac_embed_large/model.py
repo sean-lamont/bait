@@ -14,7 +14,6 @@ from experiments.end_to_end.lightning_common import get_optimizers, load_checkpo
 
 torch.set_float32_matmul_precision("medium")
 
-
 class TransitionModelLarge(pl.LightningModule):
     def __init__(self, config) -> None:
         super().__init__()

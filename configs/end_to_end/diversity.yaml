@@ -1,0 +1,107 @@
+# @package _global_
+defaults:
+  - /base/logging_config@_here_
+  - /base/exp_config@_here_
+
+exp_config:
+  name: diversity-test
+  experiment: search
+
+logging_config:
+  project: search
+  offline: false
+
+num_theorems: 2000 #94000
+
+# environment to use (leandojo, holist, hol4)
+env_config:
+  env: leandojo
+  data_path: data/LeanDojo/data/leandojo_benchmark/novel_premises/
+  #split: train
+  split: test
+  file_path: null
+  full_name: null
+  name_filter: null
+  num_theorems: ${num_theorems} #10 #94000
+
+  name: null
+  indexed_corpus_path: null
+
+# whether to shuffle the loaded theorems before evaluation
+shuffle: false
+
+# Number of End-to-End Eval -> Train -> Eval loops
+num_iterations: 1 #2
+resume_iteration: 0
+
+# Total time allowed for a single proof attempt
+total_timeout: 2000
+
+# Maximum time allowed in environment before timing out
+env_timeout: 600
+
+with_gpus: true
+log_level: 'INFO'
+
+# Resource configuration
+# number of physical GPUs
+num_gpus: 2
+# how many 'logical' GPUs available, should be a multiple of num_gpus.
+# Will control the number of separate tactic/search model processes
+logical_gpus: 4
+num_cpus: 8 #16
+# How much GPU memory to allocate per prover (should be low, since the model is using most of the GPU)
+gpu_per_prover: 0.01
+# CPU resources to allocate per prover.
+cpu_per_prover: 1
+# How many provers to assign per logical GPU. Each of these provers will share one tactic/search process.
+provers_per_gpu: 1
+
+
+tac_model:
+  model: diversity
+  ckpt_path: null #runs/end_to_end/seq2seq_iteration1_best.ckpt #null
+  num_sampled_tactics: 64
+
+  distributed: true
+  gpu_per_process: 0.225
+  cpu_per_process: 0.125
+
+  gpu_per_diversity: 0.225
+  cpu_per_diversity: 0.125
+
+  diversity_config:
+    ckpt_dir: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/combined_last.ckpt'
+    model: 'sean-lamont/leandojo-lean3-reprover-novel-premises'
+    max_seq_len: 2000
+    num_filtered: 16
+
+  config:
+    model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
+
+    #   retriever args
+    ret_ckpt_path: runs/retriever_novel_premises.ckpt
+    indexed_corpus_path: runs/indexed_corpus
+    eval_num_retrieved: 100
+
+    lr: 5e-6
+    warmup_steps: 200
+    length_penalty: 0.0
+    num_beams: 64
+    max_seq_len: 1300
+    gen_config:
+      strategy: beam
+      length_penalty: 0.0
+    # configuration for the eval loop in training (terminates based on live proving performance)
+    eval_config:
+      eval_num_theorems: 200
+      shuffle: false
+      timeout: 600
+
+
+search_model:
+  search: bestfs
+
+train_after_eval: null
+
+update_checkpoints: null

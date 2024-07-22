@@ -11,6 +11,7 @@ from loguru import logger
 from experiments.TacticZero.tactic_zero_data_module import *
 from models.TacticZero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy
 from models.embedding_models.gnn.formula_net.formula_net import FormulaNetEdges
+from models.end_to_end.tactic_models.diversity_model.model import DiversityModel
 from models.end_to_end.tactic_models.tacticzero.model import TacticZeroTacModel
 from models.get_model import get_model
 
@@ -45,11 +46,12 @@ class TacWrapper(TacModel):
 
 
 class DiversityTacGenerator(TacModel):
-    def __init__(self, tac_model: TacModel, filter_model, num_filtered):
+    def __init__(self, tac_model: TacModel, filter_model, num_filtered, temperature=1.):
         super().__init__()
         self.tac_model = tac_model
         self.filter_model = filter_model
         self.num_filtered = num_filtered
+        self.temperature = temperature
 
     def get_tactics(self, goal, premises):
         _, theorem, _ = premises
@@ -58,10 +60,11 @@ class DiversityTacGenerator(TacModel):
         goal.data = {'original_tacs': tactics}
 
         # filter with filter_model
-        new_tacs = self.filter_model.filter_tacs(tactics, self.num_filtered,
-                                                 goal=goal, theorem=theorem.full_name)
+        inds = ray.get(self.filter_model.filter_tacs.remote(tactics, self.num_filtered,
+                                                            goal=goal, theorem=theorem.full_name,
+                                                            temperature=self.temperature))
 
-        return new_tacs
+        return [tactics[i] for i in sorted(inds[0])]
 
 
 # wrapper to add the retrieval augmented state to the goal node
@@ -134,6 +137,43 @@ def load_pretrained_encoders(self, encoder_premise, encoder_goal):
 
 
 def get_tac_model(config, device):
+    if config.model == 'diversity':
+
+        if hasattr(config, 'ckpt_path') and config.ckpt_path:
+            tac_gen = RetrievalAugmentedGenerator.load(
+                config.ckpt_path, device=device, freeze=True
+            )
+
+        else:
+            tac_gen = RetrievalAugmentedGenerator(config.config).to(device)
+            tac_gen.freeze()
+
+        if tac_gen.retriever is not None:
+            assert config.config.indexed_corpus_path is not None
+            tac_gen.retriever.load_corpus(config.config.indexed_corpus_path)
+
+            # check if corpus is up to date, otherwise recompute
+            if tac_gen.retriever.embeddings_staled:
+                tac_gen.retriever.reindex_corpus(batch_size=2)
+
+        if config.distributed:
+            tac_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(
+                ReProverTacGen).remote(
+                tac_model=tac_gen, num_sampled_tactics=config.num_sampled_tactics)
+
+            filter_model = ray.remote(num_gpus=config.gpu_per_diversity, num_cpus=config.cpu_per_diversity)(
+                DiversityModel).remote(config.diversity_config, device=device)
+
+            tac_model = ReProverWrapper(tac_model, retriever=tac_gen.retriever is not None)
+
+            return DiversityTacGenerator(tac_model=tac_model, filter_model=filter_model,
+                                         num_filtered=config.diversity_config.num_filtered,
+                                         temperature=config.diversity_config.temperature if hasattr(
+                                             config.diversity_config, 'temperature') else 1.)
+
+        else:
+            raise NotImplementedError
+
     if config.model == 'reprover':
 
         if hasattr(config, 'ckpt_path') and config.ckpt_path:

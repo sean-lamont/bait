@@ -36,7 +36,7 @@ class CursorIter(torch.utils.data.IterableDataset):
             return {field: ret[field] for field in self.fields}
 
 
-# todo reloading dataset every 38912??
+# todo cursor not found error?
 class GoalStreamDataset(torch.utils.data.IterableDataset):
     def __init__(self,
                  db,
@@ -113,7 +113,7 @@ class GoalStreamDataset(torch.utils.data.IterableDataset):
             return next(self.ds)
         except Exception as e:
             self.reset(self.start_idx)
-            logger.warning(f'Loader exception {e}, reloading dataset {len(self)}..')
+            logger.warning(f'Loader exception {e}, reloading dataset at {self.start_idx}..')
             return next(self.ds)
 
     def setup(self):
