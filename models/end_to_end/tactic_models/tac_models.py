@@ -59,9 +59,10 @@ class DiversityTacGenerator(TacModel):
 
         goal.data = {'original_tacs': tactics}
 
+        state = goal.data['augmented_state'] if hasattr(goal, 'data') and 'augmented_state' in goal.data else goal.goal
         # filter with filter_model
         inds = ray.get(self.filter_model.filter_tacs.remote(tactics, self.num_filtered,
-                                                            goal=goal, theorem=theorem.full_name,
+                                                            state=state, theorem=theorem.full_name,
                                                             temperature=self.temperature))
 
         return [tactics[i] for i in sorted(inds[0])]
