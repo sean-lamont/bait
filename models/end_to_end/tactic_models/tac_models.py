@@ -170,7 +170,9 @@ def get_tac_model(config, device):
             return DiversityTacGenerator(tac_model=tac_model, filter_model=filter_model,
                                          num_filtered=config.diversity_config.num_filtered,
                                          temperature=config.diversity_config.temperature if hasattr(
-                                             config.diversity_config, 'temperature') else 1.)
+                                             config.diversity_config, 'temperature') else 1.,
+                                         scale=config.diversity_config.scale if hasattr(
+                                             config.diversity_config, 'scale') else 1e5)
 
         else:
             raise NotImplementedError

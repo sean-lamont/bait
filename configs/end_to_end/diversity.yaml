@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: diversity-test
+  name: diversity-temp=1-sample-1e5
   experiment: search
 
 logging_config:
@@ -74,7 +74,7 @@ tac_model:
     ckpt_dir: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/combined_last.ckpt'
     model: 'sean-lamont/leandojo-lean3-reprover-novel-premises'
     max_seq_len: 2000
-    num_filtered: 16
+    num_filtered: 64
 
   config:
     model_name: sean-lamont/leandojo-lean3-reprover-novel-premises

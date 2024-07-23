@@ -50,7 +50,8 @@ class DiversityModel(torch.nn.Module):
         tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
         return tac_enc
 
-    def filter_tacs(self, tactics: List[Tuple[str, float]], num_filtered: int, state, theorem, temperature=1.):
+    def filter_tacs(self, tactics: List[Tuple[str, float]], num_filtered: int, state, theorem, temperature=1.,
+                    scale=1e5):
         with torch.no_grad():
             # state = goal.data['augmented_state'] if hasattr(goal, 'data') and 'augmented_state' in goal.data else goal.goal
 
@@ -59,7 +60,7 @@ class DiversityModel(torch.nn.Module):
             logprobs = [t[1] / temperature for t in tactics]
 
             # get softmax over logprobs
-            probs = torch.softmax(torch.tensor(logprobs), dim=0)
+            probs = torch.softmax(torch.tensor(logprobs), dim=0) * scale
 
             # chunking gives slight speedup, but high memory cost
             chunk_size = 1
@@ -104,7 +105,8 @@ class DiversityModel(torch.nn.Module):
 
             # rng = np.random.RandomState(1)
             try:
-                DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')#, rng
+                # DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')#, rng
+                DPP.sample_exact()
             except Exception as e:
                 logger.error(f"Error sampling from DPP: {e}, returning top {str(num_filtered)} tactics, out of {str(len(tactics))}")
                 return [[i for i in range(num_filtered)]]
