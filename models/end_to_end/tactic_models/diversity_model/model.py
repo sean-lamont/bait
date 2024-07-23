@@ -1,5 +1,5 @@
 """Lightning module for the tactic generator."""
-
+import pickle
 from typing import List
 from typing import Tuple
 
@@ -104,7 +104,7 @@ class DiversityModel(torch.nn.Module):
 
             # rng = np.random.RandomState(1)
             try:
-                DPP.sample_exact_k_dpp(size=num_filtered)#, rng
+                DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')#, rng
             except Exception as e:
                 logger.error(f"Error sampling from DPP: {e}, returning top {str(num_filtered)} tactics, out of {str(len(tactics))}")
                 return [[i for i in range(num_filtered)]]
