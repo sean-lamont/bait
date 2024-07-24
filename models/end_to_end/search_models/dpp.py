@@ -66,27 +66,28 @@ class DPPSearch(Search):
                     if tac not in valid_tactics:
                         valid_tactics.add(tac)
 
-
         valid_tactics = list(valid_tactics)
-        # filter with diversity model
-        inds = ray.get(
-            self.diversity_model.filter_tacs.remote(valid_tactics,
-                                                    self.num_filtered,
-                                                    state=state, theorem=self.theorem,
-                                                    temperature=self.temperature, scale=self.scale))
+        if valid_tactics:
 
-        tactics = {valid_tactics[i][0] for i in sorted(inds[0])}
+            # filter with diversity model
+            inds = ray.get(
+                self.diversity_model.filter_tacs.remote(valid_tactics,
+                                                        self.num_filtered,
+                                                        state=state, theorem=self.theorem,
+                                                        temperature=self.temperature, scale=self.scale))
 
-        responses_ = [response for response in responses if response.tactic in tactics]
+            tactics = {valid_tactics[i][0] for i in sorted(inds[0])}
 
-        for response in responses_:
-            result = response.dst
+            responses_ = [response for response in responses if response.tactic in tactics]
 
-            for result_node in result:
-                # Don't search proved/explored/queued nodes
-                if isinstance(result_node,
-                              InternalNode) and result_node not in self.priority_queue and not result_node.is_explored:
-                    self.priority_queue.append(result_node)
+            for response in responses_:
+                result = response.dst
+
+                for result_node in result:
+                    # Don't search proved/explored/queued nodes
+                    if isinstance(result_node,
+                                  InternalNode) and result_node not in self.priority_queue and not result_node.is_explored:
+                        self.priority_queue.append(result_node)
 
         self.search_trace.append(responses)
 
