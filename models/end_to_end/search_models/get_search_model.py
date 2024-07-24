@@ -1,7 +1,7 @@
 from __future__ import division, absolute_import, print_function
 
 import ray
-
+from models.end_to_end.search_models.dpp import DPPSearch
 from models.end_to_end.search_models.bestfs import BestFS
 from models.end_to_end.search_models.bfs import BFS
 from models.end_to_end.search_models.goal_models.pair_model.model import PairGoalModel
@@ -12,6 +12,7 @@ from models.end_to_end.search_models.simple_ts import SimpleTS
 from models.end_to_end.search_models.updown import UpDown
 
 from models.end_to_end.search_models.goal_models.hard_goal_model.model import HardGoalModel
+from models.end_to_end.tactic_models.diversity_model.model import DiversityModel
 
 
 def get_search_model(config, device):
@@ -48,6 +49,18 @@ def get_search_model(config, device):
                         temperature=config.temperature, prior=config.prior)
     elif config.search == 'levin':
         return LevinSearch()
+
+    elif config.search == 'diversity':
+        if config.distributed:
+            filter_model = ray.remote(num_gpus=config.gpu_per_diversity, num_cpus=config.cpu_per_diversity)(
+                DiversityModel).remote(config.diversity_config, device=device)
+        else:
+            filter_model = DiversityModel(config.diversity_config, device=device)
+        return DPPSearch(filter_model, config.diversity_config.num_filtered,
+                         temperature=config.diversity_config.temperature if hasattr(
+                             config.diversity_config, 'temperature') else 1.,
+                         scale=config.diversity_config.scale if hasattr(
+                             config.diversity_config, 'scale') else 1.)
     elif config.search == 'fringe':
         raise NotImplementedError(f'Search approach {config.search} not implemented')
     else:

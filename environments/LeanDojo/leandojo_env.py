@@ -47,7 +47,7 @@ class LeanDojoEnv:
         except Exception as e:
             raise EnvInitError(e)
 
-        root = InternalNode(goal=init_state.pp, cumulative_logprob=0.0)
+        root = InternalNode(goal=init_state.pp, cumulative_logprob=0.0, data={'theorem': self.thm.full_name})
 
         self.node_map[init_state.pp] = (0, init_state, root)
 

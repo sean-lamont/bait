@@ -4,12 +4,12 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: diversity-no-logprob
+  name: diversity-search
   experiment: search
 
 logging_config:
   project: search
-  offline: false
+  offline: true
 
 num_theorems: 2000 #94000
 
@@ -59,22 +59,13 @@ provers_per_gpu: 1
 
 
 tac_model:
-  model: diversity
+  model: reprover
   ckpt_path: null #runs/end_to_end/seq2seq_iteration1_best.ckpt #null
   num_sampled_tactics: 64
 
   distributed: true
   gpu_per_process: 0.225
   cpu_per_process: 0.125
-
-  gpu_per_diversity: 0.225
-  cpu_per_diversity: 0.125
-
-  diversity_config:
-    ckpt_dir: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/combined_last.ckpt'
-    model: 'sean-lamont/leandojo-lean3-reprover-novel-premises'
-    max_seq_len: 2000
-    num_filtered: 32
 
   config:
     model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
@@ -100,7 +91,19 @@ tac_model:
 
 
 search_model:
-  search: bestfs
+  search: diversity
+
+  gpu_per_diversity: 0.225
+  cpu_per_diversity: 0.125
+  distributed: true
+
+  diversity_config:
+    ckpt_dir: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/combined_last.ckpt'
+    model: 'sean-lamont/leandojo-lean3-reprover-novel-premises'
+    max_seq_len: 2000
+    num_filtered: 2
+    temperature: 1
+    scale: 1
 
 train_after_eval: null
 

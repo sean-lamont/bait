@@ -13,6 +13,8 @@ from loguru import logger
 torch.set_float32_matmul_precision("medium")
 
 
+# todo right now, must modify the DPP library code from np.float to float for version compatibility
+# aldo modified to remove print statements in compute_K
 class DiversityModel(torch.nn.Module):
     def __init__(self, config, device) -> None:
         super().__init__()
@@ -51,7 +53,7 @@ class DiversityModel(torch.nn.Module):
         return tac_enc
 
     def filter_tacs(self, tactics: List[Tuple[str, float]], num_filtered: int, state, theorem, temperature=1.,
-                    scale=1e5):
+                    scale=1.):
         with torch.no_grad():
             # state = goal.data['augmented_state'] if hasattr(goal, 'data') and 'augmented_state' in goal.data else goal.goal
 
@@ -91,24 +93,39 @@ class DiversityModel(torch.nn.Module):
 
                 enc = enc.squeeze(1)
 
-                # scale enc by normalised tactic logprobs
                 encs.append(enc)
 
             vec_matrix = torch.cat(encs, dim=0)
-            vec_matrix = torch.mul(vec_matrix, probs.unsqueeze(1).to(self.device)).cpu().numpy()
 
+            # dynamic number of tactics to filter, based on the sum of the eigenvalues of the similarity matrix
+
+            sim_matrix = vec_matrix @ vec_matrix.T
+            sim_matrix = sim_matrix.cpu().numpy()
+
+            DPP = FiniteDPP('likelihood', **{'L': sim_matrix})
+            DPP.compute_K(msg=True)
+            k_sum = int(sum(DPP.K_eig_vals))
+            if k_sum > num_filtered:
+                num_filtered = k_sum
+                # logger.info(
+                #    f'Number of tactics to filter set to {num_filtered} based on eigenvalues of similarity matrix')
+
+
+
+            # Set DPP kernel to quality-diversity decomposition
+            # quality is given by tactic probabilites
+            vec_matrix = torch.mul(vec_matrix, probs.unsqueeze(1).to(self.device)).cpu().numpy()
             vec_matrix = vec_matrix @ vec_matrix.T
 
-
-            # todo right now, must modify the DPP library code from np.float to float for version compatibility
             DPP = FiniteDPP('likelihood', **{'L': vec_matrix})
 
             # rng = np.random.RandomState(1)
             try:
-                # DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')#, rng
-                DPP.sample_exact()
+                DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')  # , rng
+                # DPP.sample_exact()
             except Exception as e:
-                logger.error(f"Error sampling from DPP: {e}, returning top {str(num_filtered)} tactics, out of {str(len(tactics))}")
+                logger.error(
+                    f"Error sampling from DPP: {e}, returning top {str(num_filtered)} tactics, out of {str(len(tactics))}")
                 return [[i for i in range(num_filtered)]]
 
         return DPP.list_of_samples

@@ -46,24 +46,25 @@ class TacWrapper(TacModel):
 
 
 class DiversityTacGenerator(TacModel):
-    def __init__(self, tac_model: TacModel, filter_model, num_filtered, temperature=1.):
+    def __init__(self, tac_model: TacModel, filter_model, num_filtered, temperature=1., scale=1e5):
         super().__init__()
         self.tac_model = tac_model
         self.filter_model = filter_model
         self.num_filtered = num_filtered
         self.temperature = temperature
+        self.scale = scale
 
     def get_tactics(self, goal, premises):
         _, theorem, _ = premises
         tactics = self.tac_model.get_tactics(goal, premises)
 
-        goal.data = {'original_tacs': tactics}
+        goal.data['original_tacs'] = tactics
 
         state = goal.data['augmented_state'] if hasattr(goal, 'data') and 'augmented_state' in goal.data else goal.goal
         # filter with filter_model
         inds = ray.get(self.filter_model.filter_tacs.remote(tactics, self.num_filtered,
                                                             state=state, theorem=theorem.full_name,
-                                                            temperature=self.temperature))
+                                                            temperature=self.temperature, scale=self.scale))
 
         return [tactics[i] for i in sorted(inds[0])]
 
@@ -80,7 +81,10 @@ class ReProverWrapper(TacModel):
 
         # save retrieved data to node for retrieval models
         if self.retriever:
-            goal.data = {'augmented_state': new_state}
+            if hasattr(goal, 'data'):
+                goal.data['augmented_state'] = new_state
+            else:
+                goal.data = {'augmented_state': new_state}
 
         return tactics
 
