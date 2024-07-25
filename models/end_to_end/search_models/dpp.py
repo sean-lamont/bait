@@ -3,6 +3,7 @@ from __future__ import division, absolute_import, print_function
 from typing import List
 
 import ray
+from loguru import logger
 from experiments.end_to_end.proof_node import InternalNode, Edge
 from models.end_to_end.search_models.search_models import Search
 
@@ -76,7 +77,10 @@ class DPPSearch(Search):
                                                         state=state, theorem=self.theorem,
                                                         temperature=self.temperature, scale=self.scale))
 
-            tactics = {valid_tactics[i][0] for i in sorted(inds[0])}
+            try:
+                tactics = {valid_tactics[i][0] for i in sorted(inds[0])}
+            except Exception as e:
+                logger.error(f'Error filtering tactics: {e}, {inds, len(inds), valid_tactics, len(valid_tactics)}')
 
             responses_ = [response for response in responses if response.tactic in tactics]
 

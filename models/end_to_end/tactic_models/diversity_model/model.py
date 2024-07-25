@@ -1,5 +1,6 @@
 """Lightning module for the tactic generator."""
 import pickle
+import traceback
 from typing import List
 from typing import Tuple
 
@@ -110,7 +111,8 @@ class DiversityModel(torch.nn.Module):
                 # logger.info(
                 #    f'Number of tactics to filter set to {num_filtered} based on eigenvalues of similarity matrix')
 
-
+            if num_filtered >= len(tactics):
+                return [[i for i in range(len(tactics))]]
 
             # Set DPP kernel to quality-diversity decomposition
             # quality is given by tactic probabilites
@@ -125,7 +127,8 @@ class DiversityModel(torch.nn.Module):
                 # DPP.sample_exact()
             except Exception as e:
                 logger.error(
-                    f"Error sampling from DPP: {e}, returning top {str(num_filtered)} tactics, out of {str(len(tactics))}")
-                return [[i for i in range(num_filtered)]]
+                    f"Error sampling from DPP: {e}")  # , returning top {str(num_filtered)} tactics, out of {str(len(tactics))}")
+                # traceback.print_exc()
+                return [[i for i in range(len(tactics))]]
 
         return DPP.list_of_samples
