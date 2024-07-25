@@ -35,7 +35,7 @@ num_iterations: 1 #2
 resume_iteration: 0
 
 # Total time allowed for a single proof attempt
-total_timeout: 2000
+total_timeout: 6000
 
 # Maximum time allowed in environment before timing out
 env_timeout: 600
@@ -79,7 +79,7 @@ tac_model:
     warmup_steps: 200
     length_penalty: 0.0
     num_beams: 64
-    max_seq_len: 1300
+    max_seq_len: 2300
     gen_config:
       strategy: beam
       length_penalty: 0.0

@@ -260,8 +260,7 @@ class GenTacModel(pl.LightningModule):
             length_penalty=self.gen_config.length_penalty,
             do_sample=False,
             num_return_sequences=num_samples,
-            # early_stopping=False,
-            early_stopping=True,
+            early_stopping=False,
             output_scores=True,
             return_dict_in_generate=True,
         )
