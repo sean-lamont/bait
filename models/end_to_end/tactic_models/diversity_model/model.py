@@ -22,6 +22,7 @@ class DiversityModel(torch.nn.Module):
         self.device = device
         self.encoder, self.tokenizer = self.load_encoder(config)
         self.max_seq_len = config.max_seq_len
+        self.autoencoder = config.autoencoder if hasattr(config, 'autoencoder') else False
 
     def load_encoder(self, config):
         if config.ckpt_dir:
@@ -37,6 +38,18 @@ class DiversityModel(torch.nn.Module):
 
         return tac_encoder, tokenizer
 
+    def get_autoencoder_encoding(self, tactic_ids, tactic_mask):
+        hidden_states = self.encoder(tactic_ids, tactic_mask, return_dict=True).last_hidden_state
+
+        # Masked average.
+        lens = tactic_mask.sum(dim=1)
+        features = (hidden_states * tactic_mask.unsqueeze(2)).sum(
+            dim=1
+        ) / lens.unsqueeze(1)
+
+        # Normalize the feature vector to have unit norm.
+        return F.normalize(features, dim=1)
+
     def get_tac_encoding(self, goal_ids, goal_mask, tactic_lens):
         # encode all tokens with tactic included
         combined_enc = self.encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
@@ -50,7 +63,7 @@ class DiversityModel(torch.nn.Module):
             enc = F.normalize(enc, dim=0)
             tac_enc.append(enc)
 
-        tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
+        tac_enc = torch.stack(tac_enc, dim=0)#.unsqueeze(1)
         return tac_enc
 
     def filter_tacs(self, tactics: List[Tuple[str, float]], num_filtered: int, state, theorem, temperature=1.,
@@ -87,10 +100,14 @@ class DiversityModel(torch.nn.Module):
 
                 lens = tokenized_tactics.attention_mask.sum(dim=1)
 
-                enc = self.get_tac_encoding(tokenized_goals.input_ids.to(self.device),
-                                            tokenized_goals.attention_mask.to(self.device), lens.to(self.device))
+                if not self.autoencoder:
+                    enc = self.get_tac_encoding(tokenized_goals.input_ids.to(self.device),
+                                                tokenized_goals.attention_mask.to(self.device), lens.to(self.device))
+                else:
+                    enc = self.get_autoencoder_encoding(tokenized_tactics.input_ids.to(self.device),
+                                                        tokenized_tactics.attention_mask.to(self.device))
 
-                enc = enc.squeeze(1)
+                # enc = enc.squeeze(1)
 
                 encs.append(enc)
 
