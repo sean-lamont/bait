@@ -56,8 +56,6 @@ class DiversityModel(torch.nn.Module):
     def filter_tacs(self, tactics: List[Tuple[str, float]], num_filtered: int, state, theorem, temperature=1.,
                     scale=1.):
         with torch.no_grad():
-            # state = goal.data['augmented_state'] if hasattr(goal, 'data') and 'augmented_state' in goal.data else goal.goal
-
             encs = []
 
             logprobs = [t[1] / temperature for t in tactics]

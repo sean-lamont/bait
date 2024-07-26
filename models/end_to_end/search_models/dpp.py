@@ -68,19 +68,19 @@ class DPPSearch(Search):
                         valid_tactics.add(tac)
 
         valid_tactics = list(valid_tactics)
+
         if valid_tactics:
+            if len(valid_tactics) <= self.num_filtered:
+                tactics = {valid_tactics[i][0] for i in range(len(valid_tactics))}
+            else:
+                # filter with diversity model
+                inds = ray.get(
+                    self.diversity_model.filter_tacs.remote(valid_tactics,
+                                                            self.num_filtered,
+                                                            state=state, theorem=self.theorem,
+                                                            temperature=self.temperature, scale=self.scale))
 
-            # filter with diversity model
-            inds = ray.get(
-                self.diversity_model.filter_tacs.remote(valid_tactics,
-                                                        self.num_filtered,
-                                                        state=state, theorem=self.theorem,
-                                                        temperature=self.temperature, scale=self.scale))
-
-            try:
                 tactics = {valid_tactics[i][0] for i in sorted(inds[0])}
-            except Exception as e:
-                logger.error(f'Error filtering tactics: {e}, {inds, len(inds), valid_tactics, len(valid_tactics)}')
 
             responses_ = [response for response in responses if response.tactic in tactics]
 
