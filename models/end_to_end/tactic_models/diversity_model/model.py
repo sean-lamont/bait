@@ -146,4 +146,4 @@ class DiversityModel(torch.nn.Module):
                 # traceback.print_exc()
                 return [[i for i in range(len(tactics))]]
 
-        return DPP.list_of_samples
+        return DPP.list_of_samples, sim_matrix

@@ -45,11 +45,11 @@ class DPPSearch(Search):
     def process_responses(self, responses: List[Edge]):
         assert all([response.src == responses[0].src for response in responses])
 
-        tactics = [response.tactic for response in responses]
+        # tactics = [response.tactic for response in responses]
 
         goal = responses[0].src
 
-        goal.data['original_tacs'] = tactics
+        # goal.data['original_tacs'] = tactics
 
         state = goal.data['augmented_state'] if hasattr(goal, 'data') and 'augmented_state' in goal.data else goal.goal
 
@@ -72,15 +72,20 @@ class DPPSearch(Search):
         if valid_tactics:
             if len(valid_tactics) <= self.num_filtered:
                 tactics = {valid_tactics[i][0] for i in range(len(valid_tactics))}
+                goal.data['similarity_scores'] = None
             else:
                 # filter with diversity model
-                inds = ray.get(
+                inds, sim_matrix = ray.get(
                     self.diversity_model.filter_tacs.remote(valid_tactics,
                                                             self.num_filtered,
                                                             state=state, theorem=self.theorem,
                                                             temperature=self.temperature, scale=self.scale))
 
                 tactics = {valid_tactics[i][0] for i in sorted(inds[0])}
+
+                goal.data['similarity_scores'] = sim_matrix
+
+            goal.data['valid_tactics'] = [tactic[0] for tactic in valid_tactics]
 
             responses_ = [response for response in responses if response.tactic in tactics]
 

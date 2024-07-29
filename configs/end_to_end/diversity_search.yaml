@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: diversity-search
+  name: diversity-search-8-filter
   experiment: search
 
 logging_config:
@@ -99,11 +99,14 @@ search_model:
 
   diversity_config:
     ckpt_dir: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/combined_last.ckpt'
+#    ckpt_dir: 'runs/diversity/autoencoder/2024_07_18/12_13/checkpoints/autoencoder.ckpt'
     model: 'sean-lamont/leandojo-lean3-reprover-novel-premises'
     max_seq_len: 2000
-    num_filtered: 2
+    num_filtered: 8
     temperature: 1
     scale: 1
+#    autoencoder: true
+    autoencoder: false
 
 train_after_eval: null
 
