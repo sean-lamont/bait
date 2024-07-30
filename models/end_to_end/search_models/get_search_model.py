@@ -60,7 +60,8 @@ def get_search_model(config, device):
                          temperature=config.diversity_config.temperature if hasattr(
                              config.diversity_config, 'temperature') else 1.,
                          scale=config.diversity_config.scale if hasattr(
-                             config.diversity_config, 'scale') else 1.)
+                             config.diversity_config, 'scale') else 1.,
+                         p=config.diversity_config.p if hasattr(config.diversity_config, 'p') else 0.9)
     elif config.search == 'fringe':
         raise NotImplementedError(f'Search approach {config.search} not implemented')
     else:

@@ -9,7 +9,7 @@ from models.end_to_end.search_models.search_models import Search
 
 
 class DPPSearch(Search):
-    def __init__(self, diversity_model, num_filtered, temperature=1., scale=1.):
+    def __init__(self, diversity_model, num_filtered, temperature=1., scale=1., p=0.9):
         super().__init__()
         self.priority_queue = []
 
@@ -20,6 +20,7 @@ class DPPSearch(Search):
         self.num_filtered = num_filtered
         self.temperature = temperature
         self.scale = scale
+        self.p = p
 
     def reset(self, root):
         self.__init__(self.diversity_model, self.num_filtered, self.temperature, self.scale)
@@ -37,9 +38,12 @@ class DPPSearch(Search):
             if search_node.is_explored:
                 return self.get_goals()
 
+
             return [(search_node, search_node.cumulative_logprob)]
         else:
             return None
+
+
 
     # assumes only one node expanded at a time
     def process_responses(self, responses: List[Edge]):
@@ -79,7 +83,8 @@ class DPPSearch(Search):
                     self.diversity_model.filter_tacs.remote(valid_tactics,
                                                             self.num_filtered,
                                                             state=state, theorem=self.theorem,
-                                                            temperature=self.temperature, scale=self.scale))
+                                                            temperature=self.temperature, scale=self.scale,
+                                                            p=self.p))
 
                 tactics = {valid_tactics[i][0] for i in sorted(inds[0])}
 

@@ -1,15 +1,12 @@
 """Lightning module for the tactic generator."""
-import pickle
-import traceback
 from typing import List
 from typing import Tuple
 
-import numpy as np
 import torch
-from dppy.finite_dpps import FiniteDPP
-from transformers import T5EncoderModel, AutoTokenizer
 import torch.nn.functional as F
+from dppy.finite_dpps import FiniteDPP
 from loguru import logger
+from transformers import T5EncoderModel, AutoTokenizer
 
 torch.set_float32_matmul_precision("medium")
 
@@ -63,11 +60,22 @@ class DiversityModel(torch.nn.Module):
             enc = F.normalize(enc, dim=0)
             tac_enc.append(enc)
 
-        tac_enc = torch.stack(tac_enc, dim=0)#.unsqueeze(1)
+        tac_enc = torch.stack(tac_enc, dim=0)  # .unsqueeze(1)
         return tac_enc
 
+    # get top p tactics, where p is the cumulative probability of the top k tactics, such that the sum of the probabilities of the top k tactics is greater than or equal to p
+    # assume that probs is sorted in ascending order, and that p is between 0 and 1
+    def top_p(self, probs, p):
+        # take 1 - p since probs is sorted in ascending order
+        p = 1 - p
+        s = 0
+        for i in range(len(probs)):
+            s += probs[i]
+            if s >= p:
+                return len(probs) - i
+
     def filter_tacs(self, tactics: List[Tuple[str, float]], num_filtered: int, state, theorem, temperature=1.,
-                    scale=1.):
+                    scale=1., p=0.9):
         with torch.no_grad():
             encs = []
 
@@ -113,21 +121,21 @@ class DiversityModel(torch.nn.Module):
 
             vec_matrix = torch.cat(encs, dim=0)
 
-            # dynamic number of tactics to filter, based on the sum of the eigenvalues of the similarity matrix
-
+            # dynamic number of tactics to filter, based on the eigenvalues of the similarity matrix
             sim_matrix = vec_matrix @ vec_matrix.T
             sim_matrix = sim_matrix.cpu().numpy()
 
             DPP = FiniteDPP('likelihood', **{'L': sim_matrix})
+
             DPP.compute_K(msg=True)
-            k_sum = int(sum(DPP.K_eig_vals))
-            if k_sum > num_filtered:
-                num_filtered = k_sum
-                # logger.info(
-                #    f'Number of tactics to filter set to {num_filtered} based on eigenvalues of similarity matrix')
+            k_sum = sum(DPP.K_eig_vals)
+            k = self.top_p(DPP.K_eig_vals / k_sum, p)
+
+            if k > num_filtered:
+                num_filtered = k
 
             if num_filtered >= len(tactics):
-                return [[i for i in range(len(tactics))]]
+                return [[i for i in range(len(tactics))]], sim_matrix
 
             # Set DPP kernel to quality-diversity decomposition
             # quality is given by tactic probabilites
@@ -138,12 +146,9 @@ class DiversityModel(torch.nn.Module):
 
             # rng = np.random.RandomState(1)
             try:
-                DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')  # , rng
-                # DPP.sample_exact()
+                DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')#,rng=rng)
             except Exception as e:
-                logger.error(
-                    f"Error sampling from DPP: {e}")  # , returning top {str(num_filtered)} tactics, out of {str(len(tactics))}")
-                # traceback.print_exc()
-                return [[i for i in range(len(tactics))]]
+                logger.error(f"Error sampling from DPP: {e}")
+                return [[i for i in range(len(tactics))]], sim_matrix
 
         return DPP.list_of_samples, sim_matrix
