@@ -3,7 +3,7 @@ from __future__ import division, absolute_import, print_function
 from typing import List
 
 import ray
-from loguru import logger
+
 from experiments.end_to_end.proof_node import InternalNode, Edge
 from models.end_to_end.search_models.search_models import Search
 
@@ -38,22 +38,15 @@ class DPPSearch(Search):
             if search_node.is_explored:
                 return self.get_goals()
 
-
             return [(search_node, search_node.cumulative_logprob)]
         else:
             return None
-
-
 
     # assumes only one node expanded at a time
     def process_responses(self, responses: List[Edge]):
         assert all([response.src == responses[0].src for response in responses])
 
-        # tactics = [response.tactic for response in responses]
-
         goal = responses[0].src
-
-        # goal.data['original_tacs'] = tactics
 
         state = goal.data['augmented_state'] if hasattr(goal, 'data') and 'augmented_state' in goal.data else goal.goal
 
@@ -61,11 +54,9 @@ class DPPSearch(Search):
         valid_tactics = set()
         for response in responses:
             result = response.dst
-
             for result_node in result:
-                # Don't search proved/explored/queued nodes
-                if isinstance(result_node,
-                              InternalNode) and result_node not in self.priority_queue and not result_node.is_explored:
+                # Only consider tactics which lead to at least one unique goal
+                if isinstance(result_node, InternalNode) and result_node.goal not in self.nodes:
                     self.nodes[result_node.goal] = result_node
                     tac = (response.tactic, response.tac_logprob)
                     if tac not in valid_tactics:
