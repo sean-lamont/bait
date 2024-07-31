@@ -1,6 +1,0 @@
-search_model:
-  search: simple_ts
-  depth_penalty: 0.9
-  scale_factor: 30.0
-  temperature: 1.0
-  prior: 5.0

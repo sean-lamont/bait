@@ -1,3 +1,0 @@
-env_config:
-  env: holist
-  path_theorem_database: 'data/HOList/theorem_database_v1.1.textpb'

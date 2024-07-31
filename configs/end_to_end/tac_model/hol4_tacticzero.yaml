@@ -1,0 +1,34 @@
+model: tacticzero
+vocab_dir: data/HOL4/data/vocab.pk
+
+pretrain: false
+num_sampled_tactics: 64
+
+ckpt_path: null
+distributed: true
+gpu_per_process: 0.9
+cpu_per_process: 1
+
+model_config:
+  # original autoencoder used in TacticZero
+  model_type: 'fixed_autoencoder'
+  model_attributes:
+    # default path for the original encoder
+    checkpoint_path: 'models/TacticZero/pretrained_autoencoder'
+    embedding_dim: 256
+    vocab_size: 2200
+
+# specify the allowed tactics.
+tac_config:
+  thms_tactic: [ "simp", "fs", "metis_tac", "rw" ] #["simp", "fs", "metis_tac"]
+  thm_tactic: [ "irule", "drule" ] #["irule"]
+  term_tactic: [ "Induct_on" ]
+  no_arg_tactic: [ "strip_tac", "EQ_TAC" ] # ["strip_tac"]
+  tactic_pool: [ "simp", "fs", "metis_tac", "rw", "irule", "drule","Induct_on","strip_tac", "EQ_TAC" ]
+
+# how many arguments to give to the argument model
+arg_len: 5
+
+data_config:
+  type: fixed #sequence, graph, fixed
+  data_type: fixed #sequence, graph, fixed

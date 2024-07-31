@@ -2,20 +2,21 @@
 defaults:
   - /base/logging_config@_here_
   - /base/exp_config@_here_
-  - env/leandojo
-  - tac/lean_reprover
-  - search/htps
+  - env_config/leandojo_minif2f
+  - tac_model/lean_reprover
+#  - search_model/diversity
+  - search_model/bestfs
 
 # set the environment, tactic and search models above
 
 
 # set experiment name, project, resume status/path and offline/online
 exp_config:
-  name: htps
-  experiment: end_to_end
+  name: minif2f_bestfs
+  experiment: minif2f
 
 logging_config:
-  project: end_to_end
+  project: minif2f
   offline: false
 
 
@@ -41,13 +42,13 @@ log_level: 'INFO'
 
 
 # number of physical GPUs
-num_gpus: 1
+num_gpus: 2
 
 # how many 'logical' GPUs available, should be a multiple of num_gpus.
 # Will control the number of separate tactic/search model processes
-logical_gpus: 1
+logical_gpus: 4
 
-num_cpus: 16
+num_cpus: 8
 
 # How much GPU memory to allocate per prover (should be low, since the model is using most of the GPU)
 gpu_per_prover: 0.01
@@ -56,7 +57,7 @@ gpu_per_prover: 0.01
 cpu_per_prover: 1
 
 # How many provers to assign per logical GPU. Each of these provers will share one tactic/search process.
-provers_per_gpu: 2
+provers_per_gpu: 1
 
 # Commands to run for retraining the model(s) after every evaluation
 train_after_eval: null

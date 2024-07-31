@@ -1,4 +1,0 @@
-env_config:
-  env: hol4
-  path_theorem_database: data/HOL4/data/adjusted_db.json
-  path_goal_database: data/HOL4/data/valid_goals_shuffled.pk

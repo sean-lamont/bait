@@ -1,7 +1,0 @@
-search_model:
-  search: updown
-  ckpt_path: runs/goal_model/binary_model/2024_03_08/17_18_00/checkpoints/last.ckpt
-  distributed: true
-  gpu_per_process: 0.45 #0.225
-  cpu_per_process: 1 # 0.5
-

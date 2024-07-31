@@ -1,0 +1,11 @@
+env: leandojo
+data_path: data/LeanDojo/data/leandojo_benchmark/random/
+#split: train
+split: test
+file_path: null
+full_name: null
+name_filter: null
+num_theorems: 2000
+
+name: null
+indexed_corpus_path: null

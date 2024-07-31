@@ -354,12 +354,12 @@ def main(config) -> None:
     set_logger(config.log_level)
 
     logger.info(f"PID: {os.getpid()}")
-    logger.info(f"Config: {config}")
+    logger.info(f"Config:\n{OmegaConf.to_yaml(config)}")
 
     if config.shuffle:
         random.shuffle(theorems)
 
-    theorems = theorems[:config.num_theorems]
+    theorems = theorems[:config.env_config.num_theorems]
 
     num_iterations = config.num_iterations if hasattr(config, 'num_iterations') else 1
 
@@ -372,9 +372,9 @@ def main(config) -> None:
                                              resume_proven=prev_proven, env=config.env_config.env)
 
         # log as error for now, to minimise output for parent processes
-        logger.error(f"Pass@1: {num_proven / config.num_theorems}")
+        logger.error(f"Pass@1: {num_proven / config.env_config.num_theorems}")
 
-        wandb.log({'Pass@1': num_proven / config.num_theorems, 'Iteration': iteration})
+        wandb.log({'Pass@1': num_proven / config.env_config.num_theorems, 'Iteration': iteration})
 
         ray.shutdown()
 
