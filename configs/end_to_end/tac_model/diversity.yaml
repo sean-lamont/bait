@@ -10,7 +10,7 @@ gpu_per_diversity: 0.225
 cpu_per_diversity: 0.125
 
 diversity_config:
-  ckpt_dir: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/combined_last.ckpt'
+  ckpt_dir: 'runs/minif2f/minif2f_combined.ckpt'
   model: 'sean-lamont/leandojo-lean3-reprover-novel-premises'
   max_seq_len: 2000
   num_filtered: 2
