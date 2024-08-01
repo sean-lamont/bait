@@ -3,11 +3,11 @@ ckpt_path: null #runs/end_to_end/seq2seq_iteration1_best.ckpt #null
 num_sampled_tactics: 64
 
 distributed: true
-#gpu_per_process: 0.225
-#cpu_per_process: 0.125
+gpu_per_process: 0.225
+cpu_per_process: 0.125
 
-gpu_per_process: 0.45
-cpu_per_process: 0.25
+#gpu_per_process: 0.45
+#cpu_per_process: 0.25
 
 config:
   model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
