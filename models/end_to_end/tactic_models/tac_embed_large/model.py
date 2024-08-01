@@ -1,18 +1,18 @@
 """Lightning module for the tactic generator."""
 
 from typing import Dict, Any
-import lightning.pytorch as pl
 
-import torch.nn.functional as F
-from transformers import T5EncoderModel, AutoTokenizer, T5ForConditionalGeneration
+import lightning.pytorch as pl
 import torch
-from torchmetrics.text import SacreBLEUScore
-from loguru import logger
+import torch.nn.functional as F
+from torchmetrics.text import SacreBLEUScore, ROUGEScore
+from transformers import T5EncoderModel, T5ForConditionalGeneration
 from transformers.utils import ModelOutput
 
 from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint
 
 torch.set_float32_matmul_precision("medium")
+
 
 class TransitionModelLarge(pl.LightningModule):
     def __init__(self, config) -> None:
@@ -20,14 +20,24 @@ class TransitionModelLarge(pl.LightningModule):
         self.save_hyperparameters()
         self.bleu = SacreBLEUScore()
 
-        # self.goal_tokenizer = AutoTokenizer.from_pretrained(config.encoder)
-        self.tac_encoder = T5EncoderModel.from_pretrained(config.tac_encoder)
+        self.rogue = ROUGEScore(
+            normalizer=lambda x: x,
+            rouge_keys=("rouge1", "rouge2",
+                        "rouge3", "rouge4",
+                        "rouge5", "rouge6",
+                        "rouge7", "rouge8",
+                        "rouge9", "rougeL", "rougeLsum"),
+        )
 
-        # self.goal_tokenizer = AutoTokenizer.from_pretrained(config.goal_model)
-        self.goal_encoder = T5EncoderModel.from_pretrained(config.goal_encoder)
-
-        # self.decoder_tokenizer = AutoTokenizer.from_pretrained(config.decoder)
-        self.decoder = T5ForConditionalGeneration.from_pretrained(config.decoder)
+        if hasattr(config, 'load_ckpt') and config.load_ckpt:
+            model = self.load(config.ckpt_path, self.device, False)
+            self.tac_encoder = model.tac_encoder
+            self.goal_encoder = model.goal_encoder
+            self.decoder = model.decoder
+        else:
+            self.tac_encoder = T5EncoderModel.from_pretrained(config.tac_encoder)
+            self.goal_encoder = T5EncoderModel.from_pretrained(config.goal_encoder)
+            self.decoder = T5ForConditionalGeneration.from_pretrained(config.decoder)
 
         self.max_seq_len = config.max_length
         self.num_samples = config.num_samples
@@ -94,36 +104,6 @@ class TransitionModelLarge(pl.LightningModule):
                                      return_dict=True).last_hidden_state
 
         return full_enc
-
-
-    # encoding which allows goal token embeddings to have attended to tactic
-    # (more accurate, but less information forced into tactic)
-
-    # def get_full_encoding(self,
-    #                       goal_ids: torch.Tensor,
-    #                       goal_mask: torch.Tensor,
-    #                       tactic_lens: torch.Tensor,
-    #                       ):
-    #
-    #     # encode all tokens with tactic included
-    #     goal_enc = self.encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
-    #
-    #     # get the tactic embeddings and mean pool them using the provided lengths
-    #     tac_enc = []
-    #
-    #     for i in range(goal_enc.shape[0]):
-    #         enc = goal_enc[i, :tactic_lens[i]]
-    #         enc = enc.sum(dim=0) / tactic_lens[i]
-    #         enc = F.normalize(enc, dim=0)
-    #         tac_enc.append(enc)
-    #         # todo better way than zeroing out original tactic tokens?
-    #         goal_enc[i, :tactic_lens[i]] = 0
-    #
-    #     tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
-    #
-    #     full_enc = torch.cat([goal_enc, tac_enc], dim=1)
-    #
-    #     return full_enc
 
     def forward(
             self,
@@ -226,6 +206,8 @@ class TransitionModelLarge(pl.LightningModule):
         nl = '\n\n'
 
         # logger.info(f'Goal Before:\n {batch["goal"][0]}\n\n Goal After:\n  {batch["result"][0]} \n\n Predicted: \n{nl.join([o for o in output_text])}\n\n\n,')
+
+        self.log_dict(self.rogue(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 
         self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 

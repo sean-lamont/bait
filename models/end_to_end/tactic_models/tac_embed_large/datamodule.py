@@ -105,7 +105,7 @@ class TransitionDataModule(pl.LightningDataModule):
 
                 collection.insert_one(data)
 
-        logger.info('Processing traces for training seq2seq model...')
+        logger.info('Processing traces for training transition model...')
         for trace in tqdm(trace_files[:int(0.9 * len(trace_files))]):
             trace = pickle.load(open(trace, 'rb'))
             if isinstance(trace.tree, ErrorNode):
@@ -113,7 +113,7 @@ class TransitionDataModule(pl.LightningDataModule):
 
             add_trace(trace, 'train')
 
-        logger.info('Processing traces for validating seq2seq model...')
+        logger.info('Processing traces for validating transition model...')
         for trace in tqdm(trace_files[int(0.9 * len(trace_files)):]):
             trace = pickle.load(open(trace, 'rb'))
             if isinstance(trace.tree, ErrorNode):

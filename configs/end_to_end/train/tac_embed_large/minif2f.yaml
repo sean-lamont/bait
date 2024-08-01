@@ -4,25 +4,21 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: large-single-vec-2
-  experiment: diversity
-  directory: runs/diversity/large-single-vec-2/2024_07_15/10_57
-#  runs/${.experiment}/${.name}/${now:%Y_%m_%d}/${now:%H_%M}
-  resume: true
-  
+  name: minif2f_combined
+  experiment: diversity-minif2f
+  directory: runs/${.experiment}/${.name}/${now:%Y_%m_%d}/${now:%H_%M}
+  resume: false
+
 
 logging_config:
-  project: diversity
+  project: diversity-minif2f
   offline: false
-  id: djbhqg2q
 
 model:
   _target_: models.end_to_end.tactic_models.tac_embed_large.model.TransitionModelLarge
   config:
-    load_ckpt: false
-    tac_encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
-    goal_encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
-    decoder: sean-lamont/leandojo-lean3-reprover-novel-premises
+    load_ckpt: true
+    ckpt_path: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/last.ckpt'
     max_length: 2000
     num_samples: 8
     lr: 5e-5
@@ -32,17 +28,18 @@ data_module:
   _target_: models.end_to_end.tactic_models.tac_embed_large.datamodule.TransitionDataModule
   model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
   batch_size: 2 # effective_batch_size == batch_size * accumulate_grad_batches * devices
-  eval_batch_size: 2
+  eval_batch_size: 4
   max_seq_len: 2000
   num_workers: 0
-  trace_files: 'runs/bestfs-novel-2'
+  collection: 'minif2f'
+  trace_files: 'runs/minif2f/minif2f_bestfs/2024_07_31/16_28_47/traces/0'
   replace: 'keep' # add/keep/drop files wrt the existing collection
 
 
 trainer:
   accelerator: gpu
   devices: 2
-#  num_nodes: 2
+  #  num_nodes: 2
   precision: bf16-mixed
   strategy:
     _target_: lightning.pytorch.strategies.DeepSpeedStrategy
@@ -53,8 +50,8 @@ trainer:
 
   gradient_clip_val: 1.0
 
-  val_check_interval: 10_000
-  limit_val_batches: 100
+  val_check_interval: 7_000
+  limit_val_batches: 300
 
   callbacks:
     - _target_: lightning.pytorch.callbacks.LearningRateMonitor
