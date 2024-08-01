@@ -46,13 +46,14 @@ class TacWrapper(TacModel):
 
 
 class DiversityTacGenerator(TacModel):
-    def __init__(self, tac_model: TacModel, filter_model, num_filtered, temperature=1., scale=1e5):
+    def __init__(self, tac_model: TacModel, filter_model, num_filtered, temperature=1., scale=1e5, p=0.9):
         super().__init__()
         self.tac_model = tac_model
         self.filter_model = filter_model
         self.num_filtered = num_filtered
         self.temperature = temperature
         self.scale = scale
+        self.p = p
 
     def get_tactics(self, goal, premises):
         _, theorem, _ = premises
@@ -62,9 +63,12 @@ class DiversityTacGenerator(TacModel):
 
         state = goal.data['augmented_state'] if hasattr(goal, 'data') and 'augmented_state' in goal.data else goal.goal
         # filter with filter_model
-        inds = ray.get(self.filter_model.filter_tacs.remote(tactics, self.num_filtered,
-                                                            state=state, theorem=theorem.full_name,
-                                                            temperature=self.temperature, scale=self.scale))
+        inds, sim_matrix = ray.get(self.filter_model.filter_tacs.remote(tactics, self.num_filtered,
+                                                                        state=state, theorem=theorem.full_name,
+                                                                        temperature=self.temperature, scale=self.scale,
+                                                                        p=self.p))
+
+        goal.data['similarity_scores'] = sim_matrix
 
         return [tactics[i] for i in sorted(inds[0])]
 
@@ -176,7 +180,9 @@ def get_tac_model(config, device):
                                          temperature=config.diversity_config.temperature if hasattr(
                                              config.diversity_config, 'temperature') else 1.,
                                          scale=config.diversity_config.scale if hasattr(
-                                             config.diversity_config, 'scale') else 1e5)
+                                             config.diversity_config, 'scale') else 1,
+                                         p=config.diversity_config.p if hasattr(
+                                             config.diversity_config, 'p') else 0.9)
 
         else:
             raise NotImplementedError

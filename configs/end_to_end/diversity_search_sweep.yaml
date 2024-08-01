@@ -1,0 +1,23 @@
+# @package _global_
+defaults:
+  - end_to_end_defaults
+  - env_config/leandojo_minif2f
+  - tac_model/lean_reprover
+  - search_model/diversity
+
+exp_config:
+  name: after_env_filter
+  experiment: minif2f
+
+logging_config:
+  project: minif2f
+  offline: false
+
+tac_model.gpu_per_process: 0.225
+tac_model.cpu_per_process: 0.125
+
+hydra:
+  sweeper:
+    params:
+      search_model.diversity_config.p: 0.75, 0.90, 0.95
+      search_model.diversity_config.temperature: 1, 2

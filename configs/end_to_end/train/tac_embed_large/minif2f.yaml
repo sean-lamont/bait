@@ -20,7 +20,7 @@ model:
     load_ckpt: true
     ckpt_path: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/last.ckpt'
     max_length: 2000
-    num_samples: 8
+    num_samples: 1
     lr: 5e-5
     warmup_steps: 200
 

@@ -1,0 +1,16 @@
+# @package _global_
+defaults:
+  - end_to_end_defaults
+  - env_config/leandojo_minif2f
+  - tac_model/lean_reprover
+  - search_model/diversity
+
+exp_config:
+  name: after_env_filter
+  experiment: minif2f
+
+logging_config:
+  project: minif2f
+  offline: false
+
+search_model.diversity_config.ckpt_dir: 'runs/diversity/autoencoder/2024_07_18/12_13/checkpoints/autoencoder.ckpt'

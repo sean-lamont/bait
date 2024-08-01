@@ -1,0 +1,20 @@
+# @package _global_
+defaults:
+  - end_to_end_defaults
+  - env_config/leandojo_minif2f
+  - tac_model/diversity
+  - search_model/bestfs
+
+exp_config:
+  name: before_env_filter
+  experiment: minif2f
+
+logging_config:
+  project: minif2f
+  offline: false
+
+hydra:
+  sweeper:
+    params:
+      tac_model.diversity_config.p: 0.75, 0.9
+      tac_model.diversity_config.temperature: 1, 2

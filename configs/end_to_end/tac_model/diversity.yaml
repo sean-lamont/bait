@@ -1,0 +1,39 @@
+model: diversity
+ckpt_path: null
+num_sampled_tactics: 64
+
+distributed: true
+gpu_per_process: 0.225
+cpu_per_process: 0.125
+
+gpu_per_diversity: 0.225
+cpu_per_diversity: 0.125
+
+diversity_config:
+  ckpt_dir: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/combined_last.ckpt'
+  model: 'sean-lamont/leandojo-lean3-reprover-novel-premises'
+  max_seq_len: 2000
+  num_filtered: 2
+  temperature: 1
+  p: 0.9
+
+config:
+  model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
+  #   retriever args
+  ret_ckpt_path: runs/retriever_novel_premises.ckpt
+  indexed_corpus_path: runs/indexed_corpus
+  eval_num_retrieved: 100
+
+  lr: 5e-6
+  warmup_steps: 200
+  length_penalty: 0.0
+  num_beams: 64
+  max_seq_len: 1300
+  gen_config:
+    strategy: beam
+    length_penalty: 0.0
+  # configuration for the eval loop in training (terminates based on live proving performance)
+  eval_config:
+    eval_num_theorems: 200
+    shuffle: false
+    timeout: 600

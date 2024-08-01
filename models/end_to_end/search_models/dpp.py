@@ -9,7 +9,7 @@ from models.end_to_end.search_models.search_models import Search
 
 
 class DPPSearch(Search):
-    def __init__(self, diversity_model, num_filtered, temperature=1., scale=1., p=0.9):
+    def __init__(self, diversity_model, num_filtered, temperature=1., scale=1., p=0.9, use_model=True):
         super().__init__()
         self.priority_queue = []
 
@@ -21,9 +21,10 @@ class DPPSearch(Search):
         self.temperature = temperature
         self.scale = scale
         self.p = p
+        self.use_model = use_model
 
     def reset(self, root):
-        self.__init__(self.diversity_model, self.num_filtered, self.temperature, self.scale)
+        self.__init__(self.diversity_model, self.num_filtered, self.temperature, self.scale, self.p, self.use_model)
         self.root = root
         if isinstance(root, InternalNode):
             self.priority_queue = [root]
@@ -68,6 +69,12 @@ class DPPSearch(Search):
             if len(valid_tactics) <= self.num_filtered:
                 tactics = {valid_tactics[i][0] for i in range(len(valid_tactics))}
                 goal.data['similarity_scores'] = None
+
+            elif not self.use_model:
+                # take the top p% of tactics
+                valid_tactics = sorted(valid_tactics, key=lambda x: x[1], reverse=True)
+                tactics = {valid_tactics[i][0] for i in range(int(self.p * len(valid_tactics)))}
+
             else:
                 # filter with diversity model
                 inds, sim_matrix = ray.get(

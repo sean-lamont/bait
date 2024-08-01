@@ -1,0 +1,52 @@
+defaults:
+  - /base/logging_config@_here_
+  - /base/exp_config@_here_
+
+# whether to shuffle the loaded theorems before evaluation
+shuffle: false
+
+# Number of End-to-End Eval -> Train -> Eval loops
+num_iterations: 1 #2
+
+# The iteration to resume from
+resume_iteration: 0
+
+# Total time allowed for a single proof attempt
+total_timeout: 6000
+
+# Maximum time allowed in environment before timing out
+env_timeout: 600
+
+log_level: 'INFO'
+
+
+## Resource configuration
+
+# number of physical GPUs
+num_gpus: 2
+
+# how many 'logical' GPUs available, should be a multiple of num_gpus.
+# Will control the number of separate tactic/search model processes
+logical_gpus: 4
+
+num_cpus: 8
+
+# How much GPU memory to allocate per prover (should be low, since the model is using most of the GPU)
+gpu_per_prover: 0.01
+
+# CPU resources to allocate per prover.
+cpu_per_prover: 1
+
+# How many provers to assign per logical GPU. Each of these provers will share one tactic/search process.
+provers_per_gpu: 1
+
+# Commands to run for retraining the model(s) after every evaluation
+train_after_eval: null
+#  - python3 -m experiments.lightning_runner --config-name=end_to_end/train/goal_model/run data_module.trace_files=${exp_config.directory}/traces
+#  - python3 -m experiments.lightning_runner --config-name=end_to_end/train/gen_seq2seq/run data_module.trace_files=${exp_config.directory}/traces
+
+# The model and its checkpoint attribute to update.
+# Must be same length as train_after_eval, with each index corresponding to the associated command
+update_checkpoints: null
+#    - [ search_model, ckpt_path ]
+#  - [tac_model, ckpt_path]
