@@ -13,6 +13,7 @@ logging_config:
   project: minif2f
   offline: false
 
-tac_model.gpu_per_process: 0.225
-tac_model.cpu_per_process: 0.125
+tac_model:
+  gpu_per_process: 0.225
+  cpu_per_process: 0.125
 
