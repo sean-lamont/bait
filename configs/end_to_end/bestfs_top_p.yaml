@@ -17,8 +17,3 @@ search_model.diversity_config.use_model: false
 
 tac_model.gpu_per_process: 0.225
 tac_model.cpu_per_process: 0.125
-
-hydra:
-  sweeper:
-    params:
-      search_model.diversity_config.p: 0.75, 0.9, 0.95

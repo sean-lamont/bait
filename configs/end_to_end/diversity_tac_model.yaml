@@ -16,8 +16,3 @@ logging_config:
 tac_model.gpu_per_process: 0.225
 tac_model.cpu_per_process: 0.125
 
-hydra:
-  sweeper:
-    params:
-      tac_model.diversity_config.p: 0.75, 0.9
-      tac_model.diversity_config.temperature: 1, 2
