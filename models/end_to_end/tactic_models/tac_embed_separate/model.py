@@ -11,6 +11,7 @@ from loguru import logger
 from transformers.utils import ModelOutput
 
 from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint, cpu_checkpointing_enabled
+from models.end_to_end.tactic_models.generator.model import TopkAccuracy
 
 torch.set_float32_matmul_precision("medium")
 
@@ -35,6 +36,14 @@ class TransitionModel(pl.LightningModule):
         self.lr = config.lr
         self.warmup_steps = config.warmup_steps
 
+        self.topk_accuracies = dict()
+        for k in range(1, self.num_samples + 1):
+            acc = TopkAccuracy(k)
+            self.topk_accuracies[k] = acc
+            self.add_module(f"top{k}_acc_val", acc)
+
+
+
     @classmethod
     def load(cls, ckpt_path: str, device, freeze: bool):
         return load_checkpoint(cls, ckpt_path, device, freeze)
@@ -43,12 +52,6 @@ class TransitionModel(pl.LightningModule):
         return get_optimizers(
             self.parameters(), self.trainer, self.lr, self.warmup_steps
         )
-
-    # def on_fit_start(self) -> None:
-    #     if self.logger is not None and self.global_rank == 0:
-    #         self.logger.log_hyperparams(self.hparams)
-    #         assert self.trainer is not None
-    #         logger.info(f"Logging to {self.trainer.log_dir}")
 
     def _encode(
             self, encoder, input_ids: torch.LongTensor, attention_mask: torch.LongTensor
@@ -184,6 +187,17 @@ class TransitionModel(pl.LightningModule):
         )
 
         batch_size = goal_ids.size(0)
+
+        predictions = [
+            output_text[i * self.num_samples: (i + 1) * self.num_samples]
+            for i in range(batch_size)
+        ]
+
+        for k in range(1, self.num_samples + 1):
+            topk_acc = self.topk_accuracies[k]
+            topk_acc(predictions, batch["result"])
+            self.log(f"top{k}_acc_val", topk_acc, on_step=False, on_epoch=True, prog_bar=False)
+
 
         assert len(output_text) == batch_size * self.num_samples, (
             len(output_text), batch_size, self.num_samples)
