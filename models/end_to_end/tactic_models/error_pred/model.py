@@ -1,10 +1,12 @@
 """Lightning module for the tactic generator."""
 
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 import lightning.pytorch as pl
 import torch
 import torch.nn.functional as F
+from torch.nn import CrossEntropyLoss
+from torchmetrics.classification import BinaryConfusionMatrix
 from torchmetrics.text import SacreBLEUScore, ROUGEScore
 from transformers import T5EncoderModel, T5ForConditionalGeneration
 from transformers.utils import ModelOutput
@@ -14,14 +16,34 @@ from models.end_to_end.tactic_models.generator.model import TopkAccuracy
 
 torch.set_float32_matmul_precision("medium")
 
+# def BCELoss_class_weighted(weights):
+#     def loss(input, target):
+#         input = torch.clamp(input, min=1e-7, max=1 - 1e-7)
+#         bce = - weights[1] * target * torch.log(input) - (1 - target) * weights[0] * torch.log(1 - input)
+#         return torch.mean(bce)
+#
+#     return loss
+#
 
-def BCELoss_class_weighted(weights):
-    def loss(input, target):
-        input = torch.clamp(input, min=1e-7, max=1 - 1e-7)
-        bce = - weights[1] * target * torch.log(input) - (1 - target) * weights[0] * torch.log(1 - input)
-        return torch.mean(bce)
+"""
 
-    return loss
+Model to predict the outcome of a tactic, given a goal state and tactic. 
+An encoder model first embeds the goal and tactic, and the tactic tokens are then pooled into a single vector.
+
+This is done to provide the tactic vector with the relevant goal context (which is highly important),
+and we want a single vector to enable fast upstream tasks.
+
+The tactic vector is then used for 3 tasks:
+    - Combined with the original goal embeddings, a decoder 
+        predicts the exact environment response to the (goal, tactic) pair,
+        which will be a new set of subgoals, an error message, or a proof success.
+    - Predicting the outcome of the tactic (success or failure)
+    - Predicting the time taken to execute the tactic
+
+A single hidden layer MLP is used for the error and time prediction tasks, which takes the tactic vector and 
+gives two outputs for the respective tasks.
+
+"""
 
 
 class ErrorPredModel(pl.LightningModule):
@@ -60,22 +82,24 @@ class ErrorPredModel(pl.LightningModule):
             self.topk_accuracies[k] = acc
             self.add_module(f"top{k}_acc_val", acc)
 
-        # add classifier to the model, as an MLP with a single hidden layer, and a sigmoid output
-        # taking in a single vector and outputting a score from 0 to 1
-        self.classifier = torch.nn.Sequential(
+        # add error and time predictors to the model, as an MLP with a single hidden layer
+        # takes a single tactic vector and
+
+        self.score_network = torch.nn.Sequential(
             torch.nn.Linear(self.tac_encoder.config.d_model, self.tac_encoder.config.d_model // 2),
             torch.nn.LayerNorm(self.tac_encoder.config.d_model // 2),
             torch.nn.ReLU(),
-            torch.nn.Linear(self.tac_encoder.config.d_model // 2, 1),
-            torch.nn.Sigmoid()
+            torch.nn.Linear(self.tac_encoder.config.d_model // 2, 2),
         )
 
         self.label_weights = config.label_weights
-        # self.classifier_loss = torch.nn.BCELoss()
 
-        self.classifier_weight = config.classifier_weight
+        self.error_weight = config.error_weight
+        self.time_weight = config.time_weight
 
-    @classmethod
+        self.ce_loss = CrossEntropyLoss(weight=torch.tensor(self.label_weights))
+        self.bcm = BinaryConfusionMatrix()  # normalize='true')
+
     def load(cls, ckpt_path: str, device, freeze: bool):
         return load_checkpoint(cls, ckpt_path, device, freeze)
 
@@ -142,9 +166,8 @@ class ErrorPredModel(pl.LightningModule):
             goal_mask: torch.Tensor,
             tactic_lens: torch.Tensor,
             result_ids: torch.Tensor,
-            classifier_targets: torch.Tensor,
-    ) -> torch.Tensor:
-
+            error_targets: torch.Tensor,
+            time_targets: torch.Tensor):
         full_enc, tac_enc = self.get_full_encoding(goal_ids, goal_mask, tactic_lens)
 
         dec_loss = self.decoder(
@@ -152,26 +175,36 @@ class ErrorPredModel(pl.LightningModule):
             labels=result_ids,
         ).loss
 
-        # classifier_loss = self.classifier_loss(self.classifier(tac_enc).squeeze(1), classifier_targets)
-        classifier_loss = BCELoss_class_weighted(self.label_weights)(self.classifier(tac_enc).squeeze(1),
-                                                                     classifier_targets)
+        # error_loss = BCELoss_class_weighted(self.label_weights)(self.classifier(tac_enc).squeeze(1),
+        #                                                              error_targets)
 
-        return dec_loss, classifier_loss
+        # batch_size x 2 (error, time)
+        score_output = self.score_network(tac_enc)  # .squeeze(1)
+        error_preds = torch.sigmoid(score_output[:, 0])
+        time_preds = score_output[:, 1]
+
+        # error_loss = BCELoss_class_weighted(self.label_weights)(error_preds, error_targets)
+        error_loss = self.ce_loss(error_preds, error_targets)
+        time_loss = F.mse_loss(time_preds, time_targets)
+
+        return dec_loss, error_loss, time_loss
 
     ############
     # Training #
     ############
 
     def training_step(self, batch, batch_idx: int):
-        classifier_targets = torch.tensor(
+        error_targets = torch.tensor(
             [1. if batch['status'][i] == 'success' else 0. for i in range(len(batch['status']))],
             dtype=torch.bfloat16).to(self.device)
-        dec_loss, classifier_loss = self(
+
+        dec_loss, error_loss, time_loss = self(
             batch["goal_ids"],
             batch["goal_mask"],
             batch["tactic_lens"],
             batch["result_ids"],
-            classifier_targets
+            error_targets,
+            batch["time_targets"],
         )
 
         self.log(
@@ -184,15 +217,24 @@ class ErrorPredModel(pl.LightningModule):
         )
 
         self.log(
-            "classifier_loss_train",
-            classifier_loss,
+            "time_loss_train",
+            time_loss,
             on_step=True,
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
         )
 
-        return dec_loss + self.classifier_weight * classifier_loss
+        self.log(
+            "error_loss_train",
+            error_loss,
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+        )
+
+        return dec_loss + self.error_weight * error_loss + self.time_weight * time_loss
 
     ##############
     # Validation #
@@ -206,15 +248,17 @@ class ErrorPredModel(pl.LightningModule):
     def on_validation_epoch_end(self) -> None:
         if self.global_rank == 0:
             self.logger.log_table(key=f'predictions_{self.global_step}',
-                                  columns=["goal", "tactic", "outcome", "prediction"],
+                                  columns=["goal", "tactic", "outcome", "time", "outcome_prediction",
+                                           "error_prediction",
+                                           "time_prediction"],
                                   data=self.log_table)
 
     def validation_step(self, batch: Dict[str, Any], _) -> None:
-
         goal_ids = batch["goal_ids"]
         goal_mask = batch["goal_mask"]
         tactic_lens = batch["tactic_lens"]
         result_ids = batch["result_ids"]
+        time_targets = batch["time_targets"]
 
         full_enc, tac_enc = self.get_full_encoding(goal_ids, goal_mask, tactic_lens)
 
@@ -249,39 +293,83 @@ class ErrorPredModel(pl.LightningModule):
             for i in range(batch_size)
         ]
 
-        classifier_preds = self.classifier(tac_enc).squeeze(1)
+        error_targets = torch.LongTensor(
+            [1 if batch['status'][i] == 'success' else 0 for i in range(len(batch['status']))]).to(self.device)
+
+        score_output = self.score_network(tac_enc)  # .squeeze(1)
+        error_preds = torch.sigmoid(score_output[:, 0])
+        time_preds = score_output[:, 1]
+        # error_loss = BCELoss_class_weighted(self.label_weights)(error_preds, error_targets)
+        time_loss = F.mse_loss(time_preds, time_targets)
+
+        self.log(f'time_loss_val', time_loss, on_step=False, on_epoch=True, prog_bar=False)
+
         # get preds as those > 0.5
-        classifier_preds = classifier_preds > 0.5
+        error_preds = error_preds > 0.5
+        # make 1 for true, 0 for false
+        error_preds = error_preds.int()
 
-        # check if the status is correct using classifier_preds
+        confusion = self.bcm(error_preds, error_targets)
 
-        status_acc = sum(
-            [1 if batch['status'][i] == 'success' else 0 for i in range(len(classifier_preds))]) / len(classifier_preds)
+        self.log(
+            "false_negs",
+            confusion[1][0],
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=False
+        )
 
-        # status_acc = sum([sum([p.split('\n')[0] == batch['status'][i] for p in predictions[i]]) / self.num_samples for
-        #                 i in range(batch_size)]) / batch_size
+        self.log(
+            "true_negs",
+            confusion[0][0],
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=False
+        )
 
-        self.log(f"status_acc", status_acc, on_step=False, on_epoch=True, prog_bar=True)
+        self.log(
+            "false_pos",
+            confusion[0][1],
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=False
+        )
+
+        self.log(
+            "true_pos",
+            confusion[1][1],
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=False
+        )
+
+        # check if the status is correct using error_preds
+        error_acc = sum(
+            [error_preds[i] == error_targets[i] for i in range(len(error_preds))]) / len(
+            error_preds)
+
+        # only consider the first prediction for decoder error accuracy
+        dec_error_acc = sum(
+            [predictions[i][0].split('\n')[0] == batch['status'][i] for i in range(batch_size)]) / batch_size
+
+        self.log(f"error_acc", error_acc, on_step=False, on_epoch=True, prog_bar=True)
+        self.log(f"dec_error_acc", dec_error_acc, on_step=False, on_epoch=True, prog_bar=True)
 
         for k in range(1, self.num_samples + 1):
             topk_acc = self.topk_accuracies[k]
-        topk_acc(predictions, batch["result"])
-        self.log(f"top{k}_acc_val", topk_acc, on_step=False, on_epoch=True, prog_bar=k == self.num_samples)
+            topk_acc(predictions, batch["result"])
+            self.log(f"top{k}_acc_val", topk_acc, on_step=False, on_epoch=True, prog_bar=k == self.num_samples)
 
         assert len(output_text) == batch_size * self.num_samples, (
             len(output_text), batch_size, self.num_samples)
 
-        # for us, we only have one target (reference) so targets will be a list of lists,
-        # with targets[i * num_samples: (i+1) * num_samples] being the target for the corresponding sample
-        bleu_targets = [
-            [batch['result'][i]]
-            for i in range(batch_size)
-            for _ in range(self.num_samples)
-        ]
+        bleu_targets = [[batch['result'][i]] for i in range(batch_size) for _ in range(self.num_samples)]
 
         nl = '\n\n'
-
-        # logger.info(f'Goal Before:\n {batch["goal"][0]}\n\n Goal After:\n  {batch["result"][0]} \n\n Predicted: \n{nl.join([o for o in output_text])}\n\n\n,')
 
         self.log_dict(self.rogue(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 
@@ -290,9 +378,9 @@ class ErrorPredModel(pl.LightningModule):
         self.log('avg_seq_len', sum([len(o) for o in output_text]) / len(output_text), on_step=False, on_epoch=True,
                  prog_bar=False)
 
+        # log table to wandb for rank 0 only
         if self.global_rank == 0:
-            data = [[batch['goal'][i], batch['tactic'][i], batch['result'][i],
-                     # nl.join(output_text[i * self.num_samples: (i + 1) * self.num_samples])]
-                     nl.join(predictions[i])]
+            data = [[batch['goal'][i], batch['tactic'][i], batch['result'][i], batch['time_targets'][i],
+                     nl.join(predictions[i]), 'success' if error_preds[i] == 1 else 'failure', time_preds[i]]
                     for i in range(batch_size)]
             self.log_table.extend(data)

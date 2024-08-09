@@ -4,20 +4,20 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: minif2f_test
+  name: combined_transition_model
   experiment: error_pred
-  #  runs/${.experiment}/${.name}/${now:%Y_%m_%d}/${now:%H_%M}
-
 
 logging_config:
   project: error_pred
   offline: false
+
 model:
   _target_: models.end_to_end.tactic_models.error_pred.model.ErrorPredModel
   config:
-    classifier_weight: 1
+    error_weight: 1
+    time_weight: 1
     # for biased error/success distribution
-    label_weights: [0.25, 0.75]
+    label_weights: [ 0.25, 0.75 ]
     load_ckpt: false
     tac_encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
     goal_encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
@@ -34,7 +34,7 @@ data_module:
   eval_batch_size: 2
   max_seq_len: 2000
   num_workers: 0
-  collection: 'minif2f'
+  collection: 'minif2f_transitions'
   trace_files: 'runs/minif2f/minif2f_bestfs/2024_07_31/16_28_47/traces/0'
   replace: 'keep' # add/keep/drop files wrt the existing collection
 
@@ -54,7 +54,7 @@ trainer:
   gradient_clip_val: 1.0
 
   val_check_interval: 10_000
-  limit_val_batches: 300
+  limit_val_batches: 500
 
 
   callbacks:

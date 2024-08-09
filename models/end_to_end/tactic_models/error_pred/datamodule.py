@@ -1,9 +1,11 @@
 """Data module for the tactic generator."""
 import pickle
 from pathlib import Path
+import random
 from typing import Optional
 
 import lightning.pytorch as pl
+import torch
 from loguru import logger
 from pymongo import MongoClient
 from torch.utils.data import DataLoader
@@ -32,7 +34,7 @@ class ErrorPredDataModule(pl.LightningDataModule):
             num_workers: int,
             trace_files=None,
             database='leandojo_novel',
-            collection='error_pred',
+            collection='transitions',
             replace='keep',
             host='localhost:27017'  # mongodb host
     ) -> None:
@@ -47,7 +49,7 @@ class ErrorPredDataModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-        self.fields = ['goal', 'tactic', 'result', 'theorem', 'status']
+        self.fields = ['goal', 'tactic', 'result', 'theorem', 'status', 'time']
         self.collection = collection
         self.database = database
         self.current_train_batch_index = 0
@@ -79,8 +81,6 @@ class ErrorPredDataModule(pl.LightningDataModule):
             else:
                 raise ValueError(f'Invalid value for replace: {self.replace}')
 
-        # trace_files = filter_traces(self.trace_files)
-
         path = Path(self.trace_files)
         trace_files = [x for x in path.rglob("*") if x.is_file()]
 
@@ -89,15 +89,36 @@ class ErrorPredDataModule(pl.LightningDataModule):
 
         collection = MongoClient()[self.database][self.collection]
 
-        def add_trace(trace, split):
+        # split val set at the node level rather than trace level
+        def add_trace(trace, split_size):
             nodes = trace.nodes
             nodes[trace.tree.goal] = trace.tree
 
-            for edge in trace.trace:
+            random.shuffle(trace.trace)
+
+            for edge in trace.trace[:int(split_size * len(trace.trace))]:
+                split = 'train'
                 data = {'goal': edge.src.data['augmented_state'], 'tactic': edge.tactic,
                         'logprob': edge.tac_logprob,
                         'split': split,
-                        'theorem': trace.theorem.full_name, }
+                        'theorem': trace.theorem.full_name,
+                        'time': edge.time}
+                if len(edge.dst) == 1 and isinstance(edge.dst[0], ErrorNode):
+                    data['result'] = edge.dst[0].inner.message.split(' tactic_state')[0]
+                    data['status'] = 'failed'
+                else:
+                    data['result'] = ''.join([d.goal if hasattr(d, 'goal') else 'Proven' for d in edge.dst])
+                    data['status'] = 'success'
+
+                collection.insert_one(data)
+
+            for edge in trace.trace[int(split_size * len(trace.trace)):]:
+                split = 'val'
+                data = {'goal': edge.src.data['augmented_state'], 'tactic': edge.tactic,
+                        'logprob': edge.tac_logprob,
+                        'split': split,
+                        'theorem': trace.theorem.full_name,
+                        'time': edge.time}
                 if len(edge.dst) == 1 and isinstance(edge.dst[0], ErrorNode):
                     data['result'] = edge.dst[0].inner.message.split(' tactic_state')[0]
                     data['status'] = 'failed'
@@ -108,21 +129,49 @@ class ErrorPredDataModule(pl.LightningDataModule):
                 collection.insert_one(data)
 
         logger.info('Processing traces for training transition model...')
-        for trace in tqdm(trace_files[:int(0.9 * len(trace_files))]):
+        for trace in tqdm(trace_files):
             trace = pickle.load(open(trace, 'rb'))
             if isinstance(trace.tree, ErrorNode):
                 continue
 
-            add_trace(trace, 'train')
+            add_trace(trace, 0.95)
 
-        logger.info('Processing traces for validating transition model...')
-        for trace in tqdm(trace_files[int(0.9 * len(trace_files)):]):
-            trace = pickle.load(open(trace, 'rb'))
-            if isinstance(trace.tree, ErrorNode):
-                continue
-
-            add_trace(trace, 'val')
-
+        # splitting val set based on files
+        # def add_trace(trace, split):
+        #     nodes = trace.nodes
+        #     nodes[trace.tree.goal] = trace.tree
+        #
+        #     for edge in trace.trace:
+        #         data = {'goal': edge.src.data['augmented_state'], 'tactic': edge.tactic,
+        #                 'logprob': edge.tac_logprob,
+        #                 'split': split,
+        #                 'theorem': trace.theorem.full_name,
+        #                 'time': edge.time}
+        #         if len(edge.dst) == 1 and isinstance(edge.dst[0], ErrorNode):
+        #             data['result'] = edge.dst[0].inner.message.split(' tactic_state')[0]
+        #             data['status'] = 'failed'
+        #         else:
+        #             data['result'] = ''.join([d.goal if hasattr(d, 'goal') else 'Proven' for d in edge.dst])
+        #             data['status'] = 'success'
+        #
+        #         collection.insert_one(data)
+        #
+        # logger.info('Processing traces for training transition model...')
+        # for trace in tqdm(trace_files[:int(0.9 * len(trace_files))]):
+        #     trace = pickle.load(open(trace, 'rb'))
+        #     if isinstance(trace.tree, ErrorNode):
+        #         continue
+        #
+        #     add_trace(trace, 'train')
+        #
+        # logger.info('Processing traces for validating transition model...')
+        # for trace in tqdm(trace_files[int(0.9 * len(trace_files)):]):
+        #     trace = pickle.load(open(trace, 'rb'))
+        #     if isinstance(trace.tree, ErrorNode):
+        #         continue
+        #
+        #     add_trace(trace, 'val')
+        #
         add_rand_idx(collection)
 
     def setup(self, stage: Optional[str] = None) -> None:
@@ -207,6 +256,8 @@ class ErrorPredDataModule(pl.LightningDataModule):
         result_ids = tokenized_result.input_ids
         result_ids[result_ids == self.tokenizer.pad_token_id] = -100
 
+        time_targets = torch.Tensor([ex['time'] for ex in examples])
+
         batch = {}
         batch["goal"] = goal
         batch["goal_ids"] = tokenized_goal.input_ids
@@ -216,10 +267,12 @@ class ErrorPredDataModule(pl.LightningDataModule):
         batch["result_mask"] = tokenized_goal.attention_mask
         batch["tactic"] = tactic
         batch["tactic_lens"] = lens
+        batch["time_targets"] = time_targets
+        batch["status"] = [ex['status'] for ex in examples]
 
-        # Copy other fields.
-        for k in examples[0].keys():
-            if k not in batch:
-                batch[k] = [ex[k] for ex in examples]
+        # # Copy other fields.
+        # for k in examples[0].keys():
+        #     if k not in batch:
+        #         batch[k] = [ex[k] for ex in examples]
 
         return batch
