@@ -20,6 +20,25 @@ class DiversityModel(torch.nn.Module):
         self.encoder, self.tokenizer = self.load_encoder(config)
         self.max_seq_len = config.max_seq_len
         self.autoencoder = config.autoencoder if hasattr(config, 'autoencoder') else False
+        self.score_network = self.load_score_network(config) if hasattr(config, 'score_network') else None
+
+        self.error_weight = config.error_weight if hasattr(config, 'error_weight') else 1
+        self.time_weight = config.time_weight if hasattr(config, 'time_weight') else 1
+
+    def load_score_network(self, config):
+        score_network = torch.nn.Sequential(
+            torch.nn.Linear(self.encoder.config.d_model, self.encoder.config.d_model // 2),
+            torch.nn.LayerNorm(self.encoder.config.d_model // 2),
+            torch.nn.ReLU(),
+            torch.nn.Linear(self.encoder.config.d_model // 2, 2),
+        )
+
+        ckpt = torch.load(config.ckpt_dir)
+        state_dict = {k[14:]: v for k, v in ckpt.items() if k.startswith('score_network')}
+
+        score_network.load_state_dict(state_dict)
+
+        return score_network
 
     def load_encoder(self, config):
         if config.ckpt_dir:
@@ -121,6 +140,16 @@ class DiversityModel(torch.nn.Module):
 
             vec_matrix = torch.cat(encs, dim=0)
 
+            # augment probs by time/error scores
+            if self.score_network:
+                scores = self.score_network(vec_matrix)
+
+                error_preds = torch.sigmoid(scores[:, 0])
+                time_scores = scores[:, 1]
+
+                time_scores = 1 - torch.softmax(time_scores, dim=0)
+                probs = probs + self.error_weight * error_preds + self.time_weight * time_scores
+
             # dynamic number of tactics to filter, based on the eigenvalues of the similarity matrix
             sim_matrix = vec_matrix @ vec_matrix.T
             sim_matrix = sim_matrix.cpu().numpy()
@@ -146,7 +175,7 @@ class DiversityModel(torch.nn.Module):
 
             # rng = np.random.RandomState(1)
             try:
-                DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')#,rng=rng)
+                DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')  # ,rng=rng)
             except Exception as e:
                 logger.error(f"Error sampling from DPP: {e}")
                 return [[i for i in range(len(tactics))]], sim_matrix
