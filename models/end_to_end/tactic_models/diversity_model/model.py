@@ -147,7 +147,11 @@ class DiversityModel(torch.nn.Module):
                 error_preds = torch.sigmoid(scores[:, 0])
                 time_scores = scores[:, 1]
 
-                time_scores = 1 - torch.softmax(time_scores, dim=0)
+                # normalise time scores
+
+                time_scores = F.normalize(time_scores, dim=1, p=1)
+                time_scores = 1 - time_scores
+
                 probs = probs + self.error_weight * error_preds + self.time_weight * time_scores
 
             # dynamic number of tactics to filter, based on the eigenvalues of the similarity matrix
@@ -156,25 +160,25 @@ class DiversityModel(torch.nn.Module):
 
             DPP = FiniteDPP('likelihood', **{'L': sim_matrix})
 
-            DPP.compute_K(msg=True)
-            k_sum = sum(DPP.K_eig_vals)
-            k = self.top_p(DPP.K_eig_vals / k_sum, p)
-
-            if k > num_filtered:
-                num_filtered = k
-
-            if num_filtered >= len(tactics):
-                return [[i for i in range(len(tactics))]], sim_matrix
-
-            # Set DPP kernel to quality-diversity decomposition
-            # quality is given by tactic probabilites
-            vec_matrix = torch.mul(vec_matrix, probs.unsqueeze(1).to(self.device)).cpu().numpy()
-            vec_matrix = vec_matrix @ vec_matrix.T
-
-            DPP = FiniteDPP('likelihood', **{'L': vec_matrix})
-
-            # rng = np.random.RandomState(1)
             try:
+                DPP.compute_K(msg=True)
+                k_sum = sum(DPP.K_eig_vals)
+                k = self.top_p(DPP.K_eig_vals / k_sum, p)
+
+                if k > num_filtered:
+                    num_filtered = k
+
+                if num_filtered >= len(tactics):
+                    return [[i for i in range(len(tactics))]], sim_matrix
+
+                # Set DPP kernel to quality-diversity decomposition
+                # quality is given by tactic probabilites
+                vec_matrix = torch.mul(vec_matrix, probs.unsqueeze(1).to(self.device)).cpu().numpy()
+                vec_matrix = vec_matrix @ vec_matrix.T
+
+                DPP = FiniteDPP('likelihood', **{'L': vec_matrix})
+
+                # rng = np.random.RandomState(1)
                 DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')  # ,rng=rng)
             except Exception as e:
                 logger.error(f"Error sampling from DPP: {e}")

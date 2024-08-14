@@ -250,6 +250,7 @@ class ErrorPredModel(pl.LightningModule):
             self.logger.log_table(key=f'predictions_{self.global_step}',
                                   columns=["goal", "tactic", "outcome", "time", "outcome_prediction",
                                            "error_prediction",
+                                           "error_probs",
                                            "time_prediction"],
                                   data=self.log_table)
 
@@ -297,15 +298,15 @@ class ErrorPredModel(pl.LightningModule):
             [1 if batch['status'][i] == 'success' else 0 for i in range(len(batch['status']))]).to(self.device)
 
         score_output = self.score_network(tac_enc)  # .squeeze(1)
-        error_preds = torch.sigmoid(score_output[:, 0])
+        error_probs = torch.sigmoid(score_output[:, 0])
         time_preds = score_output[:, 1]
-        # error_loss = BCELoss_class_weighted(self.label_weights)(error_preds, error_targets)
+        # error_loss = BCELoss_class_weighted(self.label_weights)(error_probs, error_targets)
         time_loss = F.mse_loss(time_preds, time_targets)
 
         self.log(f'time_loss_val', time_loss, on_step=False, on_epoch=True, prog_bar=False)
 
         # get preds as those > 0.5
-        error_preds = error_preds > 0.5
+        error_preds = error_probs > 0.5
         # make 1 for true, 0 for false
         error_preds = error_preds.int()
 
@@ -381,6 +382,7 @@ class ErrorPredModel(pl.LightningModule):
         # log table to wandb for rank 0 only
         if self.global_rank == 0:
             data = [[batch['goal'][i], batch['tactic'][i], batch['result'][i], batch['time_targets'][i],
-                     nl.join(predictions[i]), 'success' if error_preds[i] == 1 else 'failure', time_preds[i]]
+                     nl.join(predictions[i]), 'success' if error_preds[i] == 1 else 'failure', error_probs[i],
+                     time_preds[i]]
                     for i in range(batch_size)]
             self.log_table.extend(data)

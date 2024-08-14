@@ -5,7 +5,7 @@
 Automated theorem proving blurb...
 
 Current search based methods in AI-ITP suffer from an exponential growth in the number of proof paths. With
-the execution of tactics in the environment being expensive, this limits the depth of the search and
+the execution of tactics in the environment being expensive, this limits the search depth and
 hence the complexity of the problems that can be solved efficiently. Despite this, many tactics are semantically
 similar, or lead directly to an execution error, which results in a large number of redundant tactic applications and proof
 paths.
@@ -45,16 +45,80 @@ the quality of the tactics and their semantic diversity. To achieve this, we lev
 [//]: # ( Despite the success of the second approach, there are advantages to maintaining a search tree.. &#40;smaller prompt/context, different candidate paths,...)
 
 
+
+## Problem setup
+The AI-ITP problem can be formulated as follows.
+
+- Given the initial goal $g$, we wish to find a sequence of tactics 
+$t_1, t_2, \ldots, t_n$ which when applied to the environment result in a complete proof of $g$.
+- Although approaches exist which attempt to generate the whole proof in a single attempt \cite{todo},
+we restrict ourselves to the case where a single tactic is generated at a time. 
+- We assume a base model $\pi_{\theta}$ which generates a list of tactics $T$ for a given goal $g$.
+- We further assume we have a filtering model $\pi_{\phi}$ which takes the list of tactics $T$ and returns a subset $t$.
+- ...
+- Following a proof attempt, we have a trace of the (goal, tactic, outcome) tuples, which we use to train our models.
+- The outcome of a tactic results in a three-tuple: (status, time, result)
+
+
 ## Tactic Representation
+As discussed in the previous section, we have a dataset of (goal, tactic, outcome) tuples,
+where the outcome is a three-tuple: (status, time, result).
+
+Previous work has focused on learning only with the status component, for example by 
+using a reward, seq2seq training over proven status nodes, and by learning a goal scoring function
+which assigns a score to a goal based on the predicted status. 
+
+This discards a large amount of information about how a tactic affects the environment. 
+In this section, we investigate whether it is possible to learn these transitions, and
+further investigate if this can be encoded in a single tactic representation vector.
+
+Learning the transition function is a difficult task, as it requires understanding of both the 
+environment, goal and tactic. 
+
+
+For our primary tactic encoding model, we start with an Encoder-Decoder Transformer.
+The tactic is concatenated with the goal, and the embeddings from the Encoder are computed for all tokens.
+We then generate a single tactic embedding by mean pooling over the tactic tokens.
+This single tactic embedding is then used for the three outcome prediction tasks:
+- Status prediction (classification)
+- Time prediction (regression)
+- Result prediction (autoregressive)
+
+
+The status and time prediction tasks share a single-layer MLP, which takes this tactic embedding as input.
+The MLP outputs two final values for the respective tasks, with the status prediction output being passed through a final sigmoid activation.
+We use a binary cross-entropy loss for the status prediction task, and a mean squared error loss for the time prediction task.
+
+For the result prediction task, we concatenate the tactic embedding with the goal token embeddings, and pass this 
+through the entire Encoder-Decoder Transformer. The loss is calculated using a cross-entropy loss between the predicted and actual result tokens.
+
+We compare this with a model which encodes the tactic separately from the goal. 
+We hypothesise that allowing the tactic tokens to attend to the goal tokens will allow the model to better understand the semantics of the tactic.
+We finally compare with a model which uses all tactic tokens, without reducing to a single embedding. 
+
 ### Tactic Embeddings
 ### Experimental setup
+- 2 x A6000 GPUs with 48GB memory each, etc.. 
+- AdamW optimizer, learning rate 1e-5, batch size 4, etc..
 ### Results
 Single vs Combined vs All tokens for combined error/outcome/time task
 #### Metrics
+- Report BLEU, ROGUE, error accuracy, time MSE, top-K 
 #### AutoRater
 
 ## Tactic Filtering
 ### Determinantal Point Processes
+Determinantal Point Processes (DPPs) are a class of probabilistic models which sample
+subsets $A$ from a ground set $\mathcal{X}$. 
+They provide an elegant way of sampling diverse but high quality subsets, by constructing a 
+likelihood matrix $L$ which captures the similarity between elements in $\mathcal{X}$. 
+The probability of sampling a subset $A$ is then proportional to the determinant of the submatrix of $L$ indexed by $A$.
+Geometrically, it is the volume of the parallelepiped spanned by the rows of $L$ indexed by $A$.
+The larger the diversity of the elements in $A$, the larger the volume, and hence the higher the probability of sampling $A$.
+
+
+
+
 ### Experimental setup
 ### Results
 ### Ablation
@@ -62,6 +126,11 @@ Single vs Combined vs All tokens for combined error/outcome/time task
 ## Discussion
 ### Limitations
 Environment timeouts depends on CPU
+### Future work
+- Model-based approach (is uncertain to work even with a good transition function, as
+any errors will compound over the number of rollouts)
+- Co-training style approach using only synthetic data (i.e. not separating models for the main and auxiliary tasks)
+
 
 ## Conclusion
 
