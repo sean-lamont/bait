@@ -100,6 +100,7 @@ class ErrorPredModel(pl.LightningModule):
         self.ce_loss = CrossEntropyLoss(weight=torch.tensor(self.label_weights))
         self.bcm = BinaryConfusionMatrix()  # normalize='true')
 
+    @classmethod
     def load(cls, ckpt_path: str, device, freeze: bool):
         return load_checkpoint(cls, ckpt_path, device, freeze)
 

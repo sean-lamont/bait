@@ -20,7 +20,7 @@ class DiversityModel(torch.nn.Module):
         self.encoder, self.tokenizer = self.load_encoder(config)
         self.max_seq_len = config.max_seq_len
         self.autoencoder = config.autoencoder if hasattr(config, 'autoencoder') else False
-        self.score_network = self.load_score_network(config) if hasattr(config, 'score_network') else None
+        self.score_network = self.load_score_network(config).to(self.device) if hasattr(config, 'score_network') else None
 
         self.error_weight = config.error_weight if hasattr(config, 'error_weight') else 1
         self.time_weight = config.time_weight if hasattr(config, 'time_weight') else 1
@@ -102,6 +102,7 @@ class DiversityModel(torch.nn.Module):
 
             # get softmax over logprobs
             probs = torch.softmax(torch.tensor(logprobs), dim=0) * scale
+            probs = probs.to(self.device)
 
             # chunking gives slight speedup, but high memory cost
             chunk_size = 1
@@ -148,8 +149,7 @@ class DiversityModel(torch.nn.Module):
                 time_scores = scores[:, 1]
 
                 # normalise time scores
-
-                time_scores = F.normalize(time_scores, dim=1, p=1)
+                time_scores = F.normalize(time_scores, dim=0)#, p=1)
                 time_scores = 1 - time_scores
 
                 probs = probs + self.error_weight * error_preds + self.time_weight * time_scores
@@ -158,9 +158,10 @@ class DiversityModel(torch.nn.Module):
             sim_matrix = vec_matrix @ vec_matrix.T
             sim_matrix = sim_matrix.cpu().numpy()
 
-            DPP = FiniteDPP('likelihood', **{'L': sim_matrix})
 
             try:
+                # get top-p tactics based on similarity matrix only, rather than quality-diversity decomposition
+                DPP = FiniteDPP('likelihood', **{'L': sim_matrix})
                 DPP.compute_K(msg=True)
                 k_sum = sum(DPP.K_eig_vals)
                 k = self.top_p(DPP.K_eig_vals / k_sum, p)
@@ -172,8 +173,8 @@ class DiversityModel(torch.nn.Module):
                     return [[i for i in range(len(tactics))]], sim_matrix
 
                 # Set DPP kernel to quality-diversity decomposition
-                # quality is given by tactic probabilites
-                vec_matrix = torch.mul(vec_matrix, probs.unsqueeze(1).to(self.device)).cpu().numpy()
+                # quality is given by tactic probabilites, and error/time scores if available
+                vec_matrix = torch.mul(vec_matrix, probs.unsqueeze(1)).cpu().numpy()
                 vec_matrix = vec_matrix @ vec_matrix.T
 
                 DPP = FiniteDPP('likelihood', **{'L': vec_matrix})

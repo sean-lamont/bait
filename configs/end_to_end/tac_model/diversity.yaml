@@ -10,18 +10,27 @@ gpu_per_diversity: 0.225
 cpu_per_diversity: 0.125
 
 diversity_config:
-  ckpt_dir: 'runs/minif2f/minif2f_combined.ckpt'
+  # transition only:
+  #  ckpt_dir: 'runs/minif2f/minif2f_combined.ckpt'
+
+  # combined transition/error/time prediction:
+  ckpt_dir: runs/error_pred/combined_transition_model/combined_minif2f_valid.ckpt
+
   model: 'sean-lamont/leandojo-lean3-reprover-novel-premises'
   max_seq_len: 2000
   num_filtered: 2
   temperature: 1
-  p: 0.9
+  p: 0.75
+
+  score_network: true
+  error_weight: 0.5
+  time_weight: 0.1
 
 config:
   model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
   #   retriever args
   ret_ckpt_path: runs/retriever_novel_premises.ckpt
-#  indexed_corpus_path: runs/indexed_corpus
+  #  indexed_corpus_path: runs/indexed_corpus
   indexed_corpus_path: runs/indexed_corpus_minif2f
   eval_num_retrieved: 100
 

@@ -6,14 +6,11 @@ defaults:
   - search_model/bestfs
 
 exp_config:
-  name: before_env_filter
+  name: combined_model_test
   experiment: minif2f
 
 logging_config:
   project: minif2f
   offline: false
 
-tac_model:
-  gpu_per_process: 0.225
-  cpu_per_process: 0.125
 
