@@ -17,6 +17,7 @@ from models.end_to_end.tactic_models.retrieval.model import PremiseRetriever
 
 torch.set_float32_matmul_precision("medium")
 
+
 '''
 
 Generic class for Retrieval and Generative Tactic Models. 
