@@ -11,6 +11,6 @@ exp_config:
 
 logging_config:
   project: minif2f
-  offline: true
+  offline: false
 
 

@@ -3,8 +3,8 @@ ckpt_path: null
 num_sampled_tactics: 64
 
 distributed: true
-gpu_per_process: 0.225
-cpu_per_process: 0.125
+gpu_per_process: 0.45
+cpu_per_process: 0.25
 
 diversity_config:
   # combined transition/error/time prediction:

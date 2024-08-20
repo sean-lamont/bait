@@ -6,17 +6,19 @@ defaults:
 exp_config:
   name: combined_transition_model
   experiment: error_pred
-  resume: true
-  directory: runs/error_pred/combined_transition_model/2024_08_09/14_12_23
+#  resume: true
+#  directory: runs/error_pred/combined_transition_model/2024_08_09/14_12_23
 
 logging_config:
   project: error_pred
   offline: false
-  id: socdvm9k
+#  id: socdvm9k
 
 model:
   _target_: models.end_to_end.tactic_models.error_pred.model.ErrorPredModel
   config:
+#    load_ckpt: true
+#    ckpt_path: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/last.ckpt'
     error_weight: 1
     time_weight: 1
     # for biased error/success distribution
