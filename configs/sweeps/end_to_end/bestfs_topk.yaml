@@ -1,0 +1,25 @@
+program: experiments.end_to_end.end_to_end_experiment
+name: bestfs_topk_sweep
+description: BestFS topK sweep
+project: minif2f
+
+method: grid
+metric:
+  goal: maximize
+  name: Pass@1
+parameters:
+  tac_model.diversity_config.random:
+    values: [True, False]
+  tac_model.diversity_config.num_filtered:
+    values: [8, 16]
+  exp_config.name:
+    values: [ 'bestfs_topk-k${tac_model.diversity_config.num_filtered}-r${tac_model.diversity_config.random}' ]
+
+command:
+  - ${env}
+  - ${interpreter}
+  - '-m'
+  - ${program}
+  - '--config-name=end_to_end/diversity_tac_model'
+  - ${args_no_hyphens}
+

@@ -174,6 +174,12 @@ $A$.
  
 ### Experimental setup
 
+- Use minif2f valid for hyperparam sweep, ablation studies, which params to use
+- benchmarks are bestfs with random exploration and top-k
+- 
+
+
+
 ### Results
 - Pass@1 (over averages?)
 - Union over approaches

@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import warnings
+import random
 
 import ray
 import torch
@@ -43,6 +44,26 @@ class TacWrapper(TacModel):
         tactics = ray.get(self.tac_model.get_tactics.remote(goal, premises))
 
         return tactics
+
+
+class TopKTacGenerator(TacModel):
+    def __init__(self, tac_model: TacModel, num_filtered, random=False):
+        super().__init__()
+        self.tac_model = tac_model
+        self.num_filtered = num_filtered
+        self.random = random
+
+    def get_tactics(self, goal, premises):
+        _, theorem, _ = premises
+        tactics = self.tac_model.get_tactics(goal, premises)
+
+        goal.data['original_tacs'] = tactics
+
+        if self.random:
+            return random.sample(tactics, self.num_filtered)
+        else:
+            # tactics are expected to be sorted here
+            return tactics[:self.num_filtered]
 
 
 class DiversityTacGenerator(TacModel):
@@ -146,6 +167,40 @@ def load_pretrained_encoders(self, encoder_premise, encoder_goal):
 
 
 def get_tac_model(config, device):
+    if config.model == 'topk':
+
+        if hasattr(config, 'ckpt_path') and config.ckpt_path:
+            tac_gen = RetrievalAugmentedGenerator.load(
+                config.ckpt_path, device=device, freeze=True
+            )
+
+        else:
+            tac_gen = RetrievalAugmentedGenerator(config.config).to(device)
+            tac_gen.freeze()
+
+        if tac_gen.retriever is not None:
+            assert config.config.indexed_corpus_path is not None
+            tac_gen.retriever.load_corpus(config.config.indexed_corpus_path)
+
+            # check if corpus is up to date, otherwise recompute
+            if tac_gen.retriever.embeddings_staled:
+                tac_gen.retriever.reindex_corpus(batch_size=2)
+
+        if config.distributed:
+            tac_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(
+                ReProverTacGen).remote(
+                tac_model=tac_gen, num_sampled_tactics=config.num_sampled_tactics)
+
+            tac_model = ReProverWrapper(tac_model, retriever=tac_gen.retriever is not None)
+
+            return TopKTacGenerator(tac_model=tac_model,
+                                    num_filtered=config.diversity_config.num_filtered,
+                                    random=config.diversity_config.random)
+
+
+        else:
+            raise NotImplementedError
+
     if config.model == 'diversity':
 
         if hasattr(config, 'ckpt_path') and config.ckpt_path:
