@@ -90,10 +90,34 @@ class EndToEndProver:
             data=data
         )
 
-        with open(os.path.join(self.dir, get_thm_name(self.env_name, theorem)), "wb") as f:
-            pickle.dump(result, f)
+        try:
+            with open(os.path.join(self.dir, get_thm_name(self.env_name, theorem)), "wb") as f:
+                pickle.dump(result, f)
+        except Exception as e:
+            logger.warning(f"Couldn't save trace for {theorem}, saving status only")
 
-        return
+            root = ErrorNode(EnvironmentError(str(e)))
+
+            result = SearchResult(
+                theorem=theorem,
+                status=root.status,
+                proof=proof,
+                tree=root,
+                nodes={},
+                total_time=self.total_time,
+                tac_time=self.tac_time,
+                search_time=self.search_time,
+                env_time=self.env_time,
+                num_expansions=self.num_expansions,
+                trace=None,
+                num_nodes=len(nodes),
+                data={}
+            )
+
+            with open(os.path.join(self.dir, get_thm_name(self.env_name, theorem)), "wb") as f:
+                pickle.dump(result, f)
+
+        return 1 if proof else 0
 
     def get_tactics(self, goals, premises, tacs_per_goal=64):
         suggestions = []
@@ -103,7 +127,6 @@ class EndToEndProver:
 
             # Get full set of suggestions for goal if it hasn't been computed already
             if ts not in self.remaining_tacs:
-                # tacs = ray.get(self.tac_model.get_tactics.remote(search_node, premises))
                 tacs = self.tac_model.get_tactics(search_node, premises)
                 tacs.reverse()
                 self.remaining_tacs[ts] = tacs
@@ -178,8 +201,9 @@ class EndToEndProver:
                 self.search_model.reset(root)
 
         try:
-            self._process_trace(env.thm)
+            proven = self._process_trace(env.thm)
         except:
+            proven = 0
             logger.warning(f"Error processing trace for {env.thm}")
             err_name = get_thm_name(self.env_name, env.thm)
             try:
@@ -189,7 +213,7 @@ class EndToEndProver:
                 logger.warning(f"Couldn't log error for {err_name}:")
                 traceback.print_exc()
 
-        return self.search_model.root.status == Status.PROVED
+        return proven
 
     def _search(self, env) -> None:
         try:
