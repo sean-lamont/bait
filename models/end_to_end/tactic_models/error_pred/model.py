@@ -13,17 +13,10 @@ from transformers.utils import ModelOutput
 
 from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint
 from models.end_to_end.tactic_models.generator.model import TopkAccuracy
+from loguru import logger
 
 torch.set_float32_matmul_precision("medium")
 
-# def BCELoss_class_weighted(weights):
-#     def loss(input, target):
-#         input = torch.clamp(input, min=1e-7, max=1 - 1e-7)
-#         bce = - weights[1] * target * torch.log(input) - (1 - target) * weights[0] * torch.log(1 - input)
-#         return torch.mean(bce)
-#
-#     return loss
-#
 
 """
 
@@ -62,14 +55,37 @@ class ErrorPredModel(pl.LightningModule):
         )
 
         if hasattr(config, 'load_ckpt') and config.load_ckpt:
-            model = self.load(config.ckpt_path, self.device, False)
-            self.tac_encoder = model.tac_encoder
-            self.goal_encoder = model.goal_encoder
-            self.decoder = model.decoder
+            logger.info(f'Loading pretrained checkpoint..')
+            ckpt = torch.load(config.ckpt_path)
+
+            state_dict = {k[12:]: v for k, v in ckpt.items() if k.startswith('tac_encoder')}
+            self.tac_encoder = T5EncoderModel.from_pretrained(config.tac_encoder, state_dict=state_dict)
+
+            self.score_network = torch.nn.Sequential(
+                torch.nn.Linear(self.tac_encoder.config.d_model, self.tac_encoder.config.d_model // 2),
+                torch.nn.LayerNorm(self.tac_encoder.config.d_model // 2),
+                torch.nn.ReLU(),
+                torch.nn.Linear(self.tac_encoder.config.d_model // 2, 2),
+            )
+
+            state_dict = {k[14:]: v for k, v in ckpt.items() if k.startswith('score_network')}
+            self.score_network.load_state_dict(state_dict)
+
+            state_dict = {k[13:]: v for k, v in ckpt.items() if k.startswith('goal_encoder')}
+            self.goal_encoder = T5EncoderModel.from_pretrained(config.goal_encoder, state_dict=state_dict)
+
+            state_dict = {k[8:]: v for k, v in ckpt.items() if k.startswith('decoder')}
+            self.decoder = T5ForConditionalGeneration.from_pretrained(config.decoder, state_dict=state_dict)
         else:
             self.tac_encoder = T5EncoderModel.from_pretrained(config.tac_encoder)
             self.goal_encoder = T5EncoderModel.from_pretrained(config.goal_encoder)
             self.decoder = T5ForConditionalGeneration.from_pretrained(config.decoder)
+            self.score_network = torch.nn.Sequential(
+                torch.nn.Linear(self.tac_encoder.config.d_model, self.tac_encoder.config.d_model // 2),
+                torch.nn.LayerNorm(self.tac_encoder.config.d_model // 2),
+                torch.nn.ReLU(),
+                torch.nn.Linear(self.tac_encoder.config.d_model // 2, 2),
+            )
 
         self.max_seq_len = config.max_length
         self.num_samples = config.num_samples
@@ -84,13 +100,6 @@ class ErrorPredModel(pl.LightningModule):
 
         # add error and time predictors to the model, as an MLP with a single hidden layer
         # takes a single tactic vector and
-
-        self.score_network = torch.nn.Sequential(
-            torch.nn.Linear(self.tac_encoder.config.d_model, self.tac_encoder.config.d_model // 2),
-            torch.nn.LayerNorm(self.tac_encoder.config.d_model // 2),
-            torch.nn.ReLU(),
-            torch.nn.Linear(self.tac_encoder.config.d_model // 2, 2),
-        )
 
         self.label_weights = config.label_weights
 
@@ -176,15 +185,14 @@ class ErrorPredModel(pl.LightningModule):
             labels=result_ids,
         ).loss
 
-        # error_loss = BCELoss_class_weighted(self.label_weights)(self.classifier(tac_enc).squeeze(1),
-        #                                                              error_targets)
-
         # batch_size x 2 (error, time)
         score_output = self.score_network(tac_enc)  # .squeeze(1)
         error_preds = torch.sigmoid(score_output[:, 0])
         time_preds = score_output[:, 1]
 
-        # error_loss = BCELoss_class_weighted(self.label_weights)(error_preds, error_targets)
+        error_preds = error_preds.unsqueeze(1)
+        error_preds = torch.cat([1 - error_preds, error_preds], dim=1)
+
         error_loss = self.ce_loss(error_preds, error_targets)
         time_loss = F.mse_loss(time_preds, time_targets)
 
@@ -195,9 +203,13 @@ class ErrorPredModel(pl.LightningModule):
     ############
 
     def training_step(self, batch, batch_idx: int):
+        # error_targets = torch.tensor(
+        #     [1. if batch['status'][i] == 'success' else 0. for i in range(len(batch['status']))],
+        #     dtype=torch.bfloat16).to(self.device)
+
         error_targets = torch.tensor(
-            [1. if batch['status'][i] == 'success' else 0. for i in range(len(batch['status']))],
-            dtype=torch.bfloat16).to(self.device)
+            [1 if batch['status'][i] == 'success' else 0 for i in range(len(batch['status']))],
+            dtype=torch.long).to(self.device)
 
         dec_loss, error_loss, time_loss = self(
             batch["goal_ids"],
@@ -300,8 +312,8 @@ class ErrorPredModel(pl.LightningModule):
 
         score_output = self.score_network(tac_enc)  # .squeeze(1)
         error_probs = torch.sigmoid(score_output[:, 0])
+
         time_preds = score_output[:, 1]
-        # error_loss = BCELoss_class_weighted(self.label_weights)(error_probs, error_targets)
         time_loss = F.mse_loss(time_preds, time_targets)
 
         self.log(f'time_loss_val', time_loss, on_step=False, on_epoch=True, prog_bar=False)
