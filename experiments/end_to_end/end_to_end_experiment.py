@@ -94,7 +94,7 @@ class EndToEndProver:
             with open(os.path.join(self.dir, get_thm_name(self.env_name, theorem)), "wb") as f:
                 pickle.dump(result, f)
         except Exception as e:
-            logger.warning(f"Couldn't save trace for {theorem}, saving status only")
+            logger.warning(f"Couldn't save trace for {theorem}, saving status only: \n Error: {e}")
 
             root = ErrorNode(EnvironmentError(str(e)))
 

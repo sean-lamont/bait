@@ -18,7 +18,7 @@ diversity_config:
 
   model: 'sean-lamont/leandojo-lean3-reprover-novel-premises'
   max_seq_len: 2000
-  num_filtered: 8
+  num_filtered: 2
   temperature: 1
   p: 0.75
 
