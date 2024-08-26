@@ -109,7 +109,7 @@ class EndToEndProver:
                 search_time=self.search_time,
                 env_time=self.env_time,
                 num_expansions=self.num_expansions,
-                trace=None,
+                trace=self.trace,
                 num_nodes=len(nodes),
                 data={}
             )

@@ -18,13 +18,16 @@ diversity_config:
 
   model: 'sean-lamont/leandojo-lean3-reprover-novel-premises'
   max_seq_len: 2000
-  num_filtered: 2
+  num_filtered: 8
   temperature: 1
   p: 0.75
 
   score_network: true
   error_weight: 0.5
   time_weight: 0.1
+
+  error_only: false
+  fixed_size: false
 
 config:
   model_name: sean-lamont/leandojo-lean3-reprover-novel-premises

@@ -20,10 +20,18 @@ class DiversityModel(torch.nn.Module):
         self.encoder, self.tokenizer = self.load_encoder(config)
         self.max_seq_len = config.max_seq_len
         self.autoencoder = config.autoencoder if hasattr(config, 'autoencoder') else False
-        self.score_network = self.load_score_network(config).to(self.device) if hasattr(config, 'score_network') else None
+        self.score_network = self.load_score_network(config).to(self.device) if hasattr(config,
+                                                                                        'score_network') else None
 
         self.error_weight = config.error_weight if hasattr(config, 'error_weight') else 1
         self.time_weight = config.time_weight if hasattr(config, 'time_weight') else 1
+
+        # whether to filter tactics if they are predicted as an error
+        self.error_only = config.error_only if hasattr(config, 'error_only') else False
+        # whether to ignore the error/time scores and select based only on similarity/logprob
+        self.sim_only = config.sim_only if hasattr(config, 'sim_only') else False
+        # whether to use a fixed size for DPP sampling, or to use dynamic size based on eigenvalues of similarity matrix
+        self.fixed_size = config.fixed_size if hasattr(config, 'fixed_size') else False
 
     def load_score_network(self, config):
         score_network = torch.nn.Sequential(
@@ -135,54 +143,62 @@ class DiversityModel(torch.nn.Module):
                     enc = self.get_autoencoder_encoding(tokenized_tactics.input_ids.to(self.device),
                                                         tokenized_tactics.attention_mask.to(self.device))
 
-                # enc = enc.squeeze(1)
-
                 encs.append(enc)
 
             vec_matrix = torch.cat(encs, dim=0)
 
             # augment probs by time/error scores
-            if self.score_network:
+            if self.score_network and not self.sim_only:
                 scores = self.score_network(vec_matrix)
 
                 error_preds = torch.sigmoid(scores[:, 0])
                 time_scores = scores[:, 1]
 
+                # return indices of tactics with success probability >= 0.5
+                if self.error_only:
+                    return [[i for i, a in enumerate(error_preds) if a >= 0.5]], None
+
                 # normalise time scores
-                time_scores = F.normalize(time_scores, dim=0)#, p=1)
+                time_scores = F.normalize(time_scores, dim=0)  # , p=1)
                 time_scores = 1 - time_scores
 
                 probs = probs + self.error_weight * error_preds + self.time_weight * time_scores
 
-            # dynamic number of tactics to filter, based on the eigenvalues of the similarity matrix
             sim_matrix = vec_matrix @ vec_matrix.T
             sim_matrix = sim_matrix.cpu().numpy()
 
-
             try:
-                # get top-p tactics based on similarity matrix only, rather than quality-diversity decomposition
-                DPP = FiniteDPP('likelihood', **{'L': sim_matrix})
-                DPP.compute_K(msg=True)
-                k_sum = sum(DPP.K_eig_vals)
-                k = self.top_p(DPP.K_eig_vals / k_sum, p)
+                if not self.fixed_size:
+                    # dynamic number of tactics to filter, based on the eigenvalues of the similarity matrix
+                    # get top-p tactics based on similarity matrix only, rather than quality-diversity decomposition
+                    DPP = FiniteDPP('likelihood', **{'L': sim_matrix})
+                    DPP.compute_K(msg=True)
+                    k_sum = sum(DPP.K_eig_vals)
+                    k = self.top_p(DPP.K_eig_vals / k_sum, p)
 
-                if k > num_filtered:
-                    num_filtered = k
+                    if k > num_filtered:
+                        num_filtered = k
 
                 if num_filtered >= len(tactics):
                     return [[i for i in range(len(tactics))]], sim_matrix
 
-                # Set DPP kernel to quality-diversity decomposition
-                # quality is given by tactic probabilites, and error/time scores if available
-                vec_matrix = torch.mul(vec_matrix, probs.unsqueeze(1)).cpu().numpy()
-                vec_matrix = vec_matrix @ vec_matrix.T
+                if self.sim_only:
+                    if self.fixed_size:
+                        DPP = FiniteDPP('likelihood', **{'L': sim_matrix})
+                    DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')  # ,rng=rng)
+                else:
+                    # Set DPP kernel to quality-diversity decomposition
+                    # quality is given by tactic probabilites, and error/time scores if available
+                    vec_matrix = torch.mul(vec_matrix, probs.unsqueeze(1)).cpu().numpy()
+                    vec_matrix = vec_matrix @ vec_matrix.T
 
-                DPP = FiniteDPP('likelihood', **{'L': vec_matrix})
+                    DPP = FiniteDPP('likelihood', **{'L': vec_matrix})
 
-                # rng = np.random.RandomState(1)
-                DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')  # ,rng=rng)
+                    # rng = np.random.RandomState(1)
+                    DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')  # ,rng=rng)
             except Exception as e:
                 logger.error(f"Error sampling from DPP: {e}")
-                return [[i for i in range(len(tactics))]], sim_matrix
+                # take the top num_filtered tactics if DPP fails
+                return [[i for i in range(num_filtered)]], sim_matrix
 
         return DPP.list_of_samples, sim_matrix

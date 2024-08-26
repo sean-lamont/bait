@@ -6,12 +6,17 @@ defaults:
   - search_model/bestfs
 
 exp_config:
-  name: combined_model_test
+  name: error_only
   experiment: minif2f
-
 
 logging_config:
   project: minif2f
   offline: false
+
+tac_model:
+  diversity_config:
+    error_only: true
+
+
 
 
