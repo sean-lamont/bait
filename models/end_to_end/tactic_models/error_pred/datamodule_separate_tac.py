@@ -24,7 +24,7 @@ DataModule for generating tactic embeddings which encode the chances of a tactic
 '''
 
 
-class ErrorPredDataModule(pl.LightningDataModule):
+class SeparateTacModule(pl.LightningDataModule):
     def __init__(
             self,
             model_name: str,
@@ -136,42 +136,6 @@ class ErrorPredDataModule(pl.LightningDataModule):
 
             add_trace(trace, 0.95)
 
-        # splitting val set based on files
-        # def add_trace(trace, split):
-        #     nodes = trace.nodes
-        #     nodes[trace.tree.goal] = trace.tree
-        #
-        #     for edge in trace.trace:
-        #         data = {'goal': edge.src.data['augmented_state'], 'tactic': edge.tactic,
-        #                 'logprob': edge.tac_logprob,
-        #                 'split': split,
-        #                 'theorem': trace.theorem.full_name,
-        #                 'time': edge.time}
-        #         if len(edge.dst) == 1 and isinstance(edge.dst[0], ErrorNode):
-        #             data['result'] = edge.dst[0].inner.message.split(' tactic_state')[0]
-        #             data['status'] = 'failed'
-        #         else:
-        #             data['result'] = ''.join([d.goal if hasattr(d, 'goal') else 'Proven' for d in edge.dst])
-        #             data['status'] = 'success'
-        #
-        #         collection.insert_one(data)
-        #
-        # logger.info('Processing traces for training transition model...')
-        # for trace in tqdm(trace_files[:int(0.9 * len(trace_files))]):
-        #     trace = pickle.load(open(trace, 'rb'))
-        #     if isinstance(trace.tree, ErrorNode):
-        #         continue
-        #
-        #     add_trace(trace, 'train')
-        #
-        # logger.info('Processing traces for validating transition model...')
-        # for trace in tqdm(trace_files[int(0.9 * len(trace_files)):]):
-        #     trace = pickle.load(open(trace, 'rb'))
-        #     if isinstance(trace.tree, ErrorNode):
-        #         continue
-        #
-        #     add_trace(trace, 'val')
-        #
         add_rand_idx(collection)
 
     def setup(self, stage: Optional[str] = None) -> None:
@@ -221,7 +185,8 @@ class ErrorPredDataModule(pl.LightningDataModule):
                           )
 
     def collate_fn(self, examples) -> Batch:
-        goal = [ex["theorem"] + '\n\n' + ex["goal"][int(len(ex["goal"]) * 0.35):] for ex in examples]
+        # goal = [ex["tactic"] + ex["theorem"] + '\n\n' + ex["goal"][int(len(ex["goal"]) * 0.35):] for ex in examples]
+        goal = [ex["theorem"] + '\n\n' + ex["goal"] for ex in examples]
 
         tokenized_goal = self.tokenizer(
             goal,
@@ -251,8 +216,6 @@ class ErrorPredDataModule(pl.LightningDataModule):
             return_tensors="pt",
         )
 
-        lens = tokenized_tactic.attention_mask.sum(dim=1)
-
         result_ids = tokenized_result.input_ids
         result_ids[result_ids == self.tokenizer.pad_token_id] = -100
 
@@ -266,13 +229,9 @@ class ErrorPredDataModule(pl.LightningDataModule):
         batch["result_ids"] = tokenized_result.input_ids
         batch["result_mask"] = tokenized_goal.attention_mask
         batch["tactic"] = tactic
-        batch["tactic_lens"] = lens
+        batch["tactic_ids"] = tokenized_tactic.input_ids
+        batch["tactic_mask"] = tokenized_tactic.attention_mask
         batch["time_targets"] = time_targets
         batch["status"] = [ex['status'] for ex in examples]
-
-        # # Copy other fields.
-        # for k in examples[0].keys():
-        #     if k not in batch:
-        #         batch[k] = [ex[k] for ex in examples]
 
         return batch

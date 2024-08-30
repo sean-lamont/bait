@@ -4,23 +4,21 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: combined_transition_model_test
+  name: single_vec_val
   experiment: error_pred
-  resume: true
-  directory: "runs/error_pred/combined_transition_model_test/2024_08_21/13_15_07"
 #  directory: runs/error_pred/combined_transition_model/2024_08_09/14_12_23
 
 logging_config:
   project: error_pred
   offline: false
-  id: g40re013
 #  id: socdvm9k
 
 model:
-  _target_: models.end_to_end.tactic_models.error_pred.model.ErrorPredModel
+  _target_: models.end_to_end.tactic_models.error_pred.separate_tac_vec.SeparateTacEmbed
   config:
-    load_ckpt: true
-    ckpt_path: runs/combined_minif2f_valid_fixed.ckpt
+    load_ckpt: false
+#    load_ckpt: true
+#    ckpt_path: runs/combined_minif2f_valid_fixed.ckpt
 #    ckpt_path: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/last.ckpt'
     error_weight: 1
     time_weight: 1
@@ -29,20 +27,20 @@ model:
     tac_encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
     goal_encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
     decoder: sean-lamont/leandojo-lean3-reprover-novel-premises
-    max_length: 1500
+    max_length: 2000
     num_samples: 4
     lr: 5e-5
     warmup_steps: 200
 
 data_module:
-  _target_: models.end_to_end.tactic_models.error_pred.datamodule.ErrorPredDataModule
+  _target_: models.end_to_end.tactic_models.error_pred.datamodule_separate_tac.SeparateTacModule
   model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
   batch_size: 1 # effective_batch_size == batch_size * accumulate_grad_batches * devices
   eval_batch_size: 1
-  max_seq_len: 1500
+  max_seq_len: 2000
   num_workers: 0
-  collection: 'minif2f_transitions_test'
-  trace_files: 'runs/minif2f_test_bestfs/0' #runs/minif2f/minif2f_bestfs/2024_07_31/16_28_47/traces/0'
+  collection: 'minif2f_transitions'
+  trace_files: null #'runs/minif2f_test_bestfs/0' #runs/minif2f/minif2f_bestfs/2024_07_31/16_28_47/traces/0'
   replace: 'keep' # add/keep/drop files wrt the existing collection
 
 
