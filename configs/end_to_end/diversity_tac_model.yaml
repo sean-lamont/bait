@@ -7,11 +7,11 @@ defaults:
 
 exp_config:
   name: combined_model_test
-  experiment: minif2f
+  experiment: minif2f_test
 
 
 logging_config:
-  project: minif2f
+  project: minif2f_test
   offline: false
 
 

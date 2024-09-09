@@ -14,7 +14,8 @@ diversity_config:
   #  ckpt_dir: 'runs/minif2f/minif2f_combined.ckpt'
 
   # combined transition/error/time prediction:
-  ckpt_dir: runs/error_pred/combined_transition_model/combined_minif2f_valid.ckpt
+  #ckpt_dir: runs/error_pred/combined_transition_model/combined_minif2f_valid.ckpt
+  ckpt_dir: runs/minif2f_combined_val_test.ckpt
 
   model: 'sean-lamont/leandojo-lean3-reprover-novel-premises'
   max_seq_len: 2000
@@ -27,7 +28,7 @@ diversity_config:
   time_weight: 0.1
 
   error_only: false
-  fixed_size: false
+  fixed_size: true
 
 config:
   model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
@@ -41,7 +42,7 @@ config:
   warmup_steps: 200
   length_penalty: 0.0
   num_beams: 64
-  max_seq_len: 2300
+  max_seq_len: 2000
   gen_config:
     strategy: beam
     length_penalty: 0.0
