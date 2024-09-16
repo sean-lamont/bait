@@ -11,18 +11,21 @@ from torchmetrics.text import SacreBLEUScore, ROUGEScore
 from transformers import T5EncoderModel, T5ForConditionalGeneration
 from transformers.utils import ModelOutput
 
+from torchmetrics.functional.text.rouge import rouge_score
+from torchmetrics.functional.text.sacre_bleu import sacre_bleu_score
+
 from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint
 from models.end_to_end.tactic_models.generator.model import TopkAccuracy
 from loguru import logger
 
 torch.set_float32_matmul_precision("medium")
 
-
+normalizer = lambda x: x
 
 
 # todo for all tokens, pool tokens as before for error/time, but don't zero out other tokens in outcome
 # decoding
-class FullTokenEmbed(pl.LightningModule):
+class AllTokenModel(pl.LightningModule):
     def __init__(self, config) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -101,6 +104,24 @@ class FullTokenEmbed(pl.LightningModule):
             self.parameters(), self.trainer, self.lr, self.warmup_steps
         )
 
+
+    # def get_tac_encoding(self, goal_ids, goal_mask, tactic_lens):
+    #     # encode all tokens with tactic included
+    #     combined_enc = self.tac_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
+    #
+    #     tactic_mask = torch.zeros_like(goal_mask)
+    #
+    #     for i in range(tactic_mask.shape[0]):
+    #         tactic_mask[:tactic_lens[i]] = 1
+    #
+    #     features = (combined_enc * tactic_mask.unsqueeze(2)).sum(
+    #         dim=1
+    #     ) / tactic_lens.unsqueeze(1)
+    #
+    #     # Normalize the feature vector to have unit norm.
+    #     return F.normalize(features, dim=1)
+    #
+
     def get_tac_encoding(self, goal_ids, goal_mask, tactic_lens):
         # encode all tokens with tactic included
         combined_enc = self.tac_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
@@ -128,27 +149,25 @@ class FullTokenEmbed(pl.LightningModule):
 
         # get the tactic embeddings and mean pool them using the provided lengths
         tac_enc = []
-        new_ids = goal_ids.clone()
 
         for i in range(combined_enc.shape[0]):
             enc = combined_enc[i, :tactic_lens[i]]
             enc = enc.sum(dim=0) / tactic_lens[i]
             enc = F.normalize(enc, dim=0)
             tac_enc.append(enc)
-            # zero out ids for tactics in combined (tac, goal) from goal_ids, so there is no information for the
-            # goal encoder
-            new_ids[i, :tactic_lens[i]] = 0
+            # keep tactic embeddings for all tokens model
+            # new_ids[i, :tactic_lens[i]] = 0
 
         tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
 
-        goal_embeds = self.goal_encoder.encoder.embed_tokens(new_ids)
+        goal_embeds = self.goal_encoder.encoder.embed_tokens(goal_ids)
 
         # set first embedding to be the tactic encoding
-        goal_embeds_with_tac = torch.cat([tac_enc, goal_embeds], dim=1)
+        goal_embeds = torch.cat([tac_enc, goal_embeds], dim=1)
 
-        new_mask = torch.cat([torch.ones(goal_mask.shape[0], 1).to(self.device), goal_mask], dim=1)
+        goal_mask = torch.cat([torch.ones(goal_mask.shape[0], 1).to(self.device), goal_mask], dim=1)
 
-        full_enc = self.goal_encoder(inputs_embeds=goal_embeds_with_tac, attention_mask=new_mask,
+        full_enc = self.goal_encoder(inputs_embeds=goal_embeds, attention_mask=goal_mask,
                                      return_dict=True).last_hidden_state
 
         return full_enc, tac_enc.squeeze(1)
@@ -314,7 +333,8 @@ class FullTokenEmbed(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
-            prog_bar=False
+            prog_bar=False,
+            reduce_fx='sum'
         )
 
         self.log(
@@ -323,7 +343,8 @@ class FullTokenEmbed(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
-            prog_bar=False
+            prog_bar=False,
+            reduce_fx='sum'
         )
 
         self.log(
@@ -332,7 +353,8 @@ class FullTokenEmbed(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
-            prog_bar=False
+            prog_bar=False,
+            reduce_fx='sum'
         )
 
         self.log(
@@ -341,7 +363,8 @@ class FullTokenEmbed(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
-            prog_bar=False
+            prog_bar=False,
+            reduce_fx='sum'
         )
 
         # check if the status is correct using error_preds
@@ -368,9 +391,12 @@ class FullTokenEmbed(pl.LightningModule):
 
         nl = '\n\n'
 
-        self.log_dict(self.rogue(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+        # self.log_dict(self.rogue(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+        self.log_dict(rouge_score(output_text, bleu_targets, normalizer=normalizer), on_step=False, on_epoch=True,
+                      prog_bar=False)
 
-        self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+        # self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+        self.log('val_bleu', sacre_bleu_score(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 
         self.log('avg_seq_len', sum([len(o) for o in output_text]) / len(output_text), on_step=False, on_epoch=True,
                  prog_bar=False)

@@ -4,24 +4,18 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: single_vec_val
-  experiment: error_pred
-  directory: runs/error_pred/single_vec_val/2024_08_28/13_43_36
-  resume: true
-#  directory: runs/error_pred/combined_transition_model/2024_08_09/14_12_23
+  name: no_tac_val
+  experiment: error_pred_val
+  val_ckpt: runs/error_pred/no_tac_vec/2024_09_03/09_53_31/checkpoints/epoch=0-step=440000-top4_acc_val=0.14.ckpt
 
 logging_config:
-  project: error_pred
+  project: error_pred_val
   offline: false
-  id: r3y23v4o
 
 model:
-  _target_: models.end_to_end.tactic_models.error_pred.separate_tac_vec.SeparateTacEmbed
+  _target_: models.end_to_end.tactic_models.error_pred.no_tac_vec.NoTacEmbed
   config:
     load_ckpt: false
-#    load_ckpt: true
-#    ckpt_path: runs/combined_minif2f_valid_fixed.ckpt
-#    ckpt_path: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/last.ckpt'
     error_weight: 1
     time_weight: 1
     # for biased error/success distribution
@@ -29,13 +23,13 @@ model:
     tac_encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
     goal_encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
     decoder: sean-lamont/leandojo-lean3-reprover-novel-premises
-    max_length: 2000
+    max_length: 3000
     num_samples: 4
     lr: 5e-5
     warmup_steps: 200
 
 data_module:
-  _target_: models.end_to_end.tactic_models.error_pred.datamodule_separate_tac.SeparateTacModule
+  _target_: models.end_to_end.tactic_models.error_pred.datamodule_no_tac.NoTacModule
   model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
   batch_size: 1 # effective_batch_size == batch_size * accumulate_grad_batches * devices
   eval_batch_size: 1
@@ -61,7 +55,7 @@ trainer:
   gradient_clip_val: 1.0
 
   val_check_interval: 20_000
-  limit_val_batches: 1000
+#  limit_val_batches: 100
 
 
   callbacks:
@@ -77,4 +71,3 @@ trainer:
       auto_insert_metric_name: true
       filename: "{epoch}-{step}-{top4_acc_val:.2f}"
       enable_version_counter: false
-

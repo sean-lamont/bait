@@ -4,23 +4,26 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: combined_transition_model_test
+  name: combined_transition_model
   experiment: error_pred
   resume: true
-  directory: "runs/error_pred/combined_transition_model_test/2024_08_21/13_15_07"
+  directory: runs/error_pred/combined_transition_model_val/2024_08_31/09_23_43
+#  directory: "runs/error_pred/combined_transition_model_test/2024_08_21/13_15_07"
 #  directory: runs/error_pred/combined_transition_model/2024_08_09/14_12_23
 
 logging_config:
   project: error_pred
   offline: false
-  id: g40re013
+  id: 63o7xawk
+#  id: g40re013
 #  id: socdvm9k
 
 model:
   _target_: models.end_to_end.tactic_models.error_pred.model.ErrorPredModel
   config:
-    load_ckpt: true
-    ckpt_path: runs/combined_minif2f_valid_fixed.ckpt
+    load_ckpt: false
+#    load_ckpt: true
+#    ckpt_path: runs/combined_minif2f_valid_fixed.ckpt
 #    ckpt_path: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/last.ckpt'
     error_weight: 1
     time_weight: 1
@@ -41,8 +44,8 @@ data_module:
   eval_batch_size: 1
   max_seq_len: 1500
   num_workers: 0
-  collection: 'minif2f_transitions_test'
-  trace_files: 'runs/minif2f_test_bestfs/0' #runs/minif2f/minif2f_bestfs/2024_07_31/16_28_47/traces/0'
+  collection: 'minif2f_transitions'
+  trace_files: null #'runs/minif2f_test_bestfs/0' #runs/minif2f/minif2f_bestfs/2024_07_31/16_28_47/traces/0'
   replace: 'keep' # add/keep/drop files wrt the existing collection
 
 

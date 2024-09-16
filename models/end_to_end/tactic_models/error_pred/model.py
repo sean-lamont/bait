@@ -11,13 +11,18 @@ from torchmetrics.text import SacreBLEUScore, ROUGEScore
 from transformers import T5EncoderModel, T5ForConditionalGeneration
 from transformers.utils import ModelOutput
 
+
+from torchmetrics.functional.text.sacre_bleu import sacre_bleu_score
+from torchmetrics.functional.text.rouge import rouge_score
+
+
 from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint
 from models.end_to_end.tactic_models.generator.model import TopkAccuracy
 from loguru import logger
 
 torch.set_float32_matmul_precision("medium")
 
-
+normalizer = lambda x : x
 """
 
 Model to predict the outcome of a tactic, given a goal state and tactic. 
@@ -107,7 +112,8 @@ class ErrorPredModel(pl.LightningModule):
         self.time_weight = config.time_weight
 
         self.ce_loss = CrossEntropyLoss(weight=torch.tensor(self.label_weights))
-        self.bcm = BinaryConfusionMatrix()  # normalize='true')
+        # self.bcm = BinaryConfusionMatrix()  # normalize='true')
+        self.bcm = BinaryConfusionMatrix(normalize='none')
 
     @classmethod
     def load(cls, ckpt_path: str, device, freeze: bool):
@@ -274,6 +280,8 @@ class ErrorPredModel(pl.LightningModule):
         result_ids = batch["result_ids"]
         time_targets = batch["time_targets"]
 
+        print (goal_ids.shape)
+
         full_enc, tac_enc = self.get_full_encoding(goal_ids, goal_mask, tactic_lens)
 
         dec_loss = self.decoder(
@@ -331,7 +339,8 @@ class ErrorPredModel(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
-            prog_bar=False
+            prog_bar=False,
+            reduce_fx='sum'
         )
 
         self.log(
@@ -340,7 +349,9 @@ class ErrorPredModel(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
-            prog_bar=False
+            prog_bar=False,
+            reduce_fx='sum'
+
         )
 
         self.log(
@@ -349,7 +360,8 @@ class ErrorPredModel(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
-            prog_bar=False
+            prog_bar=False,
+            reduce_fx='sum'
         )
 
         self.log(
@@ -358,7 +370,8 @@ class ErrorPredModel(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
-            prog_bar=False
+            prog_bar=False,
+            reduce_fx='sum'
         )
 
         # check if the status is correct using error_preds
@@ -385,9 +398,11 @@ class ErrorPredModel(pl.LightningModule):
 
         nl = '\n\n'
 
-        self.log_dict(self.rogue(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+        # self.log_dict(self.rogue(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+        # self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 
-        self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+        self.log_dict(rouge_score(output_text, bleu_targets, normalizer=normalizer), on_step=False, on_epoch=True, prog_bar=False)
+        self.log('val_bleu', sacre_bleu_score(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 
         self.log('avg_seq_len', sum([len(o) for o in output_text]) / len(output_text), on_step=False, on_epoch=True,
                  prog_bar=False)
