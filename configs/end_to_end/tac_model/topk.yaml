@@ -7,12 +7,7 @@ gpu_per_process: 0.45
 cpu_per_process: 0.25
 
 diversity_config:
-  # combined transition/error/time prediction:
-  ckpt_dir: runs/error_pred/combined_transition_model/combined_minif2f_valid.ckpt
   random: true
-
-  model: 'sean-lamont/leandojo-lean3-reprover-novel-premises'
-  max_seq_len: 2000
   num_filtered: 32
 
 config:
@@ -27,7 +22,7 @@ config:
   warmup_steps: 200
   length_penalty: 0.0
   num_beams: 64
-  max_seq_len: 1300
+  max_seq_len: 2300
   gen_config:
     strategy: beam
     length_penalty: 0.0
