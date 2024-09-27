@@ -1,17 +1,17 @@
 # @package _global_
 defaults:
   - end_to_end_defaults
-  - env_config/leandojo_minif2f
+  - env_config/leandojo_minif2f_val
   - tac_model/diversity
   - search_model/bestfs
 
 exp_config:
-  name: combined_model_test
-  experiment: minif2f_test
+  name: combined_model
+  experiment: minif2f
 
 
 logging_config:
-  project: minif2f_test
+  project: minif2f
   offline: false
 
 

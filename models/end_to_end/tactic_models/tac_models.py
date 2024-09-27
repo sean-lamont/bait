@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import time
 import warnings
 import random
 
@@ -78,16 +79,22 @@ class DiversityTacGenerator(TacModel):
 
     def get_tactics(self, goal, premises):
         _, theorem, _ = premises
+
+        # t0 = time.monotonic()
         tactics = self.tac_model.get_tactics(goal, premises)
+        # logger.warning(f"Time to get tactics: {time.monotonic() - t0}")
 
         goal.data['original_tacs'] = tactics
 
         state = goal.data['augmented_state'] if hasattr(goal, 'data') and 'augmented_state' in goal.data else goal.goal
         # filter with filter_model
+
+        # t0 = time.monotonic()
         inds, sim_matrix = ray.get(self.filter_model.filter_tacs.remote(tactics, self.num_filtered,
                                                                         state=state, theorem=theorem.full_name,
                                                                         temperature=self.temperature, scale=self.scale,
                                                                         p=self.p))
+        # logger.warning(f"Time to filter tactics: {time.monotonic() - t0}")
 
         goal.data['similarity_scores'] = sim_matrix
 
