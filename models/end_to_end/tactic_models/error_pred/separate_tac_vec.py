@@ -15,7 +15,12 @@ from experiments.end_to_end.lightning_common import get_optimizers, load_checkpo
 from models.end_to_end.tactic_models.generator.model import TopkAccuracy
 from loguru import logger
 
+from torchmetrics.functional.text.rouge import rouge_score
+from torchmetrics.functional.text.sacre_bleu import sacre_bleu_score
+
 torch.set_float32_matmul_precision("medium")
+
+normalizer = lambda x: x
 
 
 class SeparateTacEmbed(pl.LightningModule):
@@ -306,7 +311,8 @@ class SeparateTacEmbed(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
-            prog_bar=False
+            prog_bar=False,
+            reduce_fx='sum'
         )
 
         self.log(
@@ -315,7 +321,8 @@ class SeparateTacEmbed(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
-            prog_bar=False
+            prog_bar=False,
+            reduce_fx='sum'
         )
 
         self.log(
@@ -324,7 +331,8 @@ class SeparateTacEmbed(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
-            prog_bar=False
+            prog_bar=False,
+            reduce_fx='sum'
         )
 
         self.log(
@@ -333,7 +341,8 @@ class SeparateTacEmbed(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
-            prog_bar=False
+            prog_bar=False,
+            reduce_fx='sum'
         )
 
         # check if the status is correct using error_preds
@@ -360,9 +369,15 @@ class SeparateTacEmbed(pl.LightningModule):
 
         nl = '\n\n'
 
-        self.log_dict(self.rogue(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+        # self.log_dict(self.rogue(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+        #
+        # self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 
-        self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+        self.log_dict(rouge_score(output_text, bleu_targets, normalizer=normalizer), on_step=False, on_epoch=True,
+                      prog_bar=False)
+
+        # self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+        self.log('val_bleu', sacre_bleu_score(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 
         self.log('avg_seq_len', sum([len(o) for o in output_text]) / len(output_text), on_step=False, on_epoch=True,
                  prog_bar=False)

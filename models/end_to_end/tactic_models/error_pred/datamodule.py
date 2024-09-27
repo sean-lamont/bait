@@ -221,7 +221,9 @@ class ErrorPredDataModule(pl.LightningDataModule):
                           )
 
     def collate_fn(self, examples) -> Batch:
-        goal = [ex["theorem"] + '\n\n' + ex["goal"][int(len(ex["goal"]) * 0.35):] for ex in examples]
+        # goal = [ex["theorem"] + '\n\n' + ex["goal"][int(len(ex["goal"]) * 0.35):] for ex in examples]
+        # goal = [ex["tactic"] + ex["theorem"] + '\n\n' + ex["goal"][int(len(ex["goal"]) * 0.6):] for ex in examples]
+        goal = [ex["tactic"] + ex["theorem"] + '\n\n' + ex["goal"] for ex in examples]
 
         tokenized_goal = self.tokenizer(
             goal,
