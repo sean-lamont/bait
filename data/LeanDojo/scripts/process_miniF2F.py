@@ -18,6 +18,7 @@ SPLIT_STRATEGY = str
 
 import lean_dojo
 
+
 def export_proofs(splits: Dict[SPLIT_STRATEGY, SPLIT], dst_path: Path) -> None:
     """Export all proofs in a traced repo to ``dst_path''."""
     for strategy, split in splits.items():
