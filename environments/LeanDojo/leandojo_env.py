@@ -24,6 +24,7 @@ class EnvInitError(Exception):
     pass
 
 
+
 '''
 
 Environment Wrapper over LeanDojo. Adds premise retrieval and processing of proof tree
