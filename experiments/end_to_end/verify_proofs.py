@@ -67,6 +67,7 @@ def process_file(file):
 if __name__ == '__main__':
     # get trace_dir from system arguments
     trace_dir = sys.argv[1]
+    num_procs = int(sys.argv[2]) if len(sys.argv) > 2 else 1
 
     files = list(glob.glob(trace_dir + '/*'))
 
@@ -89,7 +90,7 @@ if __name__ == '__main__':
 
     # multithread the above instead:
 
-    with Pool(14) as p:
+    with Pool(num_procs) as p:
         results = list(tqdm(p.imap(process_file, files), total=len(files)))
         total_proofs = sum([r[0] for r in results])
         verified_proofs = sum([r[1] for r in results])

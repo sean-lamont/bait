@@ -11,10 +11,8 @@ from torchmetrics.text import SacreBLEUScore, ROUGEScore
 from transformers import T5EncoderModel, T5ForConditionalGeneration
 from transformers.utils import ModelOutput
 
-
 from torchmetrics.functional.text.sacre_bleu import sacre_bleu_score
 from torchmetrics.functional.text.rouge import rouge_score
-
 
 from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint
 from models.end_to_end.tactic_models.generator.model import TopkAccuracy
@@ -22,14 +20,15 @@ from loguru import logger
 
 torch.set_float32_matmul_precision("medium")
 
-normalizer = lambda x : x
+normalizer = lambda x: x
+
 """
 
 Model to predict the outcome of a tactic, given a goal state and tactic. 
 An encoder model first embeds the goal and tactic, and the tactic tokens are then pooled into a single vector.
 
 This is done to provide the tactic vector with the relevant goal context (which is highly important),
-and we want a single vector to enable fast upstream tasks.
+and we want a single vector to enable upstream tasks.
 
 The tactic vector is then used for 3 tasks:
     - Combined with the original goal embeddings, a decoder 
@@ -209,10 +208,6 @@ class ErrorPredModel(pl.LightningModule):
     ############
 
     def training_step(self, batch, batch_idx: int):
-        # error_targets = torch.tensor(
-        #     [1. if batch['status'][i] == 'success' else 0. for i in range(len(batch['status']))],
-        #     dtype=torch.bfloat16).to(self.device)
-
         error_targets = torch.tensor(
             [1 if batch['status'][i] == 'success' else 0 for i in range(len(batch['status']))],
             dtype=torch.long).to(self.device)
@@ -401,7 +396,8 @@ class ErrorPredModel(pl.LightningModule):
         # self.log_dict(self.rogue(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
         # self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 
-        self.log_dict(rouge_score(output_text, bleu_targets, normalizer=normalizer), on_step=False, on_epoch=True, prog_bar=False)
+        self.log_dict(rouge_score(output_text, bleu_targets, normalizer=normalizer), on_step=False, on_epoch=True,
+                      prog_bar=False)
         self.log('val_bleu', sacre_bleu_score(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 
         self.log('avg_seq_len', sum([len(o) for o in output_text]) / len(output_text), on_step=False, on_epoch=True,

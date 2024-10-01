@@ -36,7 +36,6 @@ class CursorIter(torch.utils.data.IterableDataset):
             return {field: ret[field] for field in self.fields}
 
 
-# todo cursor not found error?
 class GoalStreamDataset(torch.utils.data.IterableDataset):
     def __init__(self,
                  db,

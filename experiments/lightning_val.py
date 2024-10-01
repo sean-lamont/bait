@@ -15,6 +15,12 @@ from lightning.pytorch.loggers import WandbLogger
 
 import torch
 
+"""
+
+Runner for PyTorch Lightning validation
+
+"""
+
 
 def get_logger(config):
     wandb_logger = WandbLogger(project=config.logging_config.project,
@@ -30,7 +36,6 @@ def get_logger(config):
 
 @hydra.main(config_path="../configs")
 def lightning_val(config):
-
     pl.seed_everything(13231)
 
     torch.set_float32_matmul_precision('medium')
@@ -57,6 +62,7 @@ def lightning_val(config):
 
     wandb_logger.experiment.finish()
     logger.info(f'Experiment finished')
+
 
 if __name__ == '__main__':
     lightning_val()

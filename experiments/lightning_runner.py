@@ -15,6 +15,12 @@ from lightning.pytorch.loggers import WandbLogger
 
 import torch
 
+"""
+
+Runner for PyTorch Lightning training
+
+"""
+
 
 def get_logger(config):
     if config.exp_config.resume:
@@ -43,7 +49,6 @@ def get_logger(config):
 
 @hydra.main(config_path="../configs")
 def lightning_runner(config):
-
     pl.seed_everything(13231)
 
     torch.set_float32_matmul_precision('medium')
@@ -74,9 +79,6 @@ def lightning_runner(config):
 
     # logs the saved checkpoint with $ delimiter to allow for a parent process to find it.
     logger.error(f'checkpoint_dir: {config.exp_config.checkpoint_dir}/last.ckpt' + '$')
-    # todo take best validation checkpoint instead
-
-    # todo add option for testing/validating
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 program: experiments.end_to_end.end_to_end_experiment
 name: bestfs_topk_sweep
 description: BestFS topK sweep
-project: minif2f
+project: minif2f_test
 
 method: grid
 metric:
@@ -9,11 +9,11 @@ metric:
   name: Pass@1
 parameters:
   tac_model.diversity_config.random:
-    values: [ False, True ]
+    values: [ True ]
   tac_model.diversity_config.num_filtered:
-    values: [8, 16]
+    values: [8, 16, 32]
   exp_config.name:
-    values: [ 'bestfs_topk-k${tac_model.diversity_config.num_filtered}-r${tac_model.diversity_config.random}' ]
+    values: [ 'baseline-k${tac_model.diversity_config.num_filtered}-r${tac_model.diversity_config.random}' ]
 
 command:
   - ${env}

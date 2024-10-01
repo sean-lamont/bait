@@ -34,6 +34,13 @@ from models.end_to_end.tactic_models.tac_models import get_tac_model
 from utils.utils import config_to_dict
 
 
+"""
+
+Main script for running live proof search experiments.
+
+"""
+
+
 class EndToEndProver:
     def __init__(self, timeout, search_model, tac_model, directory, env_name='leandojo', iteration=0):
         self.timeout = timeout
@@ -349,7 +356,6 @@ def main(config) -> None:
                    mode='offline' if config.logging_config.offline else 'online'
                    )
 
-        # prev_theorems = get_traces(f'{config.exp_config.directory}/traces/{cur_iteration}/*')
         trace_dir = glob.glob(f'{config.exp_config.directory}/traces/{cur_iteration}/*')
 
         logger.info('Loading previous proofs..')

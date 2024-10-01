@@ -28,7 +28,8 @@ styles = {
 }
 
 
-# todo proof statistics, e.g. success/fail, proof if it exists, num nodes/edges, time taken, num errors, num subgoals proven, num goals failed
+# todo proof statistics, e.g. success/fail, proof if it exists, num nodes/edges, time taken, num errors,
+#  num subgoals proven, num goals failed
 
 def create_node_map(trace):
     node_map = {}

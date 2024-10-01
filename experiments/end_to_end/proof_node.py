@@ -1,26 +1,14 @@
-'''
-Abstract proof state containing all relevant information for search.
-Should include:
-- goal/state (either single goal or a full state)
-- status (proven, failed, open)
-- is_explored/is_explored
-- distance to proof
-- visit count
-- out_edges
-- in_edges
-- context
-- ancestors
-- optional provable/up score
-- children (for computing total visit count)
-- depth
-- methods for extracting proof, updating context, status, ancestors,
-'''
-
 import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, List, Union, Set, Dict
+
+"""
+
+Abstract proof state containing all relevant information for search.
+
+"""
 
 
 class Status(Enum):
