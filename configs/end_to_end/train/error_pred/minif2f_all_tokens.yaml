@@ -7,13 +7,15 @@ exp_config:
   name: all_tokens
   experiment: error_pred
   resume: true
-  directory: runs/error_pred/all_tokens/2024_09_09/10_35_28
+  directory: "runs/error_pred/all_tokens/2024_09_23/11_20_45"
+#  directory: runs/error_pred/all_tokens/2024_09_09/10_35_28
 #  runs/error_pred/combined_transition_model/2024_08_09/14_12_23
 
 logging_config:
   project: error_pred
   offline: false
-  id: vc5xjsah
+  id: hnxrrzsc
+#  id: vc5xjsah
 #  id: 63o7xawk
 #  id: g40re013
 #  id: socdvm9k
@@ -32,7 +34,7 @@ model:
     tac_encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
     goal_encoder: sean-lamont/leandojo-lean3-reprover-novel-premises
     decoder: sean-lamont/leandojo-lean3-reprover-novel-premises
-    max_length: 1500
+    max_length: 2500
     num_samples: 4
     lr: 5e-5
     warmup_steps: 200
@@ -42,7 +44,7 @@ data_module:
   model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
   batch_size: 1 # effective_batch_size == batch_size * accumulate_grad_batches * devices
   eval_batch_size: 1
-  max_seq_len: 1500
+  max_seq_len: 1650
   num_workers: 0
   collection: 'minif2f_transitions'
   trace_files: null #'runs/minif2f_test_bestfs/0' #runs/minif2f/minif2f_bestfs/2024_07_31/16_28_47/traces/0'
@@ -63,8 +65,8 @@ trainer:
 
   gradient_clip_val: 1.0
 
-  val_check_interval: 20_000
-  limit_val_batches: 1000
+#  val_check_interval: 20_000
+#  limit_val_batches: 1000
 
 
   callbacks:

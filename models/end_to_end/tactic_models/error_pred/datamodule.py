@@ -238,10 +238,14 @@ class ErrorPredDataModule(pl.LightningDataModule):
         tokenized_result = self.tokenizer(
             result,
             padding="longest",
-            max_length=self.max_seq_len,
+            # max_length=self.max_seq_len,
+            # max_length=3000 - tokenized_goal.input_ids.shape[1],
+            max_length=min(700, 3000 - tokenized_goal.input_ids.shape[1]),
             truncation=True,
             return_tensors="pt",
         )
+
+        # print (tokenized_goal.input_ids.shape, tokenized_result.input_ids.shape)
 
         tactic = [ex["tactic"] for ex in examples]
 

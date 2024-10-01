@@ -280,7 +280,7 @@ class ErrorPredModel(pl.LightningModule):
         result_ids = batch["result_ids"]
         time_targets = batch["time_targets"]
 
-        print (goal_ids.shape)
+        # print (goal_ids.shape)
 
         full_enc, tac_enc = self.get_full_encoding(goal_ids, goal_mask, tactic_lens)
 

@@ -4,12 +4,12 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: separate_val
-  experiment: error_pred_val
-  val_ckpt: runs/error_pred/single_vec_val/2024_08_28/13_43_36/checkpoints/epoch=0-step=440000-top4_acc_val=0.27.ckpt
+  name: separate_transition_model
+  experiment: error_pred
+#  val_ckpt: runs/error_pred/single_vec_val/2024_08_28/13_43_36/checkpoints/epoch=0-step=440000-top4_acc_val=0.27.ckpt
 
 logging_config:
-  project: error_pred_val
+  project: error_pred
   offline: false
 
 model:
