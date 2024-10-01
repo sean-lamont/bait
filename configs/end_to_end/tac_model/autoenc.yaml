@@ -10,21 +10,17 @@ gpu_per_diversity: 0.225
 cpu_per_diversity: 0.125
 
 diversity_config:
-  # transition only:
-  #  ckpt_dir: 'runs/minif2f/minif2f_combined.ckpt'
-
-  # combined transition/error/time prediction:
-  ckpt_dir: runs/error_pred/combined_transition_model/combined_minif2f_valid.ckpt
-#  ckpt_dir: runs/minif2f_combined_val_test.ckpt
+  autoencoder: true
+  ckpt_dir: 'runs/diversity/autoencoder/2024_07_18/12_13/checkpoints/autoencoder.ckpt'
 
   model: 'sean-lamont/leandojo-lean3-reprover-novel-premises'
   max_seq_len: 2000
   num_filtered: 2
-  temperature: 4
+  temperature: 1
   p: 0.75
 
-  score_network: true
-  error_weight: 0.1
+  score_network: false
+  error_weight: 0.5
   time_weight: 0.1
 
   error_only: false

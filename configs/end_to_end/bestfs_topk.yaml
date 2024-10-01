@@ -7,10 +7,10 @@ defaults:
 
 exp_config:
   name: bestfs_topk
-  experiment: minif2f
+  experiment: minif2f_test
 
 logging_config:
-  project: minif2f
+  project: minif2f_test
   offline: false
 
 

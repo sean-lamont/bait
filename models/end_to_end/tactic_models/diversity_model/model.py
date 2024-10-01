@@ -1,4 +1,5 @@
 """Lightning module for the tactic generator."""
+import time
 from typing import List
 from typing import Tuple
 
@@ -21,7 +22,7 @@ class DiversityModel(torch.nn.Module):
         self.max_seq_len = config.max_seq_len
         self.autoencoder = config.autoencoder if hasattr(config, 'autoencoder') else False
         self.score_network = self.load_score_network(config).to(self.device) if hasattr(config,
-                                                                                        'score_network') else None
+                                                                                        'score_network') and config.score_network else None
 
         self.error_weight = config.error_weight if hasattr(config, 'error_weight') else 1
         self.time_weight = config.time_weight if hasattr(config, 'time_weight') else 1
@@ -112,7 +113,9 @@ class DiversityModel(torch.nn.Module):
             probs = torch.softmax(torch.tensor(logprobs), dim=0) * scale
             probs = probs.to(self.device)
 
-            # chunking gives slight speedup, but high memory cost
+
+            # t0 = time.monotonic()
+            # chunking gives speedup, but high memory cost
             chunk_size = 1
             for ind in range(0, len(tactics), chunk_size):
                 t = [t[0] for t in tactics[ind:ind + chunk_size]]
@@ -145,6 +148,8 @@ class DiversityModel(torch.nn.Module):
 
                 encs.append(enc)
 
+
+            # logger.warning(f"Encoding time: {time.monotonic() - t0}")
             vec_matrix = torch.cat(encs, dim=0)
 
             # augment probs by time/error scores
@@ -167,6 +172,7 @@ class DiversityModel(torch.nn.Module):
             sim_matrix = vec_matrix @ vec_matrix.T
             sim_matrix = sim_matrix.cpu().numpy()
 
+            # t0 = time.monotonic()
             try:
                 if not self.fixed_size:
                     # dynamic number of tactics to filter, based on the eigenvalues of the similarity matrix
@@ -201,4 +207,5 @@ class DiversityModel(torch.nn.Module):
                 # take the top num_filtered tactics if DPP fails
                 return [[i for i in range(num_filtered)]], sim_matrix
 
+        # logger.warning(f"DPP sampling time: {time.monotonic() - t0}")
         return DPP.list_of_samples, sim_matrix
