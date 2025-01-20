@@ -1,4 +1,4 @@
-env: leandojo
+env: leandojo_no_split
 data_path: data/LeanDojo/data/leandojo_minif2f/default/
 split: val
 file_path: null

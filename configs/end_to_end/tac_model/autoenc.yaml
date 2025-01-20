@@ -38,7 +38,7 @@ config:
   warmup_steps: 200
   length_penalty: 0.0
   num_beams: 64
-  max_seq_len: 1300
+  max_seq_len: 2300
   gen_config:
     strategy: beam
     length_penalty: 0.0

@@ -1,14 +1,14 @@
 # @package _global_
 defaults:
   - end_to_end_defaults
-  - env_config/leandojo_minif2f_val
+  - env_config/leandojo_minif2f
   - tac_model/autoenc
   - search_model/bestfs
 
 exp_config:
   name: autoenc
-  experiment: minif2f
+  experiment: minif2f_test
 
 logging_config:
-  project: minif2f
+  project: minif2f_test
   offline: false

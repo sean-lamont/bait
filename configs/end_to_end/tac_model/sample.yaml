@@ -1,0 +1,42 @@
+model: reprover
+ckpt_path: null
+num_sampled_tactics: 64
+
+distributed: true
+
+gpu_per_process: 0.45
+cpu_per_process: 0.25
+
+config:
+  model_name: sean-lamont/leandojo-lean3-reprover-novel-premises
+
+  #   retriever args
+  ret_ckpt_path: runs/retriever_novel_premises.ckpt
+#  indexed_corpus_path: runs/indexed_corpus
+  indexed_corpus_path: runs/indexed_corpus_minif2f
+  eval_num_retrieved: 100
+
+  lr: 5e-6
+  warmup_steps: 200
+  length_penalty: 0.0
+  max_seq_len: 2300
+
+  # generation config (sample vs beam search)
+  gen_config:
+    strategy: sample
+#    strategy: beam
+#    length_penalty: 0.0
+
+  # configuration for the eval loop in training (terminates based on live proving performance)
+  eval_config:
+    eval_num_theorems: 200
+    shuffle: false
+    timeout: 600
+
+# configuration for LoRA models
+#    lora_config:
+#      target_modules: ['q', 'k', 'v', 'o', 'wo', 'lm_head']
+#      task_type: "SEQ_2_SEQ_LM"
+#      r: 16
+#      lora_alpha: 16
+#      lora_dropout: 0.01

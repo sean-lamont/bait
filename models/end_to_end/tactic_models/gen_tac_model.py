@@ -1,5 +1,3 @@
-"""Lightning module for the tactic generator."""
-
 import re
 from subprocess import CalledProcessError
 from typing import Dict, Any
@@ -9,7 +7,8 @@ import torch
 from lean_dojo.utils import execute
 from loguru import logger
 from peft import LoraConfig, get_peft_model
-from transformers import T5ForConditionalGeneration, AutoTokenizer, BitsAndBytesConfig, AutoModelForCausalLM, AutoModelForSeq2SeqLM
+from transformers import T5ForConditionalGeneration, AutoTokenizer, BitsAndBytesConfig, AutoModelForCausalLM, \
+    AutoModelForSeq2SeqLM, AutoModel
 
 from experiments.end_to_end.common import format_augmented_state, zip_strict
 from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint
@@ -17,10 +16,9 @@ from models.end_to_end.tactic_models.retrieval.model import PremiseRetriever
 
 torch.set_float32_matmul_precision("medium")
 
-
 '''
 
-Generic class for Retrieval and Generative Tactic Models. 
+Generic class for Generative Tactic Models, optionally with retrieval.
 
 '''
 
@@ -47,7 +45,6 @@ def load_gen_model(config):
     else:
         tokenizer_name = config.model_name
 
-
     if hasattr(config, 'model_class'):
         if config.model_class == 'T5':
             tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
@@ -62,6 +59,13 @@ def load_gen_model(config):
             tokenizer.add_special_tokens({'pad_token': '[PAD]'})
             generator.pad_token_id = tokenizer.pad_token_id
             generator.generation_config.pad_token_id = tokenizer.pad_token_id
+
+        elif config.model_class == 'InternLM':
+            tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, trust_remote_code=True)
+            generator = AutoModel.from_pretrained(config.model_name,
+                                                  quantization_config=quant_config if quant_config else None,
+                                                  trust_remote_code=True,
+                                                  torch_dtype=torch.float16, )
 
         else:
             raise NotImplementedError(config.model_class)
@@ -213,7 +217,6 @@ class GenTacModel(pl.LightningModule):
 
         output_text = []
         output_score = []
-        gen_step = 0
 
         gen_idx = 0
         # keep sampling until num_samples unique samples are generated, with at most 10 loops
@@ -236,7 +239,8 @@ class GenTacModel(pl.LightningModule):
                 output.sequences, skip_special_tokens=True
             )
 
-            for j in range(num_samples * 2):
+            # for j in range(num_samples * 2):
+            for j in range(len(raw_output_text)):
                 t = raw_output_text[j]
                 if t not in output_text:
                     output_text.append(t)
@@ -244,8 +248,6 @@ class GenTacModel(pl.LightningModule):
                     output_score.append(score)
                 if len(output_text) >= num_samples:
                     break
-
-            gen_step += 1
 
         tactics_with_scores.append(list(zip_strict(output_text, output_score))[:num_samples])
 

@@ -1,0 +1,23 @@
+program: experiments.end_to_end.end_to_end_experiment
+name: sample_topk
+description: sample_topk
+project: minif2f_test
+
+method: grid
+metric:
+  goal: maximize
+  name: Pass@1
+parameters:
+  tac_model.num_sampled_tactics:
+    values: [8, 16, 32]
+  exp_config.name:
+    values: [ 'sample-k${tac_model.num_sampled_tactics}' ]
+
+command:
+  - ${env}
+  - ${interpreter}
+  - '-m'
+  - ${program}
+  - '--config-name=end_to_end/sample_topk'
+  - ${args_no_hyphens}
+

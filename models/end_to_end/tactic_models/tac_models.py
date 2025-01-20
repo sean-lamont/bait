@@ -23,6 +23,7 @@ from data.HOList.utils import io_util
 from experiments.end_to_end.common import Context
 from models.end_to_end.tactic_models.generator.model import RetrievalAugmentedGenerator
 from models.end_to_end.tactic_models.causal_generator.model import RetrievalAugmentedGenerator as RAGLarge
+from models.end_to_end.tactic_models.causal_generator.internlm_gen import InternLMGenerator
 from models.end_to_end.tactic_models.holist_model import holparam_predictor
 from models.end_to_end.tactic_models.holist_model import embedding_store
 from models.end_to_end.tactic_models.holist_model import action_generator
@@ -101,7 +102,23 @@ class DiversityTacGenerator(TacModel):
         return [tactics[i] for i in sorted(inds[0])]
 
 
-# wrapper to add the retrieval augmented state to the goal node
+# wrapper to add the retrieval augmented state to the goal node, and to call tac model with Ray
+class InternLMWrapper(TacModel):
+    def __init__(self, tac_model):
+        super().__init__()
+        self.tac_model = tac_model
+
+    def get_tactics(self, goal, premises):
+        path, theorem, position = premises
+
+        state = f"---\nNAME: {theorem.full_name}\n\n---\nPROOF_BEFORE: {get_prev_tactics(goal)}\n\n---\nSTATE_BEFORE: {goal.goal}\n\n---\nTACTIC: "
+
+        tactics = ray.get(self.tac_model.get_tactics.remote(state, premises))
+
+        return tactics
+
+
+# wrapper to add the retrieval augmented state to the goal node, and to call tac model with Ray
 class ReProverWrapper(TacModel):
     def __init__(self, tac_model, retriever=False):
         super().__init__()
@@ -146,8 +163,8 @@ class HOListTacGen(TacModel):
         super().__init__()
         self.tac_model = tac_model
 
-    def get_tactics(self, goals, premises):
-        tactics = self.tac_model.get_tactics([g.goal for g in goals], premises)
+    def get_tactics(self, goal, premises):
+        tactics = self.tac_model.get_tactics(goal.goal, premises)
         return tactics
 
 
@@ -156,8 +173,44 @@ class HOL4TacGen(TacModel):
         super().__init__()
         self.tac_model = tac_model
 
-    def get_tactics(self, goals, premises):
-        tactics = self.tac_model.get_tactics([g.goal for g in goals], premises)
+    def get_tactics(self, goal, premises):
+        tactics = self.tac_model.get_tactics(goal.goal, premises)
+        return tactics
+
+
+# returns tactics leading to goal in the tree (where multiple paths lead to goal, takes only the first)
+def get_prev_tactics(goal):
+    if not goal.in_edges:
+        return ''
+    else:
+        return get_prev_tactics(goal.in_edges[0].src) + goal.in_edges[0].tactic
+
+
+class InternLMTacModel(TacModel):
+    def __init__(self, config, num_sampled_tactics=64):
+        super().__init__()
+        if hasattr(config, 'ckpt_path') and config.ckpt_path:
+            tac_gen = InternLMGenerator.load(
+                config.ckpt_path, device='cuda', freeze=True
+            )
+        else:
+            tac_gen = InternLMGenerator(config.config).to('cuda')
+            tac_gen.freeze()
+
+        self.tac_model = tac_gen
+        self.num_sampled_tactics = num_sampled_tactics
+
+    def get_tactics(self, goal, premises):
+
+        tactics, _ = self.tac_model.generate(
+            state=goal,
+            num_samples=self.num_sampled_tactics,
+            # retriever_args=Context(path=path, theorem_full_name=theorem.full_name, theorem_pos=position,
+            #                        state=goal),
+            retriever_args=None)
+
+        print (tactics)
+
         return tactics
 
 
@@ -278,6 +331,24 @@ def get_tac_model(config, device):
 
         else:
             return ReProverTacGen(tac_model=tac_gen, num_sampled_tactics=config.num_sampled_tactics)
+
+    if config.model == 'internlm':
+        # if hasattr(config, 'ckpt_path') and config.ckpt_path:
+        #     tac_gen = InternLMGenerator.load(
+        #         config.ckpt_path, device=device, freeze=True
+        #     )
+        # else:
+        #     tac_gen = InternLMGenerator(config.config).to(device)
+        #     tac_gen.freeze()
+
+        if config.distributed:
+            tac_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(
+                InternLMTacModel).remote(
+                config=config, num_sampled_tactics=config.num_sampled_tactics)
+            return InternLMWrapper(tac_model)
+
+        else:
+            raise NotImplementedError
 
     if config.model == 'reprover_large':
 

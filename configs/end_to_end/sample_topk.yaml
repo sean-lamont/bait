@@ -2,13 +2,12 @@
 defaults:
   - end_to_end_defaults
   - env_config/leandojo_minif2f
-  - tac_model/diversity
+  - tac_model/sample
   - search_model/bestfs
 
 exp_config:
-  name: 3dprover
+  name: sample_topk
   experiment: minif2f_test
-
 
 logging_config:
   project: minif2f_test

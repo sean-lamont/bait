@@ -1,7 +1,7 @@
 program: experiments.end_to_end.end_to_end_experiment
-name: temperature_sweep
-description: Temperature sweep
-project: minif2f
+name: No Split Sweep
+description: No Split Sweep
+project: minif2f_test
 
 method: grid
 metric:
@@ -11,19 +11,19 @@ parameters:
 #  tac_model.diversity_config.p:
 #    values: [ 0.5, 0.75 ]
   tac_model.diversity_config.score_network:
-    values: [ true ]
+    values: [ false ]
   tac_model.diversity_config.fixed_size:
     values: [ true ]
   tac_model.diversity_config.num_filtered:
-    values: [ 32, 16, 8 ]
-  tac_model.diversity_config.error_weight:
-    values: [ 0.1 ]
-  tac_model.diversity_config.time_weight:
-    values: [ 0.1 ]
-  tac_model.diversity_config.temperature:
-    values: [ 4 ]
+    values: [ 8 ]
+#  tac_model.diversity_config.error_weight:
+#    values: [ 0.1 ]
+#  tac_model.diversity_config.time_weight:
+#    values: [ 0.1 ]
+#  tac_model.diversity_config.temperature:
+#    values: [ 4 ]
   exp_config.name:
-    values: [ 'temp_ablation-k${tac_model.diversity_config.num_filtered}' ]
+    values: [ 'no_split_3d_prover-k${tac_model.diversity_config.num_filtered}' ]
 
 command:
   - ${env}

@@ -1,17 +1,17 @@
 # @package _global_
 defaults:
   - end_to_end_defaults
-  - env_config/leandojo_minif2f
-  - tac_model/diversity
+  - env_config/leandojo_no_split
+  - tac_model/internlm
   - search_model/bestfs
 
 exp_config:
-  name: 3dprover
-  experiment: minif2f_test
+  name: internlm
+  experiment: internlm
 
 
 logging_config:
   project: minif2f_test
-  offline: false
+  offline: true
 
 

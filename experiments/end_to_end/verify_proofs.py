@@ -69,7 +69,8 @@ if __name__ == '__main__':
     trace_dir = sys.argv[1]
     num_procs = int(sys.argv[2]) if len(sys.argv) > 2 else 1
 
-    files = list(glob.glob(trace_dir + '/*'))
+    # files = list(glob.glob(trace_dir + '/*'))
+    files = list(glob.glob(trace_dir))
 
     # total_proofs = 0
     # verified_proofs = 0
