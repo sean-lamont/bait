@@ -5,19 +5,26 @@ import argparse
 from hashlib import md5
 from loguru import logger
 
-LEANDOJO_BENCHMARK_URL = (
-    # "https://zenodo.org/records/10114157/files/leandojo_benchmark_v5.tar.gz"
-    "https://zenodo.org/records/8016386/files/leandojo_benchmark_v1.tar.gz"
-)
+# LEANDOJO_BENCHMARK_URL = (
+#     # "https://zenodo.org/records/10114157/files/leandojo_benchmark_v5.tar.gz"
+#     "https://zenodo.org/records/8016386/files/leandojo_benchmark_v1.tar.gz"
+# )
+# LEANDOJO_BENCHMARK_4_URL = (
+#     "https://zenodo.org/records/10929138/files/leandojo_benchmark_4.tar.gz?download=1"
+# )
+#
+# DOWNLOADS = {
+#     LEANDOJO_BENCHMARK_URL: '8b8ec4899ce2ea5bbde9b9ba8b467b8c',
+#     # LEANDOJO_BENCHMARK_4_URL: "84a75ce552b31731165d55542b1aaca9",
+# }
+
+
 LEANDOJO_BENCHMARK_4_URL = (
-    "https://zenodo.org/records/10929138/files/leandojo_benchmark_4.tar.gz?download=1"
+    "https://zenodo.org/records/12740403/files/leandojo_benchmark_4.tar.gz?download=1"
 )
-
 DOWNLOADS = {
-    LEANDOJO_BENCHMARK_URL: '8b8ec4899ce2ea5bbde9b9ba8b467b8c',
-    # LEANDOJO_BENCHMARK_4_URL: "84a75ce552b31731165d55542b1aaca9",
+    LEANDOJO_BENCHMARK_4_URL: "25e1ee60cd8925b9d2e8673ddcc34b4c",
 }
-
 
 def check_md5(filename: str, gt_hashcode: str) -> bool:
     """

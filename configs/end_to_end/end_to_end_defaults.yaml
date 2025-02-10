@@ -27,7 +27,7 @@ num_gpus: 2
 
 # how many 'logical' GPUs available, should be a multiple of num_gpus.
 # Will control the number of separate tactic/search model processes
-logical_gpus: 1
+logical_gpus: 2
 
 num_cpus: 8
 

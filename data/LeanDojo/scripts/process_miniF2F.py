@@ -15,7 +15,6 @@ SPLIT_NAME = str  # train/val/test
 SPLIT = Dict[SPLIT_NAME, List[TracedTheorem]]
 SPLIT_STRATEGY = str
 
-
 import lean_dojo
 
 
@@ -39,7 +38,7 @@ def export_proofs(splits: Dict[SPLIT_STRATEGY, SPLIT], dst_path: Path) -> None:
                     }
                     for t in thm.get_traced_tactics()
                     if t.state_before != "no goals"
-                    and "·" not in t.tactic  # Ignore "·".
+                       and "·" not in t.tactic  # Ignore "·".
                 ]
                 num_tactics += len(tactics)
                 data.append(
@@ -115,12 +114,11 @@ def export_metadata(traced_repo: TracedRepo, dst_path: Path, **kwargs) -> None:
     json.dump(metadata, (dst_path / "metadata.json").open("wt"))
 
 
-
 def export_data(
-    traced_repo: TracedRepo,
-    splits: Dict[SPLIT_STRATEGY, SPLIT],
-    dst_path: Union[str, Path],
-    **kwargs,
+        traced_repo: TracedRepo,
+        splits: Dict[SPLIT_STRATEGY, SPLIT],
+        dst_path: Union[str, Path],
+        **kwargs,
 ) -> None:
     """Export a traced repo whose theorems have been splitted to ``dst_path``."""
     if isinstance(dst_path, str):
@@ -141,23 +139,38 @@ def export_data(
     # Export metadata.
     export_metadata(traced_repo, dst_path, **kwargs)
 
+
 minif2f = LeanGitRepo(
-    "https://github.com/facebookresearch/miniF2F",
-    "5271ddec788677c815cf818a06f368ef6498a106",
+    # lean 4.7 (internlm)
+    'https://github.com/wzj423/lean-dojo-mew',
+    'd08b8ba9bad48a7a6497bad6fde21bace85128e2',
 )
+
+
+# lean 4
+# 'https://github.com/rah4927/lean-dojo-mew',
+# 'd00c776260c77de7e70125ef0cd119de6c0ff1de'
+
+# lean 3
+# "https://github.com/facebookresearch/miniF2F",
+# "5271ddec788677c815cf818a06f368ef6498a106",
 traced_minif2f = trace(minif2f)
 
 splits = {"default": {"val": [], "test": []}}
 
 for tf in traced_minif2f.get_traced_theorems():
-    if tf.repo.name != "miniF2F":
-        continue
-    if tf.file_path.name == "valid.lean":
-        splits["default"]["val"].append(tf)
+    # print (tf.repo.name)
+    # if tf.repo.name != "miniF2F":
+    if tf.repo.name != "lean-dojo-mew":
+            continue
+    # if tf.file_path.name == "valid.lean":
+    if tf.file_path.name == "Validation.lean":
+            splits["default"]["val"].append(tf)
     else:
-        assert tf.file_path.name == "test.lean"
+        # assert tf.file_path.name == "test.lean"
+        assert tf.file_path.name == "Test.lean"
         splits["default"]["test"].append(tf)
 
 export_data(
-    traced_minif2f, splits, "../data/leandojo_minif2f", dataset_name="LeanDojo MiniF2F"
+    traced_minif2f, splits, "../data/lean4_minif2f", dataset_name="LeanDojo MiniF2F New"
 )

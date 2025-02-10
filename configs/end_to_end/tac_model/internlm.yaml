@@ -3,7 +3,7 @@ ckpt_path: null
 num_sampled_tactics: 64
 
 distributed: true
-gpu_per_process: 1.0
+gpu_per_process: 0.9
 cpu_per_process: 0.5
 
 config:

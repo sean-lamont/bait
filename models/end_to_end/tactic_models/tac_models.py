@@ -201,15 +201,12 @@ class InternLMTacModel(TacModel):
         self.num_sampled_tactics = num_sampled_tactics
 
     def get_tactics(self, goal, premises):
-
         tactics, _ = self.tac_model.generate(
             state=goal,
             num_samples=self.num_sampled_tactics,
             # retriever_args=Context(path=path, theorem_full_name=theorem.full_name, theorem_pos=position,
             #                        state=goal),
             retriever_args=None)
-
-        print (tactics)
 
         return tactics
 
