@@ -42,18 +42,6 @@ class Node(ABC):
         "The number of times a tactic has been applied to this node or a descendant"
         raise NotImplementedError
 
-    @property
-    @abstractmethod
-    def up_score(self) -> float:
-        "Score representing the best probability of proving the given goal, based on child paths"
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def provable_score(self) -> float:
-        "Probability of proving the goal in isolation, not considering children. Used to initialise up_score, and to compute the context-weighted score per goal"
-        raise NotImplementedError
-
 
 @dataclass(frozen=True)
 class GoalFinished:
@@ -78,8 +66,6 @@ class ProofFinishedNode(Node):
     distance_to_proof = 0
     visit_count = 0
     is_terminal = True
-    up_score = 0
-    provable_score = 0
 
 
 @dataclass
@@ -89,8 +75,6 @@ class ErrorNode(Node):
     distance_to_proof = math.inf
     visit_count = 0
     is_terminal = True
-    up_score = -math.inf
-    provable_score = -math.inf
 
 
 @dataclass(unsafe_hash=True)
@@ -104,10 +88,6 @@ class InternalNode(Node):
 
     # The sum of action logprobs along edges from the root to this node
     cumulative_logprob: float = field(compare=False, repr=False)
-
-    # Tracks the top level goal of siblings and ancestors required for a full proof.
-    # Can include multiple possible paths, each of which will satisfy the requirements
-    context: List[Set[str]] = field(compare=False, default_factory=list, repr=False)
 
     # Tracks all ancestor nodes which lead to this node, used to detect and prevent cycles
     ancestors: Set[str] = field(compare=False, default_factory=set, repr=False)
@@ -137,11 +117,6 @@ class InternalNode(Node):
         default=math.inf, init=False, compare=False, repr=False
     )
 
-    # todo remove, implemented in search model
-    # Scores based on the intrinsic probability of proving a goal, and the best available path from children
-    provable_score = -math.inf
-    up_score = -math.inf
-
     # Set flag to ignore this node in search
     is_explored: bool = field(default=False, compare=False, repr=False)
 
@@ -165,13 +140,29 @@ class InternalNode(Node):
     def out_edges(self):
         return self._out_edges
 
-    # This setter adds edges to the node, and updates the tree
-    # todo move context, ancestor updating to here rather than env?
-    @out_edges.setter
-    def out_edges(self, out_edges):
-        self._out_edges = out_edges
+    # # This setter adds edges to the node, and updates the tree
+    # @out_edges.setter
+    # def out_edges(self, out_edges):
+    #     self._out_edges = out_edges
+    #     self._recompute_status()
+    #     self._recompute_distance_to_proof()
+
+    def add_edge(self, edge):
+        node = edge.src
+        result = edge.dst
+
+        if self._out_edges is None:
+            self._out_edges = []
+        self._out_edges.append(edge)
         self._recompute_status()
         self._recompute_distance_to_proof()
+
+        for result_node in result:
+            # Add ancestors for detecting cycles
+            result_node.add_ancestors(node.ancestors | {node.goal})
+
+            if isinstance(result_node, InternalNode):
+                result_node.in_edges.append(edge)
 
     @property
     def status(self) -> Status:
@@ -180,24 +171,6 @@ class InternalNode(Node):
     @status.setter
     def status(self, s):
         self._status = s
-
-    def add_context(self, contexts: List[Set[str]]):
-        new_contexts = []
-        for context in contexts:
-            if context not in self.context:
-                new_contexts.append(context)
-
-        if not new_contexts:
-            return
-
-        self.context.extend(new_contexts)
-
-        if self.out_edges:
-            for edge in self.out_edges:
-                for node in edge.dst:
-                    if isinstance(node, InternalNode):
-                        sib_ctx = {g.goal for g in edge.dst if g != node}
-                        node.add_context([ctx | sib_ctx for ctx in new_contexts])
 
     def add_ancestors(self, new_ancestors: Set[str]):
         if new_ancestors.issubset(self.ancestors):

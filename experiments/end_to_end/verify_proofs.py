@@ -11,12 +11,12 @@ from tqdm import tqdm
 from experiments.end_to_end.common import remove_marks
 
 
-# todo check trace for environment, and handle separately, currently only LeanDojo supported
+# todo extend to other environments, currently only works for LeanDojo
 
 def verify_proof(trace):
     proof = trace.proof
     thm = trace.theorem
-    dojo, init_state = Dojo(thm, hard_timeout=6000).__enter__()
+    dojo, init_state = Dojo(thm, timeout=6000).__enter__()
 
     state = init_state
     logger.info(f'Verifying proof of {thm.full_name}')
@@ -28,10 +28,8 @@ def verify_proof(trace):
         if isinstance(response, TacticState):
             state = response
         elif isinstance(response, ProofFinished):
-            dojo._cleanup()
             return True
         else:
-            dojo._cleanup()
             logger.warning(f'Response {response} to tactic {tactic_} is not a TacticState or ProofFinished')
             return False
 
@@ -47,8 +45,13 @@ def check_file(trace):
 
 
 def process_file(file):
-    trace = pickle.load(open(file, 'rb'))
+    try:
+        trace = pickle.load(open(file, 'rb'))
+    except:
+        logger.warning(f'Error loading {file}')
+        return 0, 0
     verified_proof = 0
+
     if not trace.proof:
         logger.info(f'No proof for {trace.theorem.full_name}')
         found_proof = 0
@@ -74,7 +77,7 @@ if __name__ == '__main__':
 
     # total_proofs = 0
     # verified_proofs = 0
-    #
+
     # for file in tqdm(files):
     #     trace = pickle.load(open(file, 'rb'))
     #     if not trace.proof:
@@ -90,7 +93,7 @@ if __name__ == '__main__':
     #             continue
 
     # multithread the above instead:
-
+    #
     with Pool(num_procs) as p:
         results = list(tqdm(p.imap(process_file, files), total=len(files)))
         total_proofs = sum([r[0] for r in results])

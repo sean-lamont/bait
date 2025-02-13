@@ -130,7 +130,11 @@ class ErrorPredDataModule(pl.LightningDataModule):
 
         logger.info('Processing traces for training transition model...')
         for trace in tqdm(trace_files):
-            trace = pickle.load(open(trace, 'rb'))
+            try:
+                trace = pickle.load(open(trace, 'rb'))
+            except Exception as e:
+                logger.info(f'Error loading {trace}: {e}')
+                continue
             if isinstance(trace.tree, ErrorNode):
                 continue
 

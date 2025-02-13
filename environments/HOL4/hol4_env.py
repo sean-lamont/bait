@@ -8,12 +8,12 @@ from loguru import logger
 
 from experiments.end_to_end.proof_node import *
 
-
 """
 
 HOL4 environment for use with End-to-End experiments
 
 """
+
 
 class EnvInitError(Exception):
     pass
@@ -55,8 +55,6 @@ def revert_with_polish(context):
 Environment Wrapper over HOL4. 
 
 '''
-
-# HOLPATH = "/home/sean/Documents/phd/hol/HOL/bin/hol --maxheap=256"
 
 HOLPATH = "environments/HOL4/HOL/bin/hol --maxheap=256"
 
@@ -146,7 +144,6 @@ class HOL4Env:
         self.process.sendline("top_goals();".encode("utf-8"))
         self.process.expect("val it =")
         self.process.expect([": goal list", ":\r\n +goal list"])
-
 
         polished_raw = self.process.before.decode("utf-8")
         polished_subgoals = re.sub("“|”", "\"", polished_raw)
@@ -402,20 +399,6 @@ class HOL4Env:
 
                             self.node_map[full_goal] = (context, result_node)
 
-                        # todo add below to search processing?
-                        # This will add the parent context (any goals required to prove the parent)
-                        # as well as other siblings from the current result.
-                        sib_context = {revert_with_polish(goal_) for goal_ in response if goal_ != context}
-                        if node.context:
-                            cur_context = [ctx | sib_context for ctx in node.context]
-                        else:
-                            cur_context = [sib_context]
-
-                        result_node.add_context(cur_context)
-
-                        # Add ancestors for detecting cycles
-                        result_node.add_ancestors(node.ancestors | {node.goal})
-
                         result.append(result_node)
 
             # nothing changed
@@ -432,17 +415,9 @@ class HOL4Env:
             result = [result_node]
 
         # Build an edge connecting these nodes.
-        # Will be added to the source node externally.
         edge = Edge(tactic=tactic, src=node, dst=result, tac_logprob=tac_logprob, goal_logprob=goal_logprob,
                     time=elapsed)
 
-        if node.out_edges:
-            node.out_edges = node.out_edges + [edge]
-        else:
-            node.out_edges = [edge]
-
-        for result_node in result:
-            if isinstance(result_node, InternalNode):
-                result_node.in_edges.append(edge)
+        node.add_edge(edge)
 
         return edge

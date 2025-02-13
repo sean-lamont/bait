@@ -21,8 +21,6 @@ from environments.LeanDojo.get_lean_theorems import _get_theorems
 from environments.LeanDojo.lean4_env import Lean4Env
 from experiments.end_to_end.common import zip_strict
 
-# todo hack for now, just load theorem database globally for hol4 get_thm_name
-# hol4_thm_db = json.load(open('/home/sean/Documents/phd/bait/data/HOL4/data/adjusted_db.json'))
 
 
 def get_thm_name(env, thm):
@@ -32,6 +30,8 @@ def get_thm_name(env, thm):
         return str(thm.full_name)
     elif env == 'hol4':
         # theoryName.LemmaName
+        # todo hack for now, just load theorem database globally for hol4 get_thm_name
+        hol4_thm_db = json.load(open('/home/sean/Documents/phd/bait/data/HOL4/data/adjusted_db.json'))
         return '.'.join(hol4_thm_db[thm[0]][:2])
     else:
         raise NotImplementedError

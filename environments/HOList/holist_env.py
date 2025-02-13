@@ -16,11 +16,9 @@ class EnvInitError(Exception):
     pass
 
 
-# todo abstract environment class with init, enter, exit, run_tactic, retrieve_premises
-
-
 # todo hacky
 thms_registered = False
+
 
 def setup_prover(theorem_database: proof_assistant_pb2.TheoremDatabase):
     """Starts up HOL and seeds it with given TheoremDatabase."""
@@ -125,8 +123,6 @@ class HOListEnv:
         failed = False
         result_node = []
 
-        # logger.info(f'Applying tactic {tactic} to goal {theorem}')
-
         try:
             response = self.hol_wrapper.ApplyTactic(holist_request)
         except error.StatusNotOk as exception:
@@ -139,7 +135,7 @@ class HOListEnv:
             # Sometimes, rarely, the prover gets into in which it stops
             # communicating and eventually requests hang. However we
             # can bail out before that happen and can prevent the whole
-            # program to hang for a long time.
+            # program from hanging for a long time.
 
             if str(exception).startswith('Communication') and str(exception).endswith(
                     'failed.'):
@@ -206,27 +202,11 @@ class HOListEnv:
 
                         self.node_map[goal] = result_node, thm
 
-                    # todo add below to updown/search processing?
-                    # This will add the parent context (any goals required to prove the parent)
-                    # as well as other siblings from the current result.
-                    sib_context = {_thm_string(goal_) for goal_ in new_goals if
-                                   _thm_string(goal_) != goal}
-                    if node.context:
-                        cur_context = [ctx | sib_context for ctx in node.context]
-                    else:
-                        cur_context = [sib_context]
-
-                    result_node.add_context(cur_context)
-
-                    # Add ancestors for detecting cycles
-                    result_node.add_ancestors(node.ancestors | {node.goal})
-
                     result.append(result_node)
 
-        # self-loop sanity check (should never happen)
         #  occasionally happens for holist
         #  from testing, same conclusion different hypotheses, so it fails is_same_expr, but node hash is the same
-        #  should be fixed when assumptions are considered
+        #  would be fixed if assumptions are considered
         if result_node == node:
             response = TreeError(f'Self-loop, {node.goal, response}')
             result_node = ErrorNode(response)
@@ -237,13 +217,6 @@ class HOListEnv:
         edge = Edge(tactic=tactic, src=node, dst=result, tac_logprob=tac_logprob, goal_logprob=goal_logprob,
                     time=elapsed)
 
-        if node.out_edges:
-            node.out_edges = node.out_edges + [edge]
-        else:
-            node.out_edges = [edge]
-
-        for result_node in result:
-            if isinstance(result_node, InternalNode):
-                result_node.in_edges.append(edge)
+        node.add_edge(edge)
 
         return edge

@@ -408,6 +408,7 @@ def main(config) -> None:
 
         ray.shutdown()
 
+        # run child process to retrain
         if hasattr(config, 'train_after_eval') and num_iterations > 1:
             new_ckpt_dirs = []
             for cmd in config.train_after_eval:

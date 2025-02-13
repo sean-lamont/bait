@@ -17,6 +17,7 @@ from models.end_to_end.tactic_models.gen_tac_model import GenTacModel
 
 torch.set_float32_matmul_precision("medium")
 
+
 class InternLMGenerator(GenTacModel):
     def __init__(self, config) -> None:
         super().__init__(config)
@@ -36,7 +37,7 @@ class InternLMGenerator(GenTacModel):
         # todo max_length or return tokens
         output = self.generator.generate(
             input_ids=state_ids,
-            attention_mask = state_mask,
+            attention_mask=state_mask,
             num_return_sequences=num_samples,
             do_sample=True,
             output_scores=True,
@@ -48,7 +49,6 @@ class InternLMGenerator(GenTacModel):
         raw_output_text = self.tokenizer.batch_decode(
             output.sequences, skip_special_tokens=True
         )
-
 
         transitions = self.generator.compute_transition_scores(output.sequences, output.scores,
                                                                normalize_logits=True)
@@ -66,11 +66,9 @@ class InternLMGenerator(GenTacModel):
 
         tactics_with_scores = list(zip_strict(output_text, output_score))
 
-
         return [tactics_with_scores], [state]
 
     # Following the paper, only samples for now, with fixed temperature of 0.5
-
 
     #
     #     # return state_with_prompt as well to store retrieved state_with_prompt

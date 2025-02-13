@@ -105,9 +105,6 @@ class Lean4Env:
             elif goal in self.node_map:
                 _, result_node = self.node_map[goal]
 
-                # Add ancestors for detecting cycles
-                result_node.add_ancestors(node.ancestors | {node.goal})
-
                 result = [result_node]
             else:
                 result_node = InternalNode(
@@ -118,8 +115,6 @@ class Lean4Env:
 
                 self.node_map[goal] = (response, result_node)
 
-                # Add ancestors for detecting cycles
-                result_node.add_ancestors(node.ancestors | {node.goal})
 
                 result = [result_node]
 
@@ -132,13 +127,6 @@ class Lean4Env:
         edge = Edge(tactic=tactic, src=node, dst=result, tac_logprob=tac_logprob, goal_logprob=goal_logprob,
                     time=elapsed)
 
-        if node.out_edges:
-            node.out_edges = node.out_edges + [edge]
-        else:
-            node.out_edges = [edge]
-
-        for result_node in result:
-            if isinstance(result_node, InternalNode):
-                result_node.in_edges.append(edge)
+        node.add_edge(edge)
 
         return edge

@@ -13,6 +13,57 @@ from experiments.end_to_end.proof_node import InternalNode, Status, Edge
 from models.end_to_end.search_models.search_models import Search, GoalModel
 
 
+# todo refactor with context updating here rather than in nodes
+# todo can probably loop through result list, treat all as siblings, then add context for each
+
+# from old node code
+# def add_context(self, contexts: List[Set[str]]):
+#     new_contexts = []
+#     for context in contexts:
+#         if context not in self.context:
+#             new_contexts.append(context)
+#
+#     if not new_contexts:
+#         return
+#
+#     self.context.extend(new_contexts)
+#
+#     if self.out_edges:
+#         for edge in self.out_edges:
+#             for node in edge.dst:
+#                 if isinstance(node, InternalNode):
+#                     sib_ctx = {g.goal for g in edge.dst if g != node}
+#                     node.add_context([ctx | sib_ctx for ctx in new_contexts])
+
+
+# from old HOL4 env
+# # This will add the parent context (any goals required to prove the parent)
+# # as well as other siblings from the current result.
+# sib_context = {revert_with_polish(goal_) for goal_ in response if goal_ != context}
+# if node.context:
+#     cur_context = [ctx | sib_context for ctx in node.context]
+# else:
+#     cur_context = [sib_context]
+#
+# result_node.add_context(cur_context)
+#
+#
+#
+
+# from old HOList env
+# This will add the parent context (any goals required to prove the parent)
+# as well as other siblings from the current result.
+# sib_context = {_thm_string(goal_) for goal_ in new_goals if
+#                _thm_string(goal_) != goal}
+# if node.context:
+#     cur_context = [ctx | sib_context for ctx in node.context]
+# else:
+#     cur_context = [sib_context]
+#
+# result_node.add_context(cur_context)
+
+
+
 class UpDown(Search):
     def __init__(self, goal_model: GoalModel):
         super().__init__()
@@ -35,7 +86,7 @@ class UpDown(Search):
             self.initial_scores[root.goal] = scores[0].item()
             self.updated_scores[root.goal] = scores[0].item()
 
-    # sampling version
+    # sampling
     def get_goals(self):
         fringe_scores = []
 
@@ -79,7 +130,7 @@ class UpDown(Search):
 
         return chosen_fringe
 
-    # greedy version
+    # greedy
     # def get_goals(self):
     #     best_score = -math.inf
     #     best_node = None
