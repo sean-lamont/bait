@@ -194,8 +194,8 @@ class InternLMTacModel(TacModel):
                 config.ckpt_path, device='cuda', freeze=True
             )
         else:
-            tac_gen = InternLMGenerator(config.config).to('cuda')
-            tac_gen.freeze()
+            tac_gen = InternLMGenerator(config.config)#.to('cuda')
+            # tac_gen.freeze()
 
         self.tac_model = tac_gen
         self.num_sampled_tactics = num_sampled_tactics

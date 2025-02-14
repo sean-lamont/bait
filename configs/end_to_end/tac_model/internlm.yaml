@@ -7,21 +7,13 @@ gpu_per_process: 0.9
 cpu_per_process: 0.5
 
 config:
-  model_class: InternLM
-  model_name: internlm/internlm2_5-step-prover
-  eval_num_retrieved: 100
-
-  lr: 5e-6
-  warmup_steps: 200
-  length_penalty: 0.0
-  num_beams: 8
-  max_seq_len: 2300
-    # todo
-  gen_config:
-    strategy: beam
-    length_penalty: 0.0
-  # configuration for the eval loop in training (terminates based on live proving performance)
-  eval_config:
-    eval_num_theorems: 200
-    shuffle: false
-    timeout: 600
+  model_params:
+    model: 'internlm/internlm2_5-step-prover'
+    trust_remote_code: True
+#    tensor_parallel_size: 2
+  sampling_params:
+    n: 32
+    temperature: 0.7 #(temperature as per paper)
+    stop_token_ids: [92542] #(stop token form internlm)
+    best_of: 32
+    logprobs: 0 #(only return logprob for chosen tokens)

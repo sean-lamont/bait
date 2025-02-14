@@ -158,10 +158,9 @@ class InternalNode(Node):
         self._recompute_distance_to_proof()
 
         for result_node in result:
-            # Add ancestors for detecting cycles
-            result_node.add_ancestors(node.ancestors | {node.goal})
-
             if isinstance(result_node, InternalNode):
+                # Add ancestors for detecting cycles
+                result_node.add_ancestors(node.ancestors | {node.goal})
                 result_node.in_edges.append(edge)
 
     @property

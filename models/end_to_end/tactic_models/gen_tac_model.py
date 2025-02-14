@@ -178,6 +178,7 @@ class GenTacModel(pl.LightningModule):
 
     def generate(self, state, retriever_args: dict, num_samples: int):
         tacs, new_states = self.batch_generate([state], [retriever_args], num_samples)
+
         return tacs[0], new_states[0]
 
     def batch_generate(self, state, retriever_args, num_samples):

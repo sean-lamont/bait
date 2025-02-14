@@ -38,7 +38,7 @@ gpu_per_prover: 0.01
 cpu_per_prover: 1
 
 # How many provers to assign per logical GPU. Each of these provers will share one tactic/search process.
-provers_per_gpu: 1
+provers_per_gpu: 2
 
 # Commands to run for retraining the model(s) after every evaluation
 train_after_eval: null
