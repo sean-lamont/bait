@@ -13,7 +13,7 @@ class InternLMGenerator:
         self.llm = LLM(**config.model_params)
 
     def generate(self, state, retriever_args, num_samples):
-        outputs = self.llm.generate(state, self.sampling_params)
+        outputs = self.llm.generate(state, self.sampling_params, use_tqdm=False)
 
         outputs = [(i.text.strip(), i.cumulative_logprob) for i in outputs[0].outputs]
 

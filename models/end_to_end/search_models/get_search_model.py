@@ -1,9 +1,12 @@
 from __future__ import division, absolute_import, print_function
 
 import ray
+
+from models.end_to_end.search_models.critic_guided import CriticGuidedSearch
 from models.end_to_end.search_models.dpp import DPPSearch
 from models.end_to_end.search_models.bestfs import BestFS
 from models.end_to_end.search_models.bfs import BFS
+from models.end_to_end.search_models.goal_models.internlm_critic import InternLMCritic
 from models.end_to_end.search_models.goal_models.pair_model.model import PairGoalModel
 from models.end_to_end.search_models.htps import HTPS
 from models.end_to_end.search_models.levin_search import LevinSearch
@@ -64,6 +67,11 @@ def get_search_model(config, device):
                          p=config.diversity_config.p if hasattr(config.diversity_config, 'p') else 0.9,
                          use_model=config.diversity_config.use_model if hasattr(config.diversity_config,
                                                                                 'use_model') else True)
+
+    elif config.search == 'internlm':
+        goal_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(InternLMCritic).remote(config, device=device)
+
+        return CriticGuidedSearch(goal_model)
     elif config.search == 'fringe':
         raise NotImplementedError(f'Search approach {config.search} not implemented')
     else:

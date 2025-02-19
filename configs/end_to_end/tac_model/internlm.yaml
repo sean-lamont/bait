@@ -10,6 +10,7 @@ config:
   model_params:
     model: 'internlm/internlm2_5-step-prover'
     trust_remote_code: True
+    gpu_memory_utilization: 0.9
 #    tensor_parallel_size: 2
   sampling_params:
     n: 32
