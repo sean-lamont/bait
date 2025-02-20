@@ -13,7 +13,7 @@ torch.set_float32_matmul_precision("medium")
 
 
 # todo right now, must modify the DPP library code from np.float to float for version compatibility
-# aldo modified to remove print statements in compute_K
+# also modified to remove print statements in compute_K
 class DiversityModel(torch.nn.Module):
     def __init__(self, config, device) -> None:
         super().__init__()
