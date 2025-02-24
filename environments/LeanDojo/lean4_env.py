@@ -40,7 +40,8 @@ class Lean4Env:
 
     def __enter__(self):
         try:
-            self.dojo, init_state = Dojo(self.thm, timeout=600 + self.timeout).__enter__()
+            # self.dojo, init_state = Dojo(self.thm, timeout=600 + self.timeout).__enter__()
+            self.dojo, init_state = Dojo(self.thm, timeout=600 + self.timeout, additional_imports=["Mathlib.Tactic"]).__enter__()
         except Exception as e:
             raise EnvInitError(e)
 
