@@ -37,6 +37,7 @@ class CriticGuidedSearch(Search):
 
             self.scores[self.root.goal] = scores[0]
 
+
     def get_goals(self):
         max_goal = max(self.scores, key=self.scores.get)
         chosen_node = self.nodes[max_goal]
@@ -57,5 +58,4 @@ class CriticGuidedSearch(Search):
                 if isinstance(result_node, InternalNode) and result_node.goal not in self.nodes:
                     self.nodes[result_node.goal] = result_node
                     self.scores[result_node.goal] = ray.get(self.goal_model.run.remote([result_node.goal]))[0]
-
         return

@@ -15,6 +15,6 @@ config:
   sampling_params:
     n: 32
     temperature: 0.7 #(temperature as per paper)
-    stop_token_ids: [92542] #(stop token form internlm)
+    stop_token_ids: [92542] #(stop token from internlm)
     best_of: 32
     logprobs: 0 #(only return logprob for chosen tokens)

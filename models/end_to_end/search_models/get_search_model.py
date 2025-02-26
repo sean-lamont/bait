@@ -6,8 +6,10 @@ from models.end_to_end.search_models.critic_guided import CriticGuidedSearch
 from models.end_to_end.search_models.dpp import DPPSearch
 from models.end_to_end.search_models.bestfs import BestFS
 from models.end_to_end.search_models.bfs import BFS
+from models.end_to_end.search_models.dpp_critic import DPPCritic
 from models.end_to_end.search_models.goal_models.internlm_critic import InternLMCritic
 from models.end_to_end.search_models.goal_models.pair_model.model import PairGoalModel
+from models.end_to_end.search_models.goal_models.state_embedding import StateEmbeddingModel
 from models.end_to_end.search_models.htps import HTPS
 from models.end_to_end.search_models.levin_search import LevinSearch
 from models.end_to_end.search_models.search_models import GoalModel
@@ -72,6 +74,14 @@ def get_search_model(config, device):
         goal_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(InternLMCritic).remote(config, device=device)
 
         return CriticGuidedSearch(goal_model)
+
+    elif config.search == 'dpp_critic':
+        goal_model = ray.remote(num_gpus=config.gpu_per_critic, num_cpus=config.cpu_per_critic)(InternLMCritic).remote(config.critic, device=device)
+
+        state_model = ray.remote(num_gpus=config.gpu_per_embed, num_cpus=config.cpu_per_embed)(StateEmbeddingModel).remote(config)
+
+        return DPPCritic(critic_model=goal_model, state_encoder=state_model, num_filtered=config.num_filtered, max_candidates=config.max_candidates)
+
     elif config.search == 'fringe':
         raise NotImplementedError(f'Search approach {config.search} not implemented')
     else:

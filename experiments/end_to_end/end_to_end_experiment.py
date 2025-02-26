@@ -242,7 +242,7 @@ class EndToEndProver:
                     except Exception as e:
                         if not (self.env_time >= self.timeout):
                             logger.warning(f"Exception not timeout for {get_thm_name(self.env_name, env.thm)}: {e}")
-                            traceback.print_exc()
+                            # traceback.print_exc()
                             root.status = Status.FAILED
                             env._cleanup()
                             raise Exception(e)
@@ -267,10 +267,11 @@ class EndToEndProver:
 
         except Exception as e:
             if root:
-                logger.warning(f"Error in search {e}")
+                # logger.warning(f"Error in search {e}")
+                logger.warning(f"Error in search")
                 root.status = Status.FAILED
             else:
-                raise Exception(f"Could not initialise root: {e}")
+                raise Exception(f"Could not initialise root:")
 
 
 class DistributedProver:

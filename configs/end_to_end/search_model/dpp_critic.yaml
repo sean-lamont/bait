@@ -1,0 +1,15 @@
+search: dpp_critic
+critic:
+  model_name: "internlm/internlm2_5-step-prover-critic"
+embed_params:
+  model: 'intfloat/e5-small-v2'
+
+max_embed_tokens: 512
+distributed: true
+gpu_per_critic: 0.7
+cpu_per_critic: 0.25
+gpu_per_embed: 0.2
+cpu_per_embed: 0.25
+max_candidates: null
+num_filtered: 3
+

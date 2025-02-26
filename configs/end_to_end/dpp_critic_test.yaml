@@ -3,15 +3,15 @@ defaults:
   - end_to_end_defaults
   - env_config/lean4_env
   - tac_model/internlm
-  - search_model/internlm_critic
+  - search_model/dpp_critic
 
 exp_config:
-  name: internlm_cg
+  name: dpp_critic_conditional
   experiment: internlm
 
 
 logging_config:
   project: internlm_test
-  offline: true
+  offline: false
 
 
