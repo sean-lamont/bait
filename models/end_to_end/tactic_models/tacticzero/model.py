@@ -16,7 +16,7 @@ torch.set_float32_matmul_precision("medium")
 
 """
 
-Implementation of TacticZero in our End-to-End AI-ITP framework. 
+Implementation of TacticZero in End-to-End framework. 
 
 Differs from the original approach:
     - Offline training

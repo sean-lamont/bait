@@ -29,13 +29,11 @@ from models.end_to_end.tactic_models.holist_model import embedding_store
 from models.end_to_end.tactic_models.holist_model import action_generator
 from experiments.end_to_end.proof_node import *
 
-
 # todo tidy
 class TacModel:
     @abstractmethod
     def get_tactics(self, goals, premises):
         return
-
 
 class TacWrapper(TacModel):
     def __init__(self, tac_model):
@@ -46,7 +44,6 @@ class TacWrapper(TacModel):
         tactics = ray.get(self.tac_model.get_tactics.remote(goal, premises))
 
         return tactics
-
 
 class TopKTacGenerator(TacModel):
     def __init__(self, tac_model: TacModel, num_filtered, random=False):

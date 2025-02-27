@@ -7,15 +7,13 @@ from experiments.end_to_end.proof_node import *
 class SearchResult:
     """The result of attempting to prove a theorem."""
 
-    # Any type to allow for different environments
-    theorem: Any
+    theorem: Any  # Any type to allow for different environments
     status: Status
     proof: Optional[List[str]]
     tree: Node
     nodes: Dict = field(repr=False)
-    # Environment used to prove the theorem
 
-    # Some statistics during proof search.
+    # Proof search statistics.
     total_time: float
     tac_time: float
     search_time: float
@@ -23,8 +21,8 @@ class SearchResult:
     num_expansions: int
     num_nodes: int
 
-    # ordered trace of edges, includes selected goal, outcome, tactic prob and goal probs
+    # Ordered trace of edges, includes selected goal, outcome, tactic prob and goal probs
     trace: Any = field(repr=False)
 
-    # any additional data from the proof
+    # Any additional data from the proof, to allow flexibility for different search / tactic generation setups
     data: Any = field(repr=False, default=None)

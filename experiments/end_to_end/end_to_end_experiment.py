@@ -12,6 +12,8 @@ import time
 import traceback
 from subprocess import CalledProcessError
 
+from hydra.utils import instantiate
+
 # for Lean 3
 os.environ['CONTAINER'] = 'docker'
 
@@ -30,7 +32,7 @@ from experiments.end_to_end.env_helper import get_thm_name, get_env, get_theorem
 from experiments.end_to_end.proof_node import *
 from experiments.end_to_end.search_result import SearchResult
 from models.end_to_end.search_models.get_search_model import get_search_model
-from models.end_to_end.tactic_models.tac_models import get_tac_model
+from models.end_to_end.tactic_models.tac_models_ import get_tac_model
 from utils.utils import config_to_dict
 
 
@@ -284,7 +286,7 @@ class DistributedProver:
 
         self.iteration = iteration
 
-        ray.init(num_gpus=config.num_gpus, num_cpus=config.num_cpus)
+        # ray.init(num_gpus=config.num_gpus, num_cpus=config.num_cpus)
 
         device = torch.device("cuda") if config.num_gpus > 0 else torch.device("cpu")
 
@@ -301,7 +303,8 @@ class DistributedProver:
 
         else:
             for i in range(config.logical_gpus):
-                tac_model = get_tac_model(config.tac_model, device)
+                # tac_model = get_tac_model(config.tac_model, device)
+                tac_model = config.tac_model
                 search_model = get_search_model(config.search_model, device)
 
                 prover_pool.extend(
@@ -339,6 +342,11 @@ class DistributedProver:
 @hydra.main(config_path="../../configs")
 def main(config) -> None:
     OmegaConf.resolve(config)
+
+    logger.info(f"Config:\n{OmegaConf.to_yaml(config)}")
+
+    ray.init(num_gpus=config.num_gpus, num_cpus=config.num_cpus)
+    config = instantiate(config)
 
     os.makedirs(config.exp_config.directory + '/checkpoints', exist_ok=True)
 
@@ -385,13 +393,14 @@ def main(config) -> None:
     set_logger(config.log_level)
 
     logger.info(f"PID: {os.getpid()}")
-    logger.info(f"Config:\n{OmegaConf.to_yaml(config)}")
 
     if config.shuffle:
         random.shuffle(theorems)
 
     theorems = theorems[:config.env_config.num_theorems]
 
+    # todo move this to another experiment, which controls eval / training separately.
+    # todo make experiment to run proof search only on failed attempts, to speed up pass@k
     num_iterations = config.num_iterations if hasattr(config, 'num_iterations') else 1
 
     for iteration in range(cur_iteration, num_iterations):

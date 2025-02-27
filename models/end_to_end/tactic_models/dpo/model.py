@@ -1,4 +1,3 @@
-"""Lightning module for the tactic generator."""
 
 import torch
 import torch.nn.functional as F
@@ -8,7 +7,11 @@ from models.end_to_end.tactic_models.gen_tac_model import GenTacModel
 
 torch.set_float32_matmul_precision("medium")
 
+'''
 
+Module for training generative model with DPO, given pairs of preferences
+
+'''
 class DPOTrainModule(GenTacModel):
     def __init__(self, config) -> None:
         super().__init__(config)
