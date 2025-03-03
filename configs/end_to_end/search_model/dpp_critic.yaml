@@ -11,5 +11,5 @@ cpu_per_critic: 0.25
 gpu_per_embed: 0.2
 cpu_per_embed: 0.25
 max_candidates: null
-num_filtered: 3
+num_filtered: 2
 

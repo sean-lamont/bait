@@ -12,6 +12,6 @@ exp_config:
 
 logging_config:
   project: internlm_test
-  offline: true
+  offline: false
 
 

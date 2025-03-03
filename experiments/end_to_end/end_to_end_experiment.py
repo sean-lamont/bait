@@ -303,8 +303,8 @@ class DistributedProver:
 
         else:
             for i in range(config.logical_gpus):
-                # tac_model = get_tac_model(config.tac_model, device)
-                tac_model = config.tac_model
+                tac_model = get_tac_model(config.tac_model, device)
+                # tac_model = config.tac_model
                 search_model = get_search_model(config.search_model, device)
 
                 prover_pool.extend(

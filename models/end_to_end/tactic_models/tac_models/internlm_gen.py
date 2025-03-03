@@ -1,17 +1,26 @@
+from abc import abstractmethod
+
 import ray
 import torch
 
 from vllm import LLM, SamplingParams
 
-from models.end_to_end.tactic_models.tac_models import TacModel
+
+class TacModel:
+    @abstractmethod
+    def get_tactics(self, goals, premises):
+        return
+
 
 torch.set_float32_matmul_precision("medium")
+
 
 def get_prev_tactics(goal):
     if not goal.in_edges:
         return ''
     else:
         return get_prev_tactics(goal.in_edges[0].src) + goal.in_edges[0].tactic
+
 
 class InternLMWrapper(TacModel):
     def __init__(self, tac_model):
@@ -27,6 +36,7 @@ class InternLMWrapper(TacModel):
 
         return tactics
 
+
 # todo training
 
 class InternLMGenerator:
@@ -39,5 +49,6 @@ class InternLMGenerator:
 
         outputs = [(i.text.strip(), i.cumulative_logprob) for i in outputs[0].outputs]
 
-        return outputs, state
+        outputs = list(set(outputs))
 
+        return outputs, state

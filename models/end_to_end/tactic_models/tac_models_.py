@@ -23,7 +23,7 @@ from data.HOList.utils import io_util
 from experiments.end_to_end.common import Context
 from models.end_to_end.tactic_models.generator.model import RetrievalAugmentedGenerator
 from models.end_to_end.tactic_models.causal_generator.model import RetrievalAugmentedGenerator as RAGLarge
-from models.end_to_end.tactic_models.causal_generator.internlm_gen import InternLMGenerator
+from models.end_to_end.tactic_models.tac_models.internlm_gen import InternLMGenerator
 from models.end_to_end.tactic_models.holist_model import holparam_predictor
 from models.end_to_end.tactic_models.holist_model import embedding_store
 from models.end_to_end.tactic_models.holist_model import action_generator

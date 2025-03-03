@@ -1,5 +1,6 @@
 from __future__ import division, absolute_import, print_function
 
+import copy
 import math
 
 import ray
@@ -25,6 +26,8 @@ class CriticGuidedSearch(Search):
         # map goal to score from model
         self.scores = {}
 
+        self.explored = set()
+
     def reset(self, root):
         self.__init__(self.goal_model)
         self.root = root
@@ -39,15 +42,19 @@ class CriticGuidedSearch(Search):
 
 
     def get_goals(self):
-        max_goal = max(self.scores, key=self.scores.get)
+        valid_goals = [(goal, score) for goal,score in self.scores.items() if goal not in self.explored]
+
+        if not valid_goals:
+            return None
+
+        max_goal = max(valid_goals, key=lambda x: x[1])[0]
         chosen_node = self.nodes[max_goal]
 
-        if chosen_node.is_explored:
-            return None
-        else:
-            # Only allow one exploration of each node
-            self.scores[max_goal] = -math.inf
-            return [(chosen_node, self.scores[max_goal])]
+        assert not chosen_node.is_explored
+
+        self.explored.add(chosen_node)
+
+        return [(chosen_node, self.scores[max_goal])]
 
     def process_responses(self, responses):
         for response in responses:
