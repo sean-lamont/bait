@@ -42,7 +42,7 @@ class CriticGuidedSearch(Search):
 
 
     def get_goals(self):
-        valid_goals = [(goal, score) for goal,score in self.scores.items() if goal not in self.explored]
+        valid_goals = [(goal, score) for goal,score in self.scores.items() if goal not in self.explored and self.nodes[goal].is_explored == False]
 
         if not valid_goals:
             return None

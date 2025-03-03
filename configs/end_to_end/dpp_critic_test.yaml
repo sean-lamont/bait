@@ -6,12 +6,12 @@ defaults:
   - search_model/dpp_critic
 
 exp_config:
-  name: dpp_critic_conditional
+  name: dpp_critic
   experiment: internlm
 
 
 logging_config:
   project: internlm_test
-  offline: false
+  offline: true
 
 

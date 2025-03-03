@@ -1,0 +1,22 @@
+program: experiments.end_to_end.end_to_end_experiment
+name: dpp_critic
+description: DPP critic
+project: internlm_test
+
+method: grid
+metric:
+  goal: maximize
+  name: Pass@1
+parameters:
+  search_model.num_filtered:
+    values: [ 2, 3, 4 ]
+  exp_config.name:
+    values: [ 'dpp-k${search_model.num_filtered}' ]
+
+command:
+  - ${env}
+  - ${interpreter}
+  - '-m'
+  - ${program}
+  - '--config-name=end_to_end/dpp_critic_test'
+  - ${args_no_hyphens}

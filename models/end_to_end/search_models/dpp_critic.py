@@ -69,6 +69,8 @@ class DPPCritic(Search):
         # maximum number of states to consider in DPP (if None, select all) 
         self.max_candidates = max_candidates
 
+        self.explored = set()
+
     def reset(self, root):
         self.__init__(self.critic_model, self.state_encoder, self.num_filtered, self.max_candidates)
         self.root = root
@@ -88,7 +90,9 @@ class DPPCritic(Search):
         # create DPP matrix from currently unexplored states, scaling each by score
 
         # only take the top max_candidates valid states
-        valid_states = [(goal, score) for goal, (score, embedding) in self.state_data.items() if score > -math.inf]
+        # valid_states = [(goal, score) for goal, (score, embedding) in self.state_data.items() if score > -math.inf]
+
+        valid_states = [(goal, score) for goal, (score, embedding) in self.state_data.items() if goal not in self.explored and self.nodes[goal].is_explored == False]
 
         if not valid_states:
             return None
@@ -138,7 +142,8 @@ class DPPCritic(Search):
         for goal in chosen_goals:
             ret.append((self.nodes[goal], self.state_data[goal][0]))
             # Only allow one exploration of each node
-            self.state_data[goal] = (-math.inf, None)
+            # self.state_data[goal] = (-math.inf, None)
+            self.explored.add(goal)
 
         return ret
 
