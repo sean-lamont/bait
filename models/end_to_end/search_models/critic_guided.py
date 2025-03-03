@@ -52,7 +52,7 @@ class CriticGuidedSearch(Search):
 
         assert not chosen_node.is_explored
 
-        self.explored.add(chosen_node)
+        self.explored.add(max_goal)
 
         return [(chosen_node, self.scores[max_goal])]
 
