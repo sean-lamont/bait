@@ -192,9 +192,9 @@ class ErrorPredModel(pl.LightningModule):
 
         # batch_size x 2 (error, time)
         score_output = self.score_network(tac_enc)  # .squeeze(1)
-        error_preds = torch.sigmoid(score_output[:, 0])
         time_preds = score_output[:, 1]
 
+        error_preds = torch.sigmoid(score_output[:, 0])
         error_preds = error_preds.unsqueeze(1)
         error_preds = torch.cat([1 - error_preds, error_preds], dim=1)
 

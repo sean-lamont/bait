@@ -41,6 +41,7 @@ class InternLMTransitionDataModule(pl.LightningDataModule):
             eval_batch_size: int,
             max_seq_len: int,
             num_workers: int,
+            max_output_len: int,
             trace_files=None,
             database='internlm_transition',
             collection='critic_batched_tactics',
@@ -55,6 +56,7 @@ class InternLMTransitionDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.eval_batch_size = eval_batch_size
         self.max_seq_len = max_seq_len
+        self.max_output_len = max_output_len
         self.num_workers = num_workers
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
@@ -102,7 +104,16 @@ class InternLMTransitionDataModule(pl.LightningDataModule):
             nodes = trace.nodes
             nodes[trace.tree.goal] = trace.tree
 
-            print (list(nodes.values())[0].out_edges[0])
+            # print (list(nodes.values())[0].out_edges[0])
+
+            node_scores = {}
+
+            error_score = -20
+            success_score = 20
+
+            for node in nodes.values():
+                if node.out_edges and node.goal not in node_scores:
+                    node_scores[node.goal] = node.out_edges[0].goal_logprob
 
             for node in nodes.values():
                 if node.out_edges:
@@ -118,16 +129,23 @@ class InternLMTransitionDataModule(pl.LightningDataModule):
                             if len(edge.dst) == 1 and isinstance(edge.dst[0], ErrorNode):
                                 result = edge.dst[0].inner.message.split(' tactic_state')[0]
                                 status = 'failed\n'
+                                goal_score = error_score
                             else:
                                 result = ''.join([d.goal if hasattr(d, 'goal') else 'no goals' for d in edge.dst])
                                 status = 'success\n'
+                                if result == 'no goals':
+                                    goal_score = success_score
+                                elif result in node_scores:
+                                    goal_score = node_scores[result]
+                                else:
+                                    continue
                             # if edge.goal_logprob > -math.inf:
-                                # print (edge, edge.goal_logprob)
-                            transitions.append({'tactic': tac, 'result': result, 'status': status, 'goal_score': edge.goal_logprob})
+                            # print (edge, edge.goal_logprob)
+                            transitions.append(
+                                {'tactic': tac, 'result': result, 'status': status, 'goal_score': goal_score})
 
                     # all_tactics = "\n".join([t['tactic'] for t in transitions])
                     all_tactics = [t['tactic'] for t in transitions]
-
 
                     for i, t in enumerate(transitions):
                         data[f'tactic'] = t['tactic']
@@ -200,26 +218,21 @@ class InternLMTransitionDataModule(pl.LightningDataModule):
                           )
 
     def collate_fn(self, examples) -> Batch:
-        # goal = [ex["theorem"] + '\n\n' + ex["goal"][int(len(ex["goal"]) * 0.35):] for ex in examples]
-        # goal = [ex["tactic"] + ex["theorem"] + '\n\n' + ex["goal"][int(len(ex["goal"]) * 0.6):] for ex in examples]
-        # goal = [ex["tactic"] + ex["theorem"] + '\n\n' + ex["goal"] for ex in examples]
-
-
+        print ([e['tactic'] for e in examples])
         # tokenise goal and tactics up to target tactic, then target tactic, take indices based on this
-
-        tokenised_up_to_target = [ex['state'] + '\n'.join([t for t in ex['all_tactics'][:ex['tac_index']]]) for ex in examples]
+        tokenised_up_to_target = ['THEOREM:\n' + ex['theorem'] + '\n' + ex['goal'] + '\n'.join(
+            [t for t in ex['all_tacs'][:ex['tac_index']]]) + '\n' for ex in examples]
 
         # todo get location of tactic tokens in tokenised goal
 
         tokenised_up_to_target = self.tokenizer(tokenised_up_to_target,
-                                                padding=None,
-                                                max_length =self.max_seq_len,
+                                                padding='longest',
+                                                max_length=self.max_seq_len,
                                                 truncation=True, return_tensors='pt')
-
 
         lens_before = tokenised_up_to_target.attention_mask.sum(dim=1)
 
-        target_tactics = ['\n' + ex['tactic'] for ex in examples]
+        target_tactics = [ex['tactic'] for ex in examples]
 
         tokenized_tactics = self.tokenizer(
             target_tactics,
@@ -233,8 +246,17 @@ class InternLMTransitionDataModule(pl.LightningDataModule):
 
         target_inds = (lens_before, tac_lens)
 
+        goal_and_tacs = ['THEOREM:\n' + ex['theorem'] + '\n' + ex['goal'] + '\n'.join(ex['all_tacs']) for ex in examples]
 
-        goal = [ex['state'] + '\n'.join(ex['all_tactics']) for ex in examples]
+        goal_and_tacs = self.tokenizer(
+            goal_and_tacs,
+            padding="longest",
+            max_length=self.max_seq_len,
+            truncation=True,
+            return_tensors="pt",
+        )
+
+        goal = ['THEOREM:\n' + ex['theorem'] + '\n' + ex['goal'] for ex in examples]
 
         tokenized_goal = self.tokenizer(
             goal,
@@ -249,28 +271,30 @@ class InternLMTransitionDataModule(pl.LightningDataModule):
         tokenized_result = self.tokenizer(
             result,
             padding="longest",
-            max_length=self.max_seq_len - tokenized_goal.input_ids.shape[1],
+            max_length=max(0, self.max_output_len - goal_and_tacs.input_ids.shape[1]),
             truncation=True,
             return_tensors="pt",
         )
 
         # print (tokenized_goal.input_ids.shape, tokenized_result.input_ids.shape)
 
+        result_ids = tokenized_result.input_ids
 
-        # result_ids = tokenized_result.input_ids
+        result_ids[result_ids == self.tokenizer.pad_token_id] = -100  # todo equivalent token id for internlm?
 
-        # result_ids[result_ids == self.tokenizer.pad_token_id] = -100  # todo equivalent token id for internlm?
 
         batch = {}
-        batch["goal"] = goal
+        batch["goal_and_tac_ids"] = goal_and_tacs.input_ids
+        batch["goal_and_tac_mask"] = goal_and_tacs.attention_mask
         batch["goal_ids"] = tokenized_goal.input_ids
         batch["goal_mask"] = tokenized_goal.attention_mask
         batch["result"] = result
-        batch["result_ids"] = tokenized_result.input_ids
-        batch["result_mask"] = tokenized_goal.attention_mask
+        batch["result_ids"] = result_ids  # tokenized_result.input_ids
+        batch["result_mask"] = tokenized_result.attention_mask
         batch["tactic"] = target_tactics
         batch["target_inds"] = target_inds
         batch["status"] = [ex['status'] for ex in examples]
+        batch['score_targets'] = torch.tensor([ex['goal_score'] for ex in examples], dtype=torch.float32)
 
         # # Copy other fields.
         # for k in examples[0].keys():

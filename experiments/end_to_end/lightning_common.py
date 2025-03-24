@@ -27,7 +27,9 @@ def get_optimizers(
             optimizer = FusedAdam(parameters, lr=lr, adam_w_mode=True)
     else:
         logger.info("Optimizing with AdamW")
-        optimizer = torch.optim.AdamW(parameters, lr=lr)
+        # optimizer = torch.optim.AdamW(parameters, lr=lr)
+        optimizer = torch.optim.AdamW(parameters, lr=lr, eps=1e-4)
+        # optimizer = torch.optim.SGD(parameters, lr=lr)
 
     if trainer.max_steps != -1:
         max_steps = trainer.max_steps

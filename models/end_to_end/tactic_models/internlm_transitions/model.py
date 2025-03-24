@@ -1,16 +1,21 @@
 """Lightning module for the tactic generator."""
-
+import copy
+import traceback
 from typing import Dict, Any
 
 import lightning.pytorch as pl
 import torch
 import torch.nn.functional as F
+from peft import LoraConfig, get_peft_model
+from torch.nn import CrossEntropyLoss
+from torchmetrics.classification import BinaryConfusionMatrix
 from torchmetrics.text import SacreBLEUScore, ROUGEScore
-from transformers import T5EncoderModel, T5ForConditionalGeneration
+from transformers import T5EncoderModel, T5ForConditionalGeneration, AutoModel, BitsAndBytesConfig, AutoTokenizer
 from transformers.utils import ModelOutput
 
 from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint
 from models.end_to_end.tactic_models.generator.model import TopkAccuracy
+from loguru import logger
 
 torch.set_float32_matmul_precision("medium")
 
@@ -25,6 +30,8 @@ class InternLMTransitionModel(pl.LightningModule):
         self.save_hyperparameters()
         self.bleu = SacreBLEUScore()
 
+        self.emb_dim = config.emb_dim
+
         self.rogue = ROUGEScore(
             normalizer=lambda x: x,
             rouge_keys=("rouge1", "rouge2",
@@ -36,36 +43,137 @@ class InternLMTransitionModel(pl.LightningModule):
 
         if hasattr(config, 'load_ckpt') and config.load_ckpt:
             logger.info(f'Loading pretrained checkpoint..')
-            ckpt = torch.load(config.ckpt_path)
-
-            state_dict = {k[12:]: v for k, v in ckpt.items() if k.startswith('tac_encoder')}
-            self.tac_encoder = T5EncoderModel.from_pretrained(config.tac_encoder, state_dict=state_dict)
-
-            self.score_network = torch.nn.Sequential(
-                torch.nn.Linear(self.tac_encoder.config.d_model, self.tac_encoder.config.d_model // 2),
-                torch.nn.LayerNorm(self.tac_encoder.config.d_model // 2),
-                torch.nn.ReLU(),
-                torch.nn.Linear(self.tac_encoder.config.d_model // 2, 2),
-            )
-
-            state_dict = {k[14:]: v for k, v in ckpt.items() if k.startswith('score_network')}
-            self.score_network.load_state_dict(state_dict)
-
-            state_dict = {k[13:]: v for k, v in ckpt.items() if k.startswith('goal_encoder')}
-            self.goal_encoder = T5EncoderModel.from_pretrained(config.goal_encoder, state_dict=state_dict)
-
-            state_dict = {k[8:]: v for k, v in ckpt.items() if k.startswith('decoder')}
-            self.decoder = T5ForConditionalGeneration.from_pretrained(config.decoder, state_dict=state_dict)
+            # ckpt = torch.load(config.ckpt_path)
+            #
+            # state_dict = {k[12:]: v for k, v in ckpt.items() if k.startswith('tac_encoder')}
+            # self.tac_encoder = T5EncoderModel.from_pretrained(config.tac_encoder, state_dict=state_dict)
+            #
+            # self.score_network = torch.nn.Sequential(
+            #     torch.nn.Linear(self.tac_encoder.config.d_model, self.tac_encoder.config.d_model // 2),
+            #     torch.nn.LayerNorm(self.tac_encoder.config.d_model // 2),
+            #     torch.nn.ReLU(),
+            #     torch.nn.Linear(self.tac_encoder.config.d_model // 2, 2),
+            # )
+            #
+            # state_dict = {k[14:]: v for k, v in ckpt.items() if k.startswith('score_network')}
+            # self.score_network.load_state_dict(state_dict)
+            #
+            # state_dict = {k[13:]: v for k, v in ckpt.items() if k.startswith('goal_encoder')}
+            # self.goal_encoder = T5EncoderModel.from_pretrained(config.goal_encoder, state_dict=state_dict)
+            #
+            # state_dict = {k[8:]: v for k, v in ckpt.items() if k.startswith('decoder')}
+            # self.decoder = T5ForConditionalGeneration.from_pretrained(config.decoder, state_dict=state_dict)
         else:
-            self.tac_encoder = T5EncoderModel.from_pretrained(config.tac_encoder)
-            self.goal_encoder = T5EncoderModel.from_pretrained(config.goal_encoder)
-            self.decoder = T5ForConditionalGeneration.from_pretrained(config.decoder)
-            self.score_network = torch.nn.Sequential(
-                torch.nn.Linear(self.tac_encoder.config.d_model, self.tac_encoder.config.d_model // 2),
-                torch.nn.LayerNorm(self.tac_encoder.config.d_model // 2),
-                torch.nn.ReLU(),
-                torch.nn.Linear(self.tac_encoder.config.d_model // 2, 2),
+
+            # quant_config = BitsAndBytesConfig(
+            #     load_in_4bit=True,
+            #     bnb_4bit_quant_type="nf4",
+            #     bnb_4bit_use_double_quant=True,
+            #     bnb_4bit_compute_dtype=torch.bfloat16,
+            #     bnb_4bit_quant_storage = torch.bfloat16,
+            # )
+
+            # quant_config = BitsAndBytesConfig(
+            #     load_in_8bit=True,
+            #     llm_int8_threshold=6.0
+            # )
+
+            self.enc_model = AutoModel.from_pretrained(
+                "internlm/internlm2_5-step-prover-critic",
+                device_map="cuda",
+                torch_dtype=torch.float16,
+                trust_remote_code=True,
+                # quantization_config=quant_config,
             )
+
+            # dec_config = copy.deepcopy(self.enc_model.config)
+            #
+            # dec_config.architectures = ['InternLM2ForCausalLM']
+            #
+            # dec_config.auto_map = {"AutoConfig": "configuration_internlm2.InternLM2Config",
+            #                        "AutoModel": "modeling_internlm2.InternLM2ForCausalLM"}
+
+            # self.enc_model = AutoModel.from_pretrained(
+            #     "internlm/internlm2_5-step-prover-critic",
+            #     device_map="cuda",
+            #     torch_dtype=torch.float16,
+            #     trust_remote_code=True,
+            #     quantization_config=quant_config,
+            # )
+
+            lora_config = LoraConfig(
+                target_modules=[
+                    "wqkv",
+                    "wo",
+                    "gate_up_proj",
+                    "w2", ],
+                # target_modules="all-linear",
+                task_type='CAUSAL_LM',
+                r=16,
+                lora_alpha=1,
+                lora_dropout=0.1,
+            )
+
+            # self.dec_model = AutoModel.from_pretrained("internlm/internlm2_5-step-prover-critic",
+            #                                            trust_remote_code=True,
+            #                                            torch_dtype=torch.float16, device_map="cuda",
+            #                                            config=dec_config, )
+            # # quantization_config=quant_config, )
+
+            self.enc_model = get_peft_model(self.enc_model, lora_config)
+            self.enc_model.print_trainable_parameters()
+            # self.enc_model = self.enc_model.model
+
+            # lora_config = LoraConfig(
+            #     target_modules=[
+            #         "wqkv",
+            #         "wo",
+            #         "gate_up_proj",
+            #         "w2", ],
+            #
+            #     task_type='CAUSAL_LM',
+            #     r=16,
+            #     lora_alpha=1,
+            #     lora_dropout=0.1,
+            # )
+            #
+            # self.dec_model = get_peft_model(self.dec_model, lora_config)
+            #
+            # self.dec_model.output.weight.requires_grad = True
+            #
+            # self.dec_model.print_trainable_parameters()
+
+            # self.dec_model = self.dec_model.model
+
+            self.error_network = torch.nn.Sequential(
+                torch.nn.Linear(self.emb_dim, self.emb_dim // 2),
+                torch.nn.LayerNorm(self.emb_dim // 2),
+                torch.nn.ReLU(),
+                torch.nn.Linear(self.emb_dim // 2, 1),
+            )
+
+            self.score_network = torch.nn.Sequential(
+                torch.nn.Linear(self.emb_dim, self.emb_dim // 2),
+                torch.nn.LayerNorm(self.emb_dim // 2),
+                torch.nn.ReLU(),
+                torch.nn.Linear(self.emb_dim // 2, 1),
+            )
+
+        # "wqkv",
+        # "wo",
+        # "gate_up_proj",
+        # "w2",
+        #
+        #     config = LoraConfig(
+        #         target_modules=list(config.lora_config.target_modules),
+        #         task_type=config.lora_config.task_type,
+        #         r=config.lora_config.r,
+        #         lora_alpha=config.lora_config.lora_alpha,
+        #         lora_dropout=config.lora_config.lora_dropout,
+        #     )
+        #     self.generator = get_peft_model(generator, config)
+        #     logger.info(f"LoRA: ")
+        #     self.generator.print_trainable_parameters()
 
         self.max_seq_len = config.max_length
         self.num_samples = config.num_samples
@@ -78,16 +186,16 @@ class InternLMTransitionModel(pl.LightningModule):
             self.topk_accuracies[k] = acc
             self.add_module(f"top{k}_acc_val", acc)
 
-        # add error and time predictors to the model, as an MLP with a single hidden layer
-        # takes a single tactic vector and
-
+        self.score_weight = config.score_weight
+        self.error_weight = config.error_weight
+        self.num_skipped = 0
+        self.error_skipped = 0
+        self.num_errors = 0
+        self.num_success = 0
+        self.num_oom = 0
         self.label_weights = config.label_weights
 
-        self.error_weight = config.error_weight
-        self.time_weight = config.time_weight
-
         self.ce_loss = CrossEntropyLoss(weight=torch.tensor(self.label_weights))
-        # self.bcm = BinaryConfusionMatrix()  # normalize='true')
         self.bcm = BinaryConfusionMatrix(normalize='none')
 
     @classmethod
@@ -99,85 +207,136 @@ class InternLMTransitionModel(pl.LightningModule):
             self.parameters(), self.trainer, self.lr, self.warmup_steps
         )
 
-    def get_tac_encoding(self, goal_ids, goal_mask, tactic_lens):
-        # encode all tokens with tactic included
-        combined_enc = self.tac_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
-
-        # get the tactic embeddings and mean pool them using the provided lengths
-        tac_enc = []
-
-        for i in range(combined_enc.shape[0]):
-            enc = combined_enc[i, :tactic_lens[i]]
-            enc = enc.sum(dim=0) / tactic_lens[i]
-            enc = F.normalize(enc, dim=0)
-            tac_enc.append(enc)
-
-        tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
-        return tac_enc
-
     # bottleneck information to single tactic vec
-    def get_full_encoding(self,
-                          goal_ids: torch.Tensor,
-                          goal_mask: torch.Tensor,
-                          tactic_lens: torch.Tensor,
-                          ):
-        # encode all tokens with tactic included
-        combined_enc = self.tac_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
+    def get_tac_encoding(self,
+                         goal_and_tac_ids: torch.Tensor,
+                         goal_and_tac_mask: torch.Tensor,
+                         target_inds,
+                         ):
+
+        # encode goals with all tactics included
+        output = self.enc_model.model.model.forward(goal_and_tac_ids,
+                                                    attention_mask=goal_and_tac_mask).last_hidden_state
+
+        # get tokens only for selected tactics
+        tac_tokens = [output[i][target_inds[0][i]:target_inds[0][i] + target_inds[1][i] - 1] for i in
+                      range(goal_and_tac_ids.shape[0])]
+
+        print ([output[i].shape for i in range(goal_and_tac_ids.shape[0])])
+
+        print ([tac_tokens[i].shape for i in range(goal_and_tac_ids.shape[0])])
+
+
+        tokenizer = AutoTokenizer.from_pretrained("internlm/internlm2_5-step-prover-critic", trust_remote_code=True)
+
+        print (tokenizer.decode(goal_and_tac_ids[0][target_inds[0][0]:target_inds[0][0] + target_inds[1][0] - 1]))
 
         # get the tactic embeddings and mean pool them using the provided lengths
         tac_enc = []
-        new_ids = goal_ids.clone()
 
-        for i in range(combined_enc.shape[0]):
-            enc = combined_enc[i, :tactic_lens[i]]
-            enc = enc.sum(dim=0) / tactic_lens[i]
+        for enc in tac_tokens:
+            # mean pool each tactic
+            enc = enc.sum(dim=0) / enc.shape[0]
             enc = F.normalize(enc, dim=0)
             tac_enc.append(enc)
-            # zero out ids for tactics in combined (tac, goal) from goal_ids, so there is no information for the
-            # goal encoder
-            new_ids[i, :tactic_lens[i]] = 0
 
         tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
 
-        goal_embeds = self.goal_encoder.encoder.embed_tokens(new_ids)
+        return tac_enc.squeeze(1)
 
-        # set first embedding to be the tactic encoding
-        goal_embeds_with_tac = torch.cat([tac_enc, goal_embeds], dim=1)
-
-        new_mask = torch.cat([torch.ones(goal_mask.shape[0], 1).to(self.device), goal_mask], dim=1)
-
-        full_enc = self.goal_encoder(inputs_embeds=goal_embeds_with_tac, attention_mask=new_mask,
-                                     return_dict=True).last_hidden_state
-
-        return full_enc, tac_enc.squeeze(1)
-
+    # todo could rewrite forward method from InternLMModel to use custom attention mask
+    # where tactics cannot attend to each other?
     def forward(
             self,
+            goal_and_tac_ids: torch.Tensor,
+            goal_and_tac_mask: torch.Tensor,
             goal_ids: torch.Tensor,
             goal_mask: torch.Tensor,
-            tactic_lens: torch.Tensor,
+            target_inds: torch.Tensor,
             result_ids: torch.Tensor,
+            result_mask: torch.Tensor,
+            score_targets: torch.Tensor,
             error_targets: torch.Tensor,
-            time_targets: torch.Tensor):
-        full_enc, tac_enc = self.get_full_encoding(goal_ids, goal_mask, tactic_lens)
+    ):
 
-        dec_loss = self.decoder(
-            encoder_outputs=(full_enc,),
-            labels=result_ids,
-        ).loss
+        if goal_and_tac_ids.shape[-1] >= self.max_seq_len:
+            # if goal_and_tac_ids.shape[-1] + result_ids.shape[-1] + 1 >= self.max_seq_len:
+            # print('Sequence too long, skipping..')
+            self.num_skipped += 1
+            return None
 
-        # batch_size x 2 (error, time)
-        score_output = self.score_network(tac_enc)  # .squeeze(1)
-        error_preds = torch.sigmoid(score_output[:, 0])
-        time_preds = score_output[:, 1]
+        try:
+            tac_enc = self.get_tac_encoding(goal_and_tac_ids, goal_and_tac_mask, target_inds)
 
-        error_preds = error_preds.unsqueeze(1)
-        error_preds = torch.cat([1 - error_preds, error_preds], dim=1)
+            # goal_id_lens = goal_mask.sum(dim=1)
+            #
+            # # get embeddings for goal + outcome
+            # combined_ids = torch.cat([goal_ids, result_ids], dim=1)
+            #
+            # # revert to pad token from -100 HF token
+            # combined_ids[combined_ids == -100] = self.dec_model.model.config.pad_token_id
+            #
+            # # (batch x seq_len x emb_dim)
+            # combined_embeds = self.dec_model.model.model.tok_embeddings(combined_ids)
+            #
+            # # set first embedding to be the tactic encoding
+            # combined_embeds = torch.cat([tac_enc, combined_embeds], dim=1)
+            #
+            # new_mask = torch.cat([torch.ones(goal_mask.shape[0], 1).to(self.device), goal_mask, result_mask], dim=1)
+            #
+            # # (batch x seq_len x vocab_size)
+            #
+            # logits = self.dec_model.model.forward(inputs_embeds=combined_embeds, attention_mask=new_mask).logits
+            #
+            # # only consider labels from goal_ids_lens (plus tactic) onwards (i.e. result_ids)
+            # # todo only works for batch_size == 1, not clear how to do this for multiple elements
+            #
+            # logits = logits[:, goal_id_lens[0] + 1:, :]
+            #
+            # # Shift so that tokens < n predict n
+            # shift_logits = logits[..., :-1, :].contiguous()
+            #
+            # shift_labels = result_ids[..., 1:].contiguous()
+            #
+            # # Flatten the tokens
+            # loss_fct = CrossEntropyLoss()
+            # shift_logits = shift_logits.view(-1, logits.shape[-1])
+            # shift_labels = shift_labels.view(-1)
+            # # Enable model parallelism
+            # shift_labels = shift_labels.to(shift_logits.device)
+            #
+            # dec_loss = loss_fct(shift_logits, shift_labels)
+            #
+            # batch_size x 1 (score_prediction)
+            score_output = self.score_network(tac_enc)  # .squeeze(1)
 
-        error_loss = self.ce_loss(error_preds, error_targets)
-        time_loss = F.mse_loss(time_preds, time_targets)
+            score_loss = F.mse_loss(score_output, score_targets)
 
-        return dec_loss, error_loss, time_loss
+            error_output = self.error_network(tac_enc)#.squeeze(-1).squeeze(-1)
+
+            error_preds = torch.sigmoid(error_output[:,0])
+            error_preds = error_preds.unsqueeze(1)
+            error_preds = torch.cat([1 - error_preds, error_preds], dim=1)
+
+            error_loss = self.ce_loss(error_preds, error_targets)
+
+            # return score_loss, dec_loss, error_loss
+            return score_loss, error_loss
+
+        except torch.OutOfMemoryError:
+            torch.cuda.empty_cache()
+            self.num_oom += 1
+            self.num_skipped += 1
+            return None
+
+    def backward(self, loss, *args, **kwargs):
+        try:
+            super().backward(loss, *args, **kwargs)
+        except RuntimeError:
+            torch.cuda.empty_cache()
+            self.num_oom += 1
+            self.num_skipped += 1
+            return None
 
     ############
     # Training #
@@ -185,35 +344,42 @@ class InternLMTransitionModel(pl.LightningModule):
 
     def training_step(self, batch, batch_idx: int):
         error_targets = torch.tensor(
-            [1 if batch['status'][i] == 'success' else 0 for i in range(len(batch['status']))],
+            [1 if batch['status'][i] == 'success\n' else 0 for i in range(len(batch['status']))],
             dtype=torch.long).to(self.device)
 
-        dec_loss, error_loss, time_loss = self(
+        losses = self(
+            batch['goal_and_tac_ids'],
+            batch['goal_and_tac_mask'],
             batch["goal_ids"],
             batch["goal_mask"],
-            batch["tactic_lens"],
+            batch["target_inds"],
             batch["result_ids"],
-            error_targets,
-            batch["time_targets"],
+            batch['result_mask'],
+            batch['score_targets'],
+            error_targets
         )
+        if batch['status'][0] != 'success\n':
+            self.num_errors += 1
+        else:
+            self.num_success += 1
 
-        self.log(
-            "dec_loss_train",
-            dec_loss,
-            on_step=True,
-            on_epoch=True,
-            sync_dist=True,
-            batch_size=len(batch),
-        )
-
-        self.log(
-            "time_loss_train",
-            time_loss,
-            on_step=True,
-            on_epoch=True,
-            sync_dist=True,
-            batch_size=len(batch),
-        )
+        if losses:
+            # score_loss, dec_loss, error_loss = losses
+            score_loss, error_loss = losses
+        else:
+            if batch['status'][0] != 'success\n':
+                self.error_skipped += 1
+            return None
+        #
+        # self.log(
+        #     "dec_loss_train",
+        #     dec_loss,
+        #     on_step=True,
+        #     on_epoch=True,
+        #     sync_dist=True,
+        #     batch_size=len(batch),
+        #     prog_bar=True
+        # )
 
         self.log(
             "error_loss_train",
@@ -222,167 +388,180 @@ class InternLMTransitionModel(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
+            prog_bar=True
         )
 
-        return dec_loss + self.error_weight * error_loss + self.time_weight * time_loss
+        self.log(
+            "oom",
+            self.num_oom / (self.num_success + self.num_errors),
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
+        )
+        self.log(
+            "skip",
+            self.num_skipped / (self.num_success + self.num_errors),
+            on_step=True,
+            on_epoch=True,
+            sync_dist=True,
+            batch_size=len(batch),
+            prog_bar=True
+        )
+        #
+        # self.log(
+        #     "s_skip",
+        #     (self.num_skipped - self.error_skipped) /  self.num_success,
+        #     on_step=True,
+        #     on_epoch=True,
+        #     sync_dist=True,
+        #     batch_size=len(batch),
+        #     prog_bar=True
+        # )
+        #
+        # self.log(
+        #     "e_skip",
+        #     self.error_skipped / self.num_errors,
+        #     on_step=True,
+        #     on_epoch=True,
+        #     sync_dist=True,
+        #     batch_size=len(batch),
+        #     prog_bar=True
+        # )
+
+        # self.log(
+        #     "num_errors",
+        #     self.num_errors / (self.num_success + self.num_errors),
+        #     on_step=True,
+        #     on_epoch=True,
+        #     sync_dist=True,
+        #     batch_size=len(batch),
+        #     prog_bar=True
+        # )
+
+        # ignore score prediction for error tactics
+        if batch['status'][0] != 'success\n':
+            # return dec_loss + self.error_weight * error_loss
+
+            return  self.error_weight * error_loss
+        else:
+            self.log(
+                "score_loss_train",
+                score_loss,
+                on_step=True,
+                on_epoch=True,
+                sync_dist=True,
+                batch_size=len(batch),
+                prog_bar=True
+            )
+            return self.score_weight * score_loss + self.error_weight * error_loss
 
     ##############
     # Validation #
     ##############
 
-    def on_validation_epoch_start(self) -> None:
-        if self.global_rank == 0:
-            # using columns and data
-            self.log_table = []
-
-    def on_validation_epoch_end(self) -> None:
-        if self.global_rank == 0:
-            self.logger.log_table(key=f'predictions_{self.global_step}',
-                                  columns=["goal", "tactic", "outcome", "time", "outcome_prediction",
-                                           "error_prediction",
-                                           "error_probs",
-                                           "time_prediction"],
-                                  data=self.log_table)
-
+    # def on_validation_epoch_start(self) -> None:
+    #     if self.global_rank == 0:
+    #         # using columns and data
+    #         self.log_table = []
+    #
+    # def on_validation_epoch_end(self) -> None:
+    #     if self.global_rank == 0:
+    #         self.logger.log_table(key=f'predictions_{self.global_step}',
+    #                               columns=["goal", "tactic",
+    #                                        "score",
+    #                                        "score_prediction",
+    #                                        "error_prediction",
+    #                                        "error_probs",
+    #                                        ],
+    #                               data=self.log_table)
+    #
     def validation_step(self, batch: Dict[str, Any], _) -> None:
-        goal_ids = batch["goal_ids"]
-        goal_mask = batch["goal_mask"]
-        tactic_lens = batch["tactic_lens"]
-        result_ids = batch["result_ids"]
-        time_targets = batch["time_targets"]
+        try:
 
-        # print (goal_ids.shape)
+            error_targets = torch.tensor(
+                [1 if batch['status'][i] == 'success\n' else 0 for i in range(len(batch['status']))],
+                dtype=torch.long).to(self.device)
 
-        full_enc, tac_enc = self.get_full_encoding(goal_ids, goal_mask, tactic_lens)
+            tac_enc = self.get_tac_encoding(batch['goal_and_tac_ids'], batch['goal_and_tac_mask'], batch['target_inds'])
 
-        dec_loss = self.decoder(
-            encoder_outputs=(full_enc,),
-            labels=result_ids,
-        ).loss
+            score_output = self.score_network(tac_enc)  # .squeeze(1)
 
-        self.log(f"dec_loss_val", dec_loss, on_step=False, on_epoch=True, sync_dist=True)
+            score_loss = F.mse_loss(score_output, batch['score_targets'])
 
-        enc_outs = ModelOutput(last_hidden_state=full_enc)
+            error_output = self.error_network(tac_enc)#.squeeze(-1)# .squeeze(-1)
 
-        output = self.decoder.generate(encoder_outputs=enc_outs,
-                                       max_length=self.max_seq_len,
-                                       num_beams=self.num_samples,
-                                       do_sample=False,
-                                       num_return_sequences=self.num_samples,
-                                       early_stopping=True,
-                                       output_scores=True,
-                                       return_dict_in_generate=True,
-                                       )
+            error_preds = torch.sigmoid(error_output[:, 0])
 
-        # Return the output.
-        output_text = self.trainer.datamodule.tokenizer.batch_decode(
-            output.sequences, skip_special_tokens=True
-        )
+            # get preds as those > 0.5
+            error_preds = error_preds > 0.5
+            # make 1 for true, 0 for false
+            error_preds = error_preds.int()
 
-        batch_size = goal_ids.size(0)
+            confusion = self.bcm(error_preds, error_targets)
 
-        predictions = [
-            output_text[i * self.num_samples: (i + 1) * self.num_samples]
-            for i in range(batch_size)
-        ]
+            self.log(
+                "false_negs",
+                confusion[1][0],
+                on_epoch=True,
+                sync_dist=True,
+                batch_size=len(batch),
+                prog_bar=False,
+                reduce_fx='sum'
+            )
 
-        error_targets = torch.LongTensor(
-            [1 if batch['status'][i] == 'success' else 0 for i in range(len(batch['status']))]).to(self.device)
+            self.log(
+                "true_negs",
+                confusion[0][0],
+                on_epoch=True,
+                sync_dist=True,
+                batch_size=len(batch),
+                prog_bar=False,
+                reduce_fx='sum'
 
-        score_output = self.score_network(tac_enc)  # .squeeze(1)
-        error_probs = torch.sigmoid(score_output[:, 0])
+            )
 
-        time_preds = score_output[:, 1]
-        time_loss = F.mse_loss(time_preds, time_targets)
+            self.log(
+                "false_pos",
+                confusion[0][1],
+                on_epoch=True,
+                sync_dist=True,
+                batch_size=len(batch),
+                prog_bar=False,
+                reduce_fx='sum'
+            )
 
-        self.log(f'time_loss_val', time_loss, on_step=False, on_epoch=True, prog_bar=False)
+            self.log(
+                "true_pos",
+                confusion[1][1],
+                on_epoch=True,
+                sync_dist=True,
+                batch_size=len(batch),
+                prog_bar=False,
+                reduce_fx='sum'
+            )
 
-        # get preds as those > 0.5
-        error_preds = error_probs > 0.5
-        # make 1 for true, 0 for false
-        error_preds = error_preds.int()
+            self.log(
+                "score_loss_val",
+                score_loss,
+                on_epoch=True,
+                sync_dist=True,
+                batch_size=len(batch),
+                prog_bar=False,
+            )
 
-        confusion = self.bcm(error_preds, error_targets)
+            # if self.global_rank == 0:
+            #     data = [[batch['goal'][i], batch['tactic'][i], batch['score_targets'][i], batch['time_targets'][i],
+            #              nl.join(predictions[i]), 'success' if error_preds[i] == 1 else 'failure', error_probs[i],
+            #              time_preds[i]]
+            #             for i in range(batch_size)]
+            #     self.log_table.extend(data)
+            return
+        except torch.OutOfMemoryError:
+            torch.cuda.empty_cache()
+            self.num_oom += 1
+            self.num_skipped += 1
+            return None
 
-        self.log(
-            "false_negs",
-            confusion[1][0],
-            on_epoch=True,
-            sync_dist=True,
-            batch_size=len(batch),
-            prog_bar=False,
-            reduce_fx='sum'
-        )
 
-        self.log(
-            "true_negs",
-            confusion[0][0],
-            on_epoch=True,
-            sync_dist=True,
-            batch_size=len(batch),
-            prog_bar=False,
-            reduce_fx='sum'
-
-        )
-
-        self.log(
-            "false_pos",
-            confusion[0][1],
-            on_epoch=True,
-            sync_dist=True,
-            batch_size=len(batch),
-            prog_bar=False,
-            reduce_fx='sum'
-        )
-
-        self.log(
-            "true_pos",
-            confusion[1][1],
-            on_epoch=True,
-            sync_dist=True,
-            batch_size=len(batch),
-            prog_bar=False,
-            reduce_fx='sum'
-        )
-
-        # check if the status is correct using error_preds
-        error_acc = sum(
-            [error_preds[i] == error_targets[i] for i in range(len(error_preds))]) / len(
-            error_preds)
-
-        # only consider the first prediction for decoder error accuracy
-        dec_error_acc = sum(
-            [predictions[i][0].split('\n')[0] == batch['status'][i] for i in range(batch_size)]) / batch_size
-
-        self.log(f"error_acc", error_acc, on_step=False, on_epoch=True, prog_bar=True)
-        self.log(f"dec_error_acc", dec_error_acc, on_step=False, on_epoch=True, prog_bar=True)
-
-        for k in range(1, self.num_samples + 1):
-            topk_acc = self.topk_accuracies[k]
-            topk_acc(predictions, batch["result"])
-            self.log(f"top{k}_acc_val", topk_acc, on_step=False, on_epoch=True, prog_bar=k == self.num_samples)
-
-        assert len(output_text) == batch_size * self.num_samples, (
-            len(output_text), batch_size, self.num_samples)
-
-        bleu_targets = [[batch['result'][i]] for i in range(batch_size) for _ in range(self.num_samples)]
-
-        nl = '\n\n'
-
-        # self.log_dict(self.rogue(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
-        # self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
-
-        self.log_dict(rouge_score(output_text, bleu_targets, normalizer=normalizer), on_step=False, on_epoch=True,
-                      prog_bar=False)
-        self.log('val_bleu', sacre_bleu_score(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
-
-        self.log('avg_seq_len', sum([len(o) for o in output_text]) / len(output_text), on_step=False, on_epoch=True,
-                 prog_bar=False)
-
-        # log table to wandb for rank 0 only
-        if self.global_rank == 0:
-            data = [[batch['goal'][i], batch['tactic'][i], batch['result'][i], batch['time_targets'][i],
-                     nl.join(predictions[i]), 'success' if error_preds[i] == 1 else 'failure', error_probs[i],
-                     time_preds[i]]
-                    for i in range(batch_size)]
-            self.log_table.extend(data)
