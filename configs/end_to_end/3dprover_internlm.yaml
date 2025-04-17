@@ -1,0 +1,17 @@
+# @package _global_
+defaults:
+  - end_to_end_defaults
+  - env_config/lean4_env
+  - tac_model/diversity_internlm
+  - search_model/bestfs
+
+exp_config:
+  name: 3dprover
+  experiment: internlm_test
+
+
+logging_config:
+  project: internlm_test
+  offline: true
+
+

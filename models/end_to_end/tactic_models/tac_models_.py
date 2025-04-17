@@ -255,6 +255,30 @@ def get_tac_model(config, device):
         else:
             raise NotImplementedError
 
+    if config.model == 'diversity_internlm':
+
+        if config.distributed:
+            tac_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(
+            InternLMTacModel).remote(
+            config=config, num_sampled_tactics=config.num_sampled_tactics)
+
+            filter_model = ray.remote(num_gpus=config.gpu_per_diversity, num_cpus=config.cpu_per_diversity)(
+                DiversityModel).remote(config.diversity_config, device=device)
+
+            tac_model = InternLMWrapper(tac_model)
+
+            return DiversityTacGenerator(tac_model=tac_model, filter_model=filter_model,
+                                         num_filtered=config.diversity_config.num_filtered,
+                                         temperature=config.diversity_config.temperature if hasattr(
+                                             config.diversity_config, 'temperature') else 1.,
+                                         scale=config.diversity_config.scale if hasattr(
+                                             config.diversity_config, 'scale') else 1,
+                                         p=config.diversity_config.p if hasattr(
+                                             config.diversity_config, 'p') else 0.9)
+
+        else:
+            raise NotImplementedError
+
     if config.model == 'diversity':
 
         if hasattr(config, 'ckpt_path') and config.ckpt_path:
