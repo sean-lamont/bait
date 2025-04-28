@@ -7,11 +7,15 @@ defaults:
 
 exp_config:
   name: internlm
-  experiment: internlm
+  experiment: internlm_novel
+
+  resume: true
+  directory: runs/internlm_novel/internlm/2025_04_24/16_43_18
 
 
 logging_config:
-  project: internlm_test
+  project: internlm_novel
   offline: false
+  id: ixn1b2sr
 
 

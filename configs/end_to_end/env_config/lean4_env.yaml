@@ -1,11 +1,12 @@
 env: leandojo
 #data_path: data/LeanDojo/data/leandojo_minif2f/default/
-data_path: data/LeanDojo/data/lean4_minif2f/default/
-split: test
+#data_path: data/LeanDojo/data/lean4_minif2f/default/
+data_path: data/LeanDojo/data/leandojo_benchmark_4/novel_premises/
+split: val
 file_path: null
 full_name: null
 name_filter: null
-num_theorems: 245
+num_theorems: 2000
 
 name: null
 indexed_corpus_path: null
