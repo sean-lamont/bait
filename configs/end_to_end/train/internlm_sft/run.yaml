@@ -1,0 +1,131 @@
+# @package _global_
+defaults:
+  - /base/logging_config@_here_
+  - /base/exp_config@_here_
+
+
+exp_config:
+  name: test
+  experiment: internlm_sft
+#  resume: true
+#  directory: runs/large_lm/deepseek-base-novel-prompt/2024_06_17/17_30_55
+
+logging_config:
+  project: internlm_sft
+  offline: true
+#  id: g6s3ug9y
+
+model:
+  _target_: models.end_to_end.tactic_models.internlm.model.SFTModel
+  config:
+    model_name: 'internlm/internlm2_5-step-prover'
+    #    lr: 1e-6
+    # learning rate used in HTPS is 3e-5
+    lr: 3e-5
+    warmup_steps: 150
+    beta: 0.99
+    max_seq_len: 1300 #2300G
+
+
+    # model type config
+    model_class: InternLM
+    quant: false
+
+    num_val_samples: 16
+
+    # retriever path
+    ret_ckpt_path: null
+#    ret_ckpt_path: runs/retriever_novel_premises.ckpt
+#    indexed_corpus_path: runs/indexed_corpus
+#    eval_num_retrieved: 100
+
+    # should always be beam search
+    gen_config:
+      strategy: sample
+      length_penalty: 0.0
+
+
+    # config for live evaluation
+    live_eval: false
+    eval_config:
+      eval_num_theorems: 200
+      shuffle: false
+      timeout: 600
+      # frequency of live evaluation in epochs
+      frequency: 1
+
+    lora_config:
+      # https://www.anyscale.com/blog/fine-tuning-llms-lora-or-full-parameter-an-in-depth-analysis-with-llama-2
+      target_modules: [ 'q', 'k', 'v', 'o', 'wo', 'lm_head' ]
+#      target_modules: [ 'q_proj', 'v_proj', 'k_proj', 'o_proj', 'gate_proj', 'up_proj', 'down_proj', 'embed_tokens', 'lm_head' ]
+      task_type: "CAUSAL_LM"
+      r: 8
+      lora_alpha: 16
+      lora_dropout: 0.05
+
+data_module:
+  # original LeanDojo training dataset
+  _target_: models.end_to_end.tactic_models.internlm.datamodule.SFTDataModule
+  model_name: internlm/internlm2_5-step-prover
+  batch_size: 1  # effective_batch_size == batch_size * accumulate_grad_batches * devices
+  eval_batch_size: 1
+  max_seq_len: 1300
+  num_workers: 0
+
+##  From live synthetic data
+#  _target_: models.end_to_end.tactic_models.generator.datamodule.GeneratorDataModule
+#  model_name: kaiyuy/leandojo-lean3-tacgen-byt5-small
+#  batch_size: 2  # effective_batch_size == batch_size * accumulate_grad_batches * devices
+#  eval_batch_size: 2
+#  max_seq_len: 2300
+#  num_workers: 0
+#
+#  trace_files: runs/seq2seq/seq2seq_eval_iteration_1/2024_03_01/21_46_35/traces # null
+#
+#  collection: seq2seq_0
+
+#  trace_files: null
+#  collection: null
+#  database: null
+trainer:
+  accelerator: gpu
+  devices: 1
+  precision: bf16-mixed
+  strategy:
+    _target_: lightning.pytorch.strategies.DeepSpeedStrategy
+    stage: 2
+#    offload_optimizer: false
+#      device: cpu
+#    offload_parameters: false
+#      device: cpu
+#    contiguous_gradients: true
+#    cpu_checkpointing: false
+#    overlap_comm: true
+#    allgather_bucket_size: 1e7
+#    reduce_bucket_size: 1e7
+#    logging_batch_size_per_gpu: 1
+  gradient_clip_val: 1.0
+  max_steps: 5000000
+  num_sanity_val_steps: 0
+  limit_val_batches: 100 # needs to be small, takes ages to run sampling to 16 candidates
+  callbacks:
+    - _target_: lightning.pytorch.callbacks.LearningRateMonitor
+      logging_interval: step
+    - _target_: lightning.pytorch.callbacks.ModelCheckpoint #models.end_to_end.tactic_models.causal_generator.model.HFModelCheckpoint
+      verbose: true
+      save_top_k: 1
+      save_last: false
+#      monitor: Pass@1_val
+#      monitor: top64_acc_val
+#      mode: max
+#      every_n_train_steps: 5
+      dirpath: ${exp_config.directory}/checkpoints
+      auto_insert_metric_name: true
+      filename: "last"
+#      filename: "{epoch}-{step}-{Pass@1_val:.2f}"
+#      filename: "{epoch}-{step}-{top64_acc:.2f}"
+#    - _target_: lightning.pytorch.callbacks.EarlyStopping
+#      monitor: loss_val
+#      patience: 5
+#      mode: min
+#      verbose: true

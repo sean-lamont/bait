@@ -6,16 +6,16 @@ defaults:
   - search_model/bestfs
 
 exp_config:
-  name: internlm
-  experiment: internlm_novel
+    name: internlm_128_bestfs
+    experiment: internlm_dpp
+    resume: true
+    directory: runs/internlm_dpp/internlm_128_bestfs/2025_04_28/15_43_48
 
-  resume: true
-  directory: runs/internlm_novel/internlm/2025_04_24/16_43_18
 
 
 logging_config:
-  project: internlm_novel
+  project: internlm_dpp
   offline: false
-  id: ixn1b2sr
+  id: si5bddto
 
 
