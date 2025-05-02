@@ -51,4 +51,6 @@ class InternLMGenerator:
 
         outputs = list(set(outputs))
 
+        outputs = sorted(outputs, key=lambda x: x[1], reverse=True)
+
         return outputs, state

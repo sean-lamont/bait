@@ -368,6 +368,24 @@ def get_tac_model(config, device):
         else:
             raise NotImplementedError
 
+    if config.model == 'topk_internlm':
+
+        if config.distributed:
+            tac_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(
+                InternLMTacModel).remote(
+                config=config, num_sampled_tactics=config.num_sampled_tactics)
+
+            tac_model =  InternLMWrapper(tac_model)
+
+            return TopKTacGenerator(tac_model=tac_model,
+                                    num_filtered=config.diversity_config.num_filtered,
+                                    random=config.diversity_config.random)
+
+
+        else:
+            raise NotImplementedError
+
+
     if config.model == 'reprover_large':
 
         if hasattr(config, 'ckpt_path') and config.ckpt_path:

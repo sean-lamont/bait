@@ -11,39 +11,19 @@ from torchmetrics.text import SacreBLEUScore, ROUGEScore
 from transformers import T5EncoderModel, T5ForConditionalGeneration
 from transformers.utils import ModelOutput
 
-from torchmetrics.functional.text.sacre_bleu import sacre_bleu_score
-from torchmetrics.functional.text.rouge import rouge_score
-
 from experiments.end_to_end.lightning_common import get_optimizers, load_checkpoint
 from models.end_to_end.tactic_models.generator.model import TopkAccuracy
 from loguru import logger
+
+from torchmetrics.functional.text.rouge import rouge_score
+from torchmetrics.functional.text.sacre_bleu import sacre_bleu_score
 
 torch.set_float32_matmul_precision("medium")
 
 normalizer = lambda x: x
 
-"""
 
-Model to predict the outcome of a tactic, given a goal state and tactic. 
-An encoder model first embeds the goal and tactic, and the tactic tokens are then pooled into a single vector.
-
-This is done to provide the tactic vector with the relevant goal context (which is highly important),
-and we want a single vector to enable upstream tasks.
-
-The tactic vector is then used for 3 tasks:
-    - Combined with the original goal embeddings, a decoder 
-        predicts the exact environment response to the (goal, tactic) pair,
-        which will be a new set of subgoals, an error message, or a proof success.
-    - Predicting the outcome of the tactic (success or failure)
-    - Predicting the time taken to execute the tactic
-
-A single hidden layer MLP is used for the error and time prediction tasks, which takes the tactic vector and 
-gives two outputs for the respective tasks.
-
-"""
-
-
-class ErrorPredModel(pl.LightningModule):
+class BatchTacEmbed(pl.LightningModule):
     def __init__(self, config) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -111,8 +91,7 @@ class ErrorPredModel(pl.LightningModule):
         self.time_weight = config.time_weight
 
         self.ce_loss = CrossEntropyLoss(weight=torch.tensor(self.label_weights))
-        # self.bcm = BinaryConfusionMatrix()  # normalize='true')
-        self.bcm = BinaryConfusionMatrix(normalize='none')
+        self.bcm = BinaryConfusionMatrix()  # normalize='true')
 
     @classmethod
     def load(cls, ckpt_path: str, device, freeze: bool):
@@ -139,87 +118,92 @@ class ErrorPredModel(pl.LightningModule):
         tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
         return tac_enc
 
-    # bottleneck information to single tactic vec
     def get_full_encoding(self,
                           goal_ids: torch.Tensor,
                           goal_mask: torch.Tensor,
-                          tactic_lens: torch.Tensor,
+                          tactic_ids: torch.Tensor,
+                          tactic_mask: torch.Tensor,
                           ):
-        # encode all tokens with tactic included
-        combined_enc = self.tac_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
 
-        # get the tactic embeddings and mean pool them using the provided lengths
-        tac_enc = []
-        new_ids = goal_ids.clone()
+        goal_enc = self.goal_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
 
-        for i in range(combined_enc.shape[0]):
-            enc = combined_enc[i, :tactic_lens[i]]
-            enc = enc.sum(dim=0) / tactic_lens[i]
-            enc = F.normalize(enc, dim=0)
-            tac_enc.append(enc)
-            # zero out ids for tactics in combined (tac, goal) from goal_ids, so there is no information for the
-            # goal encoder
-            new_ids[i, :tactic_lens[i]] = 0
+        lens = goal_mask.sum(dim=1)
 
-        tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
+        goal_enc_ = (goal_enc * goal_mask.unsqueeze(2)).sum(
+            dim=1
+        ) / lens.unsqueeze(1)
 
-        goal_embeds = self.goal_encoder.encoder.embed_tokens(new_ids)
+        goal_enc_ = F.normalize(goal_enc_, dim=1).unsqueeze(1)
 
-        # set first embedding to be the tactic encoding
-        goal_embeds_with_tac = torch.cat([tac_enc, goal_embeds], dim=1)
+        tac_embeds = self.tac_encoder.encoder.embed_tokens(tactic_ids)
 
-        new_mask = torch.cat([torch.ones(goal_mask.shape[0], 1).to(self.device), goal_mask], dim=1)
+        # set first embedding to be the pooled goal encoding
+        tac_embeds_with_goal = torch.cat([goal_enc_, tac_embeds], dim=1)
 
-        full_enc = self.goal_encoder(inputs_embeds=goal_embeds_with_tac, attention_mask=new_mask,
+        new_mask = torch.cat([torch.ones(tactic_mask.shape[0], 1).to(self.device), tactic_mask], dim=1)
+
+        tac_enc = self.tac_encoder(inputs_embeds=tac_embeds_with_goal, attention_mask=new_mask,
                                      return_dict=True).last_hidden_state
 
-        return full_enc, tac_enc.squeeze(1)
+
+
+        lens = new_mask.sum(dim=1)
+
+        tac_enc = (tac_enc * new_mask.unsqueeze(2)).sum(
+            dim=1
+        ) / lens.unsqueeze(1)
+
+        tac_enc = F.normalize(tac_enc, dim=1).unsqueeze(1)
+
+
+        # give full goal with tac/goal embed for better decoding
+        full_enc = torch.cat([tac_enc, goal_enc], dim=1)
+        # new_mask = torch.cat([torch.ones(goal_mask.shape[0], 1).to(self.device), goal_mask], dim=1)
+        #
+        # full_enc = self.goal_encoder(inputs_embeds=goal_embeds_with_tac, attention_mask=new_mask,
+        #                              return_dict=True).last_hidden_state
+
+
+        return full_enc.bfloat16(), tac_enc.squeeze(1).bfloat16()
 
     def forward(
             self,
             goal_ids: torch.Tensor,
             goal_mask: torch.Tensor,
-            tactic_lens: torch.Tensor,
+            tactic_ids: torch.Tensor,
+            tactic_mask: torch.Tensor,
             result_ids: torch.Tensor,
             error_targets: torch.Tensor,
             time_targets: torch.Tensor):
-        try:
-            full_enc, tac_enc = self.get_full_encoding(goal_ids, goal_mask, tactic_lens)
+        full_enc, tac_enc = self.get_full_encoding(goal_ids, goal_mask, tactic_ids, tactic_mask)
 
-            dec_loss = self.decoder(
-                encoder_outputs=(full_enc,),
-                labels=result_ids,
-            ).loss
+        dec_loss = self.decoder(
+            encoder_outputs=(full_enc,),
+            labels=result_ids,
+        ).loss
 
-            # batch_size x 2 (error, time)
-            score_output = self.score_network(tac_enc)  # .squeeze(1)
-            time_preds = score_output[:, 1]
+        # batch_size x 2 (error, time)
+        score_output = self.score_network(tac_enc)  # .squeeze(1)
+        error_preds = torch.sigmoid(score_output[:, 0])
+        time_preds = score_output[:, 1]
 
-            error_preds = torch.sigmoid(score_output[:, 0])
-            error_preds = error_preds.unsqueeze(1)
-            error_preds = torch.cat([1 - error_preds, error_preds], dim=1)
+        error_preds = error_preds.unsqueeze(1)
+        error_preds = torch.cat([1 - error_preds, error_preds], dim=1)
 
-            error_loss = self.ce_loss(error_preds, error_targets)
-            time_loss = F.mse_loss(time_preds, time_targets)
+        error_loss = self.ce_loss(error_preds, error_targets)
+        time_loss = F.mse_loss(time_preds, time_targets)
 
-            return dec_loss, error_loss, time_loss
-
-        except torch.OutOfMemoryError:
-            torch.cuda.empty_cache()
-            return None
-
-    def backward(self, loss, *args, **kwargs):
-        try:
-            super().backward(loss, *args, **kwargs)
-        except RuntimeError:
-            torch.cuda.empty_cache()
-            return None
+        return dec_loss, error_loss, time_loss
 
     ############
     # Training #
     ############
 
     def training_step(self, batch, batch_idx: int):
+        # error_targets = torch.tensor(
+        #     [1. if batch['status'][i] == 'success' else 0. for i in range(len(batch['status']))],
+        #     dtype=torch.bfloat16).to(self.device)
+
         error_targets = torch.tensor(
             [1 if batch['status'][i] == 'success' else 0 for i in range(len(batch['status']))],
             dtype=torch.long).to(self.device)
@@ -227,7 +211,8 @@ class ErrorPredModel(pl.LightningModule):
         dec_loss, error_loss, time_loss = self(
             batch["goal_ids"],
             batch["goal_mask"],
-            batch["tactic_lens"],
+            batch["tactic_ids"],
+            batch["tactic_mask"],
             batch["result_ids"],
             error_targets,
             batch["time_targets"],
@@ -240,6 +225,7 @@ class ErrorPredModel(pl.LightningModule):
             on_epoch=True,
             sync_dist=True,
             batch_size=len(batch),
+            prog_bar=True
         )
 
         self.log(
@@ -283,13 +269,12 @@ class ErrorPredModel(pl.LightningModule):
     def validation_step(self, batch: Dict[str, Any], _) -> None:
         goal_ids = batch["goal_ids"]
         goal_mask = batch["goal_mask"]
-        tactic_lens = batch["tactic_lens"]
+        tactic_ids = batch["tactic_ids"]
+        tactic_mask = batch["tactic_mask"]
         result_ids = batch["result_ids"]
         time_targets = batch["time_targets"]
 
-        # print (goal_ids.shape)
-
-        full_enc, tac_enc = self.get_full_encoding(goal_ids, goal_mask, tactic_lens)
+        full_enc, tac_enc = self.get_full_encoding(goal_ids, goal_mask, tactic_ids, tactic_mask)
 
         dec_loss = self.decoder(
             encoder_outputs=(full_enc,),
@@ -358,7 +343,6 @@ class ErrorPredModel(pl.LightningModule):
             batch_size=len(batch),
             prog_bar=False,
             reduce_fx='sum'
-
         )
 
         self.log(
@@ -406,11 +390,14 @@ class ErrorPredModel(pl.LightningModule):
         nl = '\n\n'
 
         # self.log_dict(self.rogue(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+        #
         # self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 
         self.log_dict(rouge_score(output_text, bleu_targets, normalizer=normalizer), on_step=False, on_epoch=True,
                       prog_bar=False)
-        self.log('val_bleu', sacre_bleu_score(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=True)
+
+        # self.log('val_bleu', self.bleu(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
+        self.log('val_bleu', sacre_bleu_score(output_text, bleu_targets), on_step=False, on_epoch=True, prog_bar=False)
 
         self.log('avg_seq_len', sum([len(o) for o in output_text]) / len(output_text), on_step=False, on_epoch=True,
                  prog_bar=False)
