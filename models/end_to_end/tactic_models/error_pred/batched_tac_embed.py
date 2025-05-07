@@ -102,21 +102,17 @@ class BatchTacEmbed(pl.LightningModule):
             self.parameters(), self.trainer, self.lr, self.warmup_steps
         )
 
-    def get_tac_encoding(self, goal_ids, goal_mask, tactic_lens):
-        # encode all tokens with tactic included
-        combined_enc = self.tac_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
+    def get_goal_encoding(self, goal_ids, goal_mask):
+        goal_enc = self.goal_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
 
-        # get the tactic embeddings and mean pool them using the provided lengths
-        tac_enc = []
+        lens = goal_mask.sum(dim=1)
 
-        for i in range(combined_enc.shape[0]):
-            enc = combined_enc[i, :tactic_lens[i]]
-            enc = enc.sum(dim=0) / tactic_lens[i]
-            enc = F.normalize(enc, dim=0)
-            tac_enc.append(enc)
+        goal_enc_ = (goal_enc * goal_mask.unsqueeze(2)).sum(
+            dim=1
+        ) / lens.unsqueeze(1)
 
-        tac_enc = torch.stack(tac_enc, dim=0).unsqueeze(1)
-        return tac_enc
+        goal_enc_ = F.normalize(goal_enc_, dim=1).unsqueeze(1)
+        return goal_enc_
 
     def get_full_encoding(self,
                           goal_ids: torch.Tensor,
@@ -143,9 +139,7 @@ class BatchTacEmbed(pl.LightningModule):
         new_mask = torch.cat([torch.ones(tactic_mask.shape[0], 1).to(self.device), tactic_mask], dim=1)
 
         tac_enc = self.tac_encoder(inputs_embeds=tac_embeds_with_goal, attention_mask=new_mask,
-                                     return_dict=True).last_hidden_state
-
-
+                                   return_dict=True).last_hidden_state
 
         lens = new_mask.sum(dim=1)
 
@@ -155,14 +149,12 @@ class BatchTacEmbed(pl.LightningModule):
 
         tac_enc = F.normalize(tac_enc, dim=1).unsqueeze(1)
 
-
         # give full goal with tac/goal embed for better decoding
         full_enc = torch.cat([tac_enc, goal_enc], dim=1)
         # new_mask = torch.cat([torch.ones(goal_mask.shape[0], 1).to(self.device), goal_mask], dim=1)
         #
         # full_enc = self.goal_encoder(inputs_embeds=goal_embeds_with_tac, attention_mask=new_mask,
         #                              return_dict=True).last_hidden_state
-
 
         return full_enc.bfloat16(), tac_enc.squeeze(1).bfloat16()
 

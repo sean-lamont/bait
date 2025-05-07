@@ -6,11 +6,11 @@ defaults:
   - search_model/bestfs
 
 exp_config:
-  name: bestfs_topk
+  name: bestfs_topk_16
   experiment: internlm_dpp
 
 logging_config:
   project: internlm_dpp
-  offline: true
+  offline: false
 
 

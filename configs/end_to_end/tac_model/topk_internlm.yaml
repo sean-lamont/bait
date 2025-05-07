@@ -8,7 +8,7 @@ cpu_per_process: 0.5
 
 diversity_config:
   random: false
-  num_filtered: 32
+  num_filtered: 16
 
 config:
   model_params:

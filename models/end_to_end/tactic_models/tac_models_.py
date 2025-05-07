@@ -65,6 +65,8 @@ class TopKTacGenerator(TacModel):
             return tactics[:self.num_filtered]
 
 
+
+
 class DiversityTacGenerator(TacModel):
     def __init__(self, tac_model: TacModel, filter_model, num_filtered, temperature=1., scale=1e5, p=0.9):
         super().__init__()

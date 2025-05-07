@@ -8,14 +8,14 @@ defaults:
 exp_config:
     name: internlm_128_bestfs
     experiment: internlm_dpp
-    resume: true
-    directory: runs/internlm_dpp/internlm_128_bestfs/2025_04_28/15_43_48
+#    resume: true
+#    directory: runs/internlm_dpp/internlm_128_bestfs/2025_04_28/15_43_48
 
 
 
 logging_config:
   project: internlm_dpp
   offline: false
-  id: si5bddto
+#  id: si5bddto
 
 
