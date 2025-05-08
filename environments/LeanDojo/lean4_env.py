@@ -116,7 +116,6 @@ class Lean4Env:
 
                 self.node_map[goal] = (response, result_node)
 
-
                 result = [result_node]
 
         if result_node == node:

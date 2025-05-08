@@ -77,6 +77,7 @@ def load_gen_model(config):
     return tokenizer, generator
 
 
+# todo does this need to be a pl module?
 class GenTacModel(pl.LightningModule):
     def __init__(self, config) -> None:
         super().__init__()

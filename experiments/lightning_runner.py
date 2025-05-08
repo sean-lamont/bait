@@ -72,6 +72,7 @@ def lightning_runner(config):
         ckpt_dir = config.exp_config.checkpoint_dir + "/last.ckpt"
         trainer.fit(model=model, datamodule=data_module, ckpt_path=ckpt_dir)
     else:
+        # trainer.validate(model, datamodule=data_module)
         trainer.fit(model=model, datamodule=data_module)
 
     wandb_logger.experiment.finish()

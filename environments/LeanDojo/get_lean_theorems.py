@@ -31,14 +31,13 @@ def _get_theorems(args) -> Tuple[LeanGitRepo, List[Theorem], List[Pos]]:
     return repo, theorems, positions
 
 
-
 def _get_theorems_from_files(
-    data_path: str,
-    split: str,
-    file_path: Optional[str],
-    full_name: Optional[str],
-    name_filter: Optional[str],
-    num_theorems: Optional[int],
+        data_path: str,
+        split: str,
+        file_path: Optional[str],
+        full_name: Optional[str],
+        name_filter: Optional[str],
+        num_theorems: Optional[int],
 ) -> Tuple[LeanGitRepo, List[Theorem], List[Pos]]:
     data = json.load(open(os.path.join(data_path, f"{split}.json")))
     theorems = []
@@ -50,7 +49,7 @@ def _get_theorems_from_files(
         if full_name is not None and t["full_name"] != full_name:
             continue
         if name_filter is not None and not hashlib.md5(
-            t["full_name"].encode()
+                t["full_name"].encode()
         ).hexdigest().startswith(name_filter):
             continue
         repo = LeanGitRepo(t["url"], t["commit"])

@@ -14,6 +14,26 @@ from experiments.end_to_end.common import Context
 from models.end_to_end.tactic_models.generator.model import RetrievalAugmentedGenerator
 
 
+# todo make system agnostic
+class ReProverTacGen(TacModel):
+    def __init__(self, tac_model, num_sampled_tactics=64):
+        super().__init__()
+        self.tac_model = tac_model
+        self.num_sampled_tactics = num_sampled_tactics
+
+    def get_tactics(self, goal, premises):
+        path, theorem, position = premises
+
+        tactics, new_state = self.tac_model.generate(
+            state=goal,
+            num_samples=self.num_sampled_tactics,
+            retriever_args=Context(path=path, theorem_full_name=theorem.full_name, theorem_pos=position,
+                                   state=goal)
+        )
+
+        return tactics, new_state
+
+
 # wrapper to add the retrieval augmented state to the goal node, and to call tac model with Ray
 class ReProverWrapper(TacModel):
     def __init__(self, config):
@@ -62,23 +82,3 @@ class ReProverWrapper(TacModel):
                 goal.data = {'augmented_state': new_state}
 
         return tactics
-
-
-# todo make system agnostic
-class ReProverTacGen(TacModel):
-    def __init__(self, tac_model, num_sampled_tactics=64):
-        super().__init__()
-        self.tac_model = tac_model
-        self.num_sampled_tactics = num_sampled_tactics
-
-    def get_tactics(self, goal, premises):
-        path, theorem, position = premises
-
-        tactics, new_state = self.tac_model.generate(
-            state=goal,
-            num_samples=self.num_sampled_tactics,
-            retriever_args=Context(path=path, theorem_full_name=theorem.full_name, theorem_pos=position,
-                                   state=goal)
-        )
-
-        return tactics, new_state

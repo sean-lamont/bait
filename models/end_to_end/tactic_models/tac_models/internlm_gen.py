@@ -22,23 +22,6 @@ def get_prev_tactics(goal):
         return get_prev_tactics(goal.in_edges[0].src) + goal.in_edges[0].tactic
 
 
-class InternLMWrapper(TacModel):
-    def __init__(self, tac_model):
-        super().__init__()
-        self.tac_model = tac_model
-
-    def get_tactics(self, goal, premises):
-        path, theorem, position = premises
-
-        state = f"---\nNAME: {theorem.full_name}\n\n---\nPROOF_BEFORE: {get_prev_tactics(goal)}\n\n---\nSTATE_BEFORE: {goal.goal}\n\n---\nTACTIC: "
-
-        tactics = ray.get(self.tac_model.get_tactics.remote(state, premises))
-
-        return tactics
-
-
-# todo training
-
 class InternLMGenerator:
     def __init__(self, config) -> None:
         self.sampling_params = SamplingParams(**config.sampling_params)
@@ -54,3 +37,18 @@ class InternLMGenerator:
         outputs = sorted(outputs, key=lambda x: x[1], reverse=True)
 
         return outputs, state
+
+
+class InternLMWrapper(TacModel):
+    def __init__(self, tac_model):
+        super().__init__()
+        self.tac_model = tac_model
+
+    def get_tactics(self, goal, premises):
+        path, theorem, position = premises
+
+        state = f"---\nNAME: {theorem.full_name}\n\n---\nPROOF_BEFORE: {get_prev_tactics(goal)}\n\n---\nSTATE_BEFORE: {goal.goal}\n\n---\nTACTIC: "
+
+        tactics = ray.get(self.tac_model.get_tactics.remote(state, premises))
+
+        return tactics

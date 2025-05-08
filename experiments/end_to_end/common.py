@@ -19,6 +19,8 @@ def remove_marks(s: str) -> str:
     return s.replace(MARK_START_SYMBOL, "").replace(MARK_END_SYMBOL, "")
 
 
+# todo move some of this to leandojo env
+
 @dataclass(unsafe_hash=True)
 class Context:
     """Contexts are "queries" in our retrieval setup."""

@@ -2,9 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import time
-import warnings
 import random
+import warnings
 
 import ray
 import torch
@@ -13,6 +12,7 @@ from loguru import logger
 from experiments.TacticZero.tactic_zero_data_module import *
 from models.TacticZero.policy_models import ArgPolicy, TacPolicy, TermPolicy, ContextPolicy
 from models.embedding_models.gnn.formula_net.formula_net import FormulaNetEdges
+from models.end_to_end.tactic_models.diversity_model.batched_model import BatchedDiversityModel
 from models.end_to_end.tactic_models.diversity_model.model import DiversityModel
 from models.end_to_end.tactic_models.tacticzero.model import TacticZeroTacModel
 from models.get_model import get_model
@@ -27,13 +27,16 @@ from models.end_to_end.tactic_models.tac_models.internlm_gen import InternLMGene
 from models.end_to_end.tactic_models.holist_model import holparam_predictor
 from models.end_to_end.tactic_models.holist_model import embedding_store
 from models.end_to_end.tactic_models.holist_model import action_generator
-from experiments.end_to_end.proof_node import *
+# from experiments.end_to_end.proof_node import *
+from abc import abstractmethod
+
 
 # todo tidy
 class TacModel:
     @abstractmethod
     def get_tactics(self, goals, premises):
         return
+
 
 class TacWrapper(TacModel):
     def __init__(self, tac_model):
@@ -44,6 +47,7 @@ class TacWrapper(TacModel):
         tactics = ray.get(self.tac_model.get_tactics.remote(goal, premises))
 
         return tactics
+
 
 class TopKTacGenerator(TacModel):
     def __init__(self, tac_model: TacModel, num_filtered, random=False):
@@ -63,8 +67,6 @@ class TopKTacGenerator(TacModel):
         else:
             # tactics are expected to be sorted here
             return tactics[:self.num_filtered]
-
-
 
 
 class DiversityTacGenerator(TacModel):
@@ -193,7 +195,7 @@ class InternLMTacModel(TacModel):
                 config.ckpt_path, device='cuda', freeze=True
             )
         else:
-            tac_gen = InternLMGenerator(config.config)#.to('cuda')
+            tac_gen = InternLMGenerator(config.config)  # .to('cuda')
             # tac_gen.freeze()
 
         self.tac_model = tac_gen
@@ -257,12 +259,36 @@ def get_tac_model(config, device):
         else:
             raise NotImplementedError
 
+    if config.model == 'batched_diversity_model':
+
+        if config.distributed:
+            tac_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(
+                InternLMTacModel).remote(
+                config=config, num_sampled_tactics=config.num_sampled_tactics)
+
+            filter_model = ray.remote(num_gpus=config.gpu_per_diversity, num_cpus=config.cpu_per_diversity)(
+                BatchedDiversityModel).remote(config.diversity_config, device=device)
+
+            tac_model = InternLMWrapper(tac_model)
+
+            return DiversityTacGenerator(tac_model=tac_model, filter_model=filter_model,
+                                         num_filtered=config.diversity_config.num_filtered,
+                                         temperature=config.diversity_config.temperature if hasattr(
+                                             config.diversity_config, 'temperature') else 1.,
+                                         scale=config.diversity_config.scale if hasattr(
+                                             config.diversity_config, 'scale') else 1,
+                                         p=config.diversity_config.p if hasattr(
+                                             config.diversity_config, 'p') else 0.9)
+
+        else:
+            raise NotImplementedError
+
     if config.model == 'diversity_internlm':
 
         if config.distributed:
             tac_model = ray.remote(num_gpus=config.gpu_per_process, num_cpus=config.cpu_per_process)(
-            InternLMTacModel).remote(
-            config=config, num_sampled_tactics=config.num_sampled_tactics)
+                InternLMTacModel).remote(
+                config=config, num_sampled_tactics=config.num_sampled_tactics)
 
             filter_model = ray.remote(num_gpus=config.gpu_per_diversity, num_cpus=config.cpu_per_diversity)(
                 DiversityModel).remote(config.diversity_config, device=device)
@@ -377,7 +403,7 @@ def get_tac_model(config, device):
                 InternLMTacModel).remote(
                 config=config, num_sampled_tactics=config.num_sampled_tactics)
 
-            tac_model =  InternLMWrapper(tac_model)
+            tac_model = InternLMWrapper(tac_model)
 
             return TopKTacGenerator(tac_model=tac_model,
                                     num_filtered=config.diversity_config.num_filtered,
@@ -386,7 +412,6 @@ def get_tac_model(config, device):
 
         else:
             raise NotImplementedError
-
 
     if config.model == 'reprover_large':
 

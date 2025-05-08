@@ -5,20 +5,12 @@ defaults:
 
 exp_config:
   name: combined_transition_model
-  experiment: error_pred
-  resume: true
-  directory: "runs/error_pred/combined_transition_model/2024_09_19/11_18_31"
-#  directory: runs/error_pred/combined_transition_model_val/2024_08_31/09_23_43
-#  directory: "runs/error_pred/combined_transition_model_test/2024_08_21/13_15_07"
-#  directory: runs/error_pred/combined_transition_model/2024_08_09/14_12_23
+  experiment: novel_premises_transition_pred
+
 
 logging_config:
-  project: error_pred
+  project: novel_premises_transition_pred
   offline: false
-  id: w7z63cra
-#  id: 63o7xawk
-#  id: g40re013
-#  id: socdvm9k
 
 model:
   _target_: models.end_to_end.tactic_models.error_pred.model.ErrorPredModel
@@ -46,8 +38,8 @@ data_module:
   eval_batch_size: 1
   max_seq_len: 1650
   num_workers: 0
-  collection: 'minif2f_transitions'
-  trace_files: null #'runs/minif2f_test_bestfs/0' #runs/minif2f/minif2f_bestfs/2024_07_31/16_28_47/traces/0'
+  collection: 'leandojo_novel_prems_no_split'
+  trace_files: runs/novel_prems_no_split_traces/ #'runs/minif2f_test_bestfs/0' #runs/minif2f/minif2f_bestfs/2024_07_31/16_28_47/traces/0'
   replace: 'keep' # add/keep/drop files wrt the existing collection
 
 
@@ -65,8 +57,8 @@ trainer:
 
   gradient_clip_val: 1.0
 
-#  val_check_interval: 20_000
-#  limit_val_batches: 1000
+  val_check_interval: 200_000
+  limit_val_batches: 10_000
 
 
   callbacks:

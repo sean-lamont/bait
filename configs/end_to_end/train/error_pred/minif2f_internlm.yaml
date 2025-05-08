@@ -4,7 +4,7 @@ defaults:
   - /base/exp_config@_here_
 
 exp_config:
-  name: internlm_transitions
+  name: internlm_transitions_top32
   experiment: internlm_transitions
 #  resume: true
 #  directory: "runs/error_pred/combined_transition_model/2024_09_19/11_18_31"
@@ -18,9 +18,9 @@ model:
   _target_: models.end_to_end.tactic_models.error_pred.batched_tac_embed.BatchTacEmbed
 #  _target_: models.end_to_end.tactic_models.error_pred.model.ErrorPredModel
   config:
-    load_ckpt: false
-    #    load_ckpt: true
-    #    ckpt_path: runs/combined_minif2f_valid_fixed.ckpt
+#    load_ckpt: false
+    load_ckpt: true
+    ckpt_path: runs/internlm_transition_model.ckpt
     #    ckpt_path: 'runs/diversity/large-single-vec-2/2024_07_15/10_57/checkpoints/last.ckpt'
     error_weight: 1
     time_weight: 1
@@ -38,13 +38,13 @@ data_module:
 #  _target_: models.end_to_end.tactic_models.error_pred.datamodule.ErrorPredDataModule
   _target_: models.end_to_end.tactic_models.error_pred.datamodule_separate_tac.SeparateTacModule
   model_name: kaiyuy/leandojo-lean4-tacgen-byt5-small
-  batch_size: 2 # effective_batch_size == batch_size * accumulate_grad_batches * devices
+  batch_size: 1 # effective_batch_size == batch_size * accumulate_grad_batches * devices
   eval_batch_size: 1
   max_seq_len: 1650
   num_workers: 0
   database: lean_e2e
-  collection: 'intern_lm_transitions'
-  trace_files: null #'runs/minif2f_test_bestfs/0' #runs/minif2f/minif2f_bestfs/2024_07_31/16_28_47/traces/0'
+  collection: 'intern_lm_transitions_top32'
+  trace_files: null #runs/internlm_top32/traces/0
   replace: 'keep' # add/keep/drop files wrt the existing collection
 
 
