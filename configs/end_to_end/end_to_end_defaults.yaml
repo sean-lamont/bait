@@ -22,12 +22,12 @@ log_level: 'INFO'
 
 ## Resource configuration
 
-# number of physical GPUs
+# number of physical GPUs, or GPUs to make visible to Ray
 num_gpus: 2
 
-# how many 'logical' GPUs available, should be a multiple of num_gpus.
-# Will control the number of separate tactic/search model processes
-logical_gpus: 2
+# how many 'logical' GPUs available.
+# controls the number of separate tactic/search model processes serving prover instances
+logical_gpus: 1
 
 num_cpus: 8
 

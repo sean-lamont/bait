@@ -36,10 +36,10 @@ class BatchedDiversityModel(torch.nn.Module):
 
     def load_score_network(self, config):
         score_network = torch.nn.Sequential(
-            torch.nn.Linear(self.encoder.config.d_model, self.encoder.config.d_model // 2),
-            torch.nn.LayerNorm(self.encoder.config.d_model // 2),
+            torch.nn.Linear(self.tac_encoder.config.d_model, self.tac_encoder.config.d_model // 2),
+            torch.nn.LayerNorm(self.tac_encoder.config.d_model // 2),
             torch.nn.ReLU(),
-            torch.nn.Linear(self.encoder.config.d_model // 2, 2),
+            torch.nn.Linear(self.tac_encoder.config.d_model // 2, 2),
         )
 
         ckpt = torch.load(config.ckpt_dir)
@@ -71,7 +71,7 @@ class BatchedDiversityModel(torch.nn.Module):
         return
 
     def get_autoencoder_encoding(self, tactic_ids, tactic_mask):
-        hidden_states = self.encoder(tactic_ids, tactic_mask, return_dict=True).last_hidden_state
+        hidden_states = self.tac_encoder(tactic_ids, tactic_mask, return_dict=True).last_hidden_state
 
         # Masked average.
         lens = tactic_mask.sum(dim=1)
@@ -81,7 +81,6 @@ class BatchedDiversityModel(torch.nn.Module):
 
         # Normalize the feature vector to have unit norm.
         return F.normalize(features, dim=1)
-
 
     def get_goal_encoding(self, goal_ids, goal_mask):
         goal_enc = self.goal_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
@@ -97,7 +96,7 @@ class BatchedDiversityModel(torch.nn.Module):
 
     def get_tac_encoding(self, goal_ids, goal_mask, tactic_lens):
         # encode all tokens with tactic included
-        combined_enc = self.encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
+        combined_enc = self.tac_encoder(goal_ids, goal_mask, return_dict=True).last_hidden_state
 
         # get the tactic embeddings and mean pool them using the provided lengths
         tac_enc = []
@@ -140,9 +139,10 @@ class BatchedDiversityModel(torch.nn.Module):
                 truncation=True,
                 return_tensors="pt", )
 
-            goal_enc = self.get_goal_encoding(tokenized_goal.input_ids, tokenized_goal.attention_mask)
+            goal_enc = self.get_goal_encoding(tokenized_goal.input_ids.to(self.device),
+                                              tokenized_goal.attention_mask.to(self.device))
 
-            chunk_size = 1
+            chunk_size = 64
             for ind in range(0, len(tactics), chunk_size):
                 t = [t[0] for t in tactics[ind:ind + chunk_size]]
 
@@ -160,8 +160,8 @@ class BatchedDiversityModel(torch.nn.Module):
                 if not self.autoencoder:
                     tac_embeds = self.tac_encoder.encoder.embed_tokens(tactic_ids)
 
-                    # set first embedding to be the pooled goal encoding
-                    tac_embeds_with_goal = torch.cat([goal_enc, tac_embeds], dim=1)
+                    # set first embedding to be the pooled goal encoding (expanded along batch dimension)
+                    tac_embeds_with_goal = torch.cat([goal_enc.expand(tac_embeds.shape[0], 1, goal_enc.shape[-1]), tac_embeds], dim=1)
 
                     new_mask = torch.cat([torch.ones(tactic_mask.shape[0], 1).to(self.device), tactic_mask], dim=1)
 
@@ -174,7 +174,7 @@ class BatchedDiversityModel(torch.nn.Module):
                         dim=1
                     ) / lens.unsqueeze(1)
 
-                    enc = F.normalize(tac_enc, dim=1)#.unsqueeze(1)
+                    enc = F.normalize(tac_enc, dim=1)  # .unsqueeze(1)
 
 
                 else:
@@ -236,7 +236,7 @@ class BatchedDiversityModel(torch.nn.Module):
                     # rng = np.random.RandomState(1)
                     DPP.sample_exact_k_dpp(size=num_filtered, mode='KuTa12')  # ,rng=rng)
             except Exception as e:
-                logger.error(f"Error sampling from DPP: {e}")
+                # logger.error(f"Error sampling from DPP: {e}")
                 # take the top num_filtered tactics if DPP fails
                 return [[i for i in range(num_filtered)]], sim_matrix
 

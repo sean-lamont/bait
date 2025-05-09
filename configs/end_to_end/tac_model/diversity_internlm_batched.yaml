@@ -6,8 +6,8 @@ distributed: true
 gpu_per_process: 0.9
 cpu_per_process: 0.5
 
-gpu_per_diversity: 0.225
-cpu_per_diversity: 0.125
+gpu_per_diversity: 0.9
+cpu_per_diversity: 0.5
 
 diversity_config:
   # transition only:
@@ -16,7 +16,7 @@ diversity_config:
   # combined transition/error/time prediction:
 #  ckpt_dir: runs/error_pred/combined_transition_model/combined_minif2f_valid.ckpt
 
-  ckpt_dir: runs/novel_prem_transition_model.ckpt
+  ckpt_dir: runs/internlm_transition_model.ckpt
 #  ckpt_dir: runs/minif2f_combined_val_test.ckpt
 
   model: kaiyuy/leandojo-lean4-tacgen-byt5-small
@@ -25,7 +25,7 @@ diversity_config:
   temperature: 1
   p: 0.75
 
-  score_network: true
+  score_network: false
   error_weight: 0.1
   time_weight: 0.1
 
