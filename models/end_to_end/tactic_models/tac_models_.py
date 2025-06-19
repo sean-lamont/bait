@@ -71,7 +71,7 @@ class TopKTacGenerator(TacModel):
 
 
 class DiversityTacGenerator(TacModel):
-    def __init__(self, tac_model: TacModel, filter_model, num_filtered, temperature=1., scale=1e5, p=0.9):
+    def __init__(self, tac_model: TacModel, filter_model, num_filtered, temperature=1., scale=1., p=0.9):
         super().__init__()
         self.tac_model = tac_model
         self.filter_model = filter_model
@@ -280,7 +280,7 @@ def get_tac_model(config, device):
                                          temperature=config.diversity_config.temperature if hasattr(
                                              config.diversity_config, 'temperature') else 1.,
                                          scale=config.diversity_config.scale if hasattr(
-                                             config.diversity_config, 'scale') else 1,
+                                             config.diversity_config, 'scale') else 1.,
                                          p=config.diversity_config.p if hasattr(
                                              config.diversity_config, 'p') else 0.9)
 
@@ -304,7 +304,7 @@ def get_tac_model(config, device):
                                          temperature=config.diversity_config.temperature if hasattr(
                                              config.diversity_config, 'temperature') else 1.,
                                          scale=config.diversity_config.scale if hasattr(
-                                             config.diversity_config, 'scale') else 1,
+                                             config.diversity_config, 'scale') else 1.,
                                          p=config.diversity_config.p if hasattr(
                                              config.diversity_config, 'p') else 0.9)
 
@@ -345,7 +345,7 @@ def get_tac_model(config, device):
                                          temperature=config.diversity_config.temperature if hasattr(
                                              config.diversity_config, 'temperature') else 1.,
                                          scale=config.diversity_config.scale if hasattr(
-                                             config.diversity_config, 'scale') else 1,
+                                             config.diversity_config, 'scale') else 1.,
                                          p=config.diversity_config.p if hasattr(
                                              config.diversity_config, 'p') else 0.9)
 

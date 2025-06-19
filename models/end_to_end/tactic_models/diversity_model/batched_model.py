@@ -122,14 +122,14 @@ class BatchedDiversityModel(torch.nn.Module):
                 return len(probs) - i
 
     def filter_tacs(self, tactics: List[Tuple[str, float]], num_filtered: int, state, theorem, temperature=1.,
-                    scale=1., p=0.9):
+                    scale=0.05, p=0.9):
         with torch.no_grad():
             encs = []
 
             logprobs = [t[1] / temperature for t in tactics]
 
             # get softmax over logprobs
-            probs = torch.softmax(torch.tensor(logprobs), dim=0) * scale
+            probs = torch.softmax(torch.tensor(logprobs), dim=0)
             probs = probs.to(self.device)
 
             tokenized_goal = self.tokenizer(
@@ -161,7 +161,8 @@ class BatchedDiversityModel(torch.nn.Module):
                     tac_embeds = self.tac_encoder.encoder.embed_tokens(tactic_ids)
 
                     # set first embedding to be the pooled goal encoding (expanded along batch dimension)
-                    tac_embeds_with_goal = torch.cat([goal_enc.expand(tac_embeds.shape[0], 1, goal_enc.shape[-1]), tac_embeds], dim=1)
+                    tac_embeds_with_goal = torch.cat(
+                        [goal_enc.expand(tac_embeds.shape[0], 1, goal_enc.shape[-1]), tac_embeds], dim=1)
 
                     new_mask = torch.cat([torch.ones(tactic_mask.shape[0], 1).to(self.device), tactic_mask], dim=1)
 
@@ -228,6 +229,8 @@ class BatchedDiversityModel(torch.nn.Module):
                 else:
                     # Set DPP kernel to quality-diversity decomposition
                     # quality is given by tactic probabilites, and error/time scores if available
+                    # Apply scaling factor to the probabilities
+                    probs = probs * scale
                     vec_matrix = torch.mul(vec_matrix, probs.unsqueeze(1)).cpu().numpy()
                     vec_matrix = vec_matrix @ vec_matrix.T
 
@@ -241,4 +244,5 @@ class BatchedDiversityModel(torch.nn.Module):
                 return [[i for i in range(num_filtered)]], sim_matrix
 
         # logger.warning(f"DPP sampling time: {time.monotonic() - t0}")
+        # logger.error(f'Success sample from DPP')
         return DPP.list_of_samples, sim_matrix

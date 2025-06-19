@@ -3,10 +3,10 @@ defaults:
   - end_to_end_defaults
   - env_config/lean4_env
   - tac_model/diversity_internlm_batched
-  - search_model/bestfs
+  - search_model/internlm_critic
 
 exp_config:
-  name: 3dprover_internlm_k8
+  name: 3dprover_internlm_critic_k8
   experiment: internlm_dpp
 #  resume: true
 #  directory: runs/internlm_dpp/3dprover_internlm_k8/2025_05_13/03_37_51

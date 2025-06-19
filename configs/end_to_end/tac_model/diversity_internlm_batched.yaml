@@ -3,10 +3,10 @@ ckpt_path: null
 num_sampled_tactics: 64
 
 distributed: true
-gpu_per_process: 0.9
+gpu_per_process: 0.6
 cpu_per_process: 0.5
 
-gpu_per_diversity: 0.9
+gpu_per_diversity: 0.45
 cpu_per_diversity: 0.5
 
 diversity_config:
@@ -22,12 +22,13 @@ diversity_config:
   model: kaiyuy/leandojo-lean4-tacgen-byt5-small
   max_seq_len: 2300
   num_filtered: 8
-  temperature: 1
+  temperature: 2
   p: 0.75
+  scale: 0.05  # Added scale parameter
 
-  score_network: false
+  score_network: true
   error_weight: 0.1
-  time_weight: 0.1
+  time_weight: 0.0
 
   error_only: false
   fixed_size: true

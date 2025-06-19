@@ -1,5 +1,5 @@
 search: internlm
 model_name: "internlm/internlm2_5-step-prover-critic"
 distributed: true
-gpu_per_process: 0.9
+gpu_per_process: 0.5
 cpu_per_process: 0.5
