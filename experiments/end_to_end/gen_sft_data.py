@@ -24,8 +24,8 @@ def get_proven_traces(path):
             trace = pickle.load(open(file, "rb"))
             if trace.proof:
                 proven.append(trace)
-        except:
-            # print ('Failed to load:', file)
+        except Exception:
+            # Silently skip files that fail to load
             continue
 
     return proven
@@ -239,7 +239,8 @@ def generate(input):
         # print(chunk.text, end="")
         try:
             out += chunk.text
-        except:
+        except AttributeError:
+            # Skip chunks without text attribute
             continue
 
     return out

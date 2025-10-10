@@ -47,8 +47,8 @@ def check_file(trace):
 def process_file(file):
     try:
         trace = pickle.load(open(file, 'rb'))
-    except:
-        logger.warning(f'Error loading {file}')
+    except Exception as e:
+        logger.warning(f'Error loading {file}: {e}')
         return 0, 0
     verified_proof = 0
 
