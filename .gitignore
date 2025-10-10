@@ -2,3 +2,8 @@
 /data/INT/data/*
 /data/HOL4/data/*
 /runs
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python

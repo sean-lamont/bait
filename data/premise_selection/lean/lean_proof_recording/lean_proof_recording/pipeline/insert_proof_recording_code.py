@@ -104,13 +104,9 @@ def insert_param_tracing_code(dryrun: bool):
     modifier.add_lines(l2, tactic_recording_code)
     modifier.build_file(dryrun=dryrun)
 
-    # conv interactive
-    # FIXME: This doesn't work as expected.  Commenting it out for now.
-    # _, l2 = find_code_location(CONV_INTERACTIVE_LEAN_FILE, CONV_ITACTIC_CODE)
-    # tactic_recording_code = get_modification(CONV_INTERACTIVE_LEAN_FILE_MODIFICATIONS)
-    # modifier = LeanModifier(CONV_INTERACTIVE_LEAN_FILE)
-    # modifier.add_lines(l2, tactic_recording_code)
-    # modifier.build_file(dryrun=dryrun)
+    # NOTE: Conv interactive modification is currently disabled as it doesn't work as expected.
+    # The conversion interactive tactics would require special handling that is not yet implemented.
+
 
 
 @dataclass
@@ -246,19 +242,15 @@ class ModifyInterativeParameters:
                 else:
                     raise Exception(f"Unexpected monad type: {monad_type}")
 
-                # FIXME: Conv not working right, so skip it
+                # NOTE: Conv interactive tactics are not working correctly and are skipped
                 if parser.startswith("tactic"):
                     s += "interactive.parse ("
                     s += parser
-                    # s += " " + json.dumps(tactic_name)  # easiest way to escape strings
-                    # s += " " + str(param.param_ix)
                     s += ") "
                 else:
                     s += param.command
             elif param.command == "parse":
                 s += "interactive.parse (interactive.pr.recorded"
-                # s += " " + json.dumps(tactic_name)  # easiest way to escape strings
-                # s += " " + str(param.param_ix)
                 parser = lean_file.slice_string(
                     param.parser_pos.line,
                     param.parser_pos.column,
@@ -268,7 +260,6 @@ class ModifyInterativeParameters:
                 parser = parser.strip()
                 if parser.startswith("(") and parser.endswith(")"):
                     parser = parser[1:-1].strip()
-                # s += " " + json.dumps(parser)  # easiest way to escape strings
                 s += " (" + parser + ")) "
             else:
                 assert False
@@ -380,14 +371,6 @@ class ModifyInterativeParameters:
             for mod in modifications:
                 modifier.replace_lines(mod.line, mod.end_line, mod.new_lines)
             modifier.build_file(dryrun=dryrun)
-
-            # print(file)
-            # for mod in modifications:
-            #     print("=======")
-            #     print(lean_file.slice_string(mod.line, 0, mod.end_line, 0), end="")
-            #     print(" => ")
-            #     print(mod.new_lines, end="")
-            #     print("=======")
 
 
 def _run_modify(f: Path, dryrun: bool):

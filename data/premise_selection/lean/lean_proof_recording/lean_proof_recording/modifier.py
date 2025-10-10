@@ -2,6 +2,12 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set
 
 
+# Marker constants for code modifications
+MARKER_BEGIN_INSERT = "--PR BEGIN CODE INSERT"
+MARKER_END_INSERT = "--PR END CODE INSERT"
+MARKER_REMOVE_LINE = "--PR REMOVE LINE: "
+
+
 class LeanModifier:
     lean_path: Path
     deletions: Set[int]
@@ -70,6 +76,19 @@ class LeanModifier:
         assert self.end_addition is None, f"Can't make multiple additions to end of file."
         self.end_addition = lines[:-1].split("\n")
 
+    def _add_code_block(self, new_lines: List[str], lines_to_add: List[str], verbose: bool):
+        """Helper method to add a code block with markers."""
+        new_lines.append(f"{MARKER_BEGIN_INSERT}\n")
+        if verbose:
+            print(MARKER_BEGIN_INSERT)
+        for new_line in lines_to_add:
+            new_lines.append(new_line + "\n")
+            if verbose:
+                print(new_line)
+        new_lines.append(f"{MARKER_END_INSERT}\n")
+        if verbose:
+            print(MARKER_END_INSERT)
+
     def build_file(self, dryrun: bool = False, verbose=False):
         """
         Apply all edits and replace the current lean file.
@@ -82,33 +101,15 @@ class LeanModifier:
         with open(self.lean_path, "r") as f:
             for ix, line in enumerate(f):
                 if ix in self.additions:
-                    new_lines.append("--PR BEGIN CODE INSERT\n")
-                    if verbose:
-                        print("--PR BEGIN CODE INSERT")
-                    for new_line in self.additions[ix]:
-                        new_lines.append(new_line + "\n")
-                        if verbose:
-                            print(new_line)
-                    new_lines.append("--PR END CODE INSERT\n")
-                    if verbose:
-                        print("--PR END CODE INSERT")
+                    self._add_code_block(new_lines, self.additions[ix], verbose)
                 if ix in self.deletions:
-                    new_lines.append("--PR REMOVE LINE: " + line)
+                    new_lines.append(f"{MARKER_REMOVE_LINE}{line}")
                     if verbose:
-                        print("--PR REMOVE LINE: " + line.rstrip())
+                        print(f"{MARKER_REMOVE_LINE}{line.rstrip()}")
                 else:
                     new_lines.append(line)
             if self.end_addition is not None:
-                new_lines.append("--PR BEGIN CODE INSERT\n")
-                if verbose:
-                    print("--PR BEGIN CODE INSERT")
-                for new_line in self.end_addition:
-                    new_lines.append(new_line + "\n")
-                    if verbose:
-                        print(new_line)
-                new_lines.append("--PR END CODE INSERT\n")
-                if verbose:
-                    print("--PR END CODE INSERT")
+                self._add_code_block(new_lines, self.end_addition, verbose)
         if not dryrun:
             self.lean_path.chmod(0o644)  # set file permissions to -rw-r--r--
             with open(self.lean_path, "w") as f:
