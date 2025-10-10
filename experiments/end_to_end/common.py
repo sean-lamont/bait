@@ -94,7 +94,7 @@ class LeanPremise(Premise):
 
         for i in range(len(fields)):
             prefix = ".".join(fields[i:])
-            new_code = re.sub(f"(?<=\s)«?{prefix}»?", annot_full_name, code)
+            new_code = re.sub(rf"(?<=\s)«?{prefix}»?", annot_full_name, code)
             if new_code != code:
                 code = new_code
                 break
@@ -147,17 +147,22 @@ class File:
     """
 
     @classmethod
+    def _is_valid_premise(cls, premise_data: Dict[str, Any]) -> bool:
+        """Check if a premise should be included (not ill-formed or mutual definition)."""
+        full_name = premise_data["full_name"]
+        if "user__.n" in full_name or premise_data["code"] == "":
+            return False
+        if full_name.startswith("[") and full_name.endswith("]"):
+            return False
+        return True
+
+    @classmethod
     def from_data(cls, file_data: Dict[str, Any]) -> "File":
         """Construct a :class:`File` object from ``file_data``."""
         path = file_data["path"]
         premises = []
         for p in file_data["premises"]:
-            if "user__.n" in p["full_name"] or p["code"] == "":
-                # Ignore ill-formed premises (often due to errors in ASTs).
-                continue
-            full_name = p["full_name"]
-            if full_name.startswith("[") and full_name.endswith("]"):
-                # Ignore mutual definitions.
+            if not cls._is_valid_premise(p):
                 continue
             premises.append(
                 LeanPremise(
